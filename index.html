@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Principles of Robot Autonomy</title>
+    <meta
+      name="description"
+      content="Official website for Principles of Robot Autonomy: theory, software, notebooks, and exercises for modern autonomous robotics."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f6f1e7;
+        --bg-soft: #efe7d6;
+        --paper: #fffaf0;
+        --ink: #11202e;
+        --muted: #4b5b69;
+        --line: #d4c7b3;
+        --accent: #e55f2d;
+        --accent-2: #1f7a8c;
+        --accent-3: #e8b923;
+        --shadow: 0 14px 40px rgba(17, 32, 46, 0.1);
+        --radius-lg: 24px;
+        --radius-md: 14px;
+        --max-width: 1180px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: radial-gradient(circle at 10% 5%, #fffef7 0%, var(--bg) 52%),
+          radial-gradient(circle at 90% 0%, #efe0c2 0%, transparent 42%),
+          var(--bg);
+        color: var(--ink);
+        font-family: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        scroll-behavior: smooth;
+      }
+
+      body {
+        position: relative;
+        overflow-x: hidden;
+      }
+
+      .bg-shape {
+        position: fixed;
+        z-index: -1;
+        border-radius: 999px;
+        filter: blur(10px);
+        opacity: 0.35;
+        pointer-events: none;
+      }
+
+      .bg-shape.one {
+        width: 420px;
+        height: 420px;
+        top: -140px;
+        right: -90px;
+        background: linear-gradient(135deg, #ef8f55, #f5c86c);
+        animation: driftA 18s ease-in-out infinite;
+      }
+
+      @keyframes driftA {
+        0%,
+        100% {
+          transform: translateY(0px);
+        }
+        50% {
+          transform: translateY(16px);
+        }
+      }
+
+      .container {
+        width: min(var(--max-width), 92vw);
+        margin: 0 auto;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        backdrop-filter: blur(10px);
+        background: color-mix(in srgb, var(--paper) 82%, transparent);
+        border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+      }
+
+      .topbar-inner {
+        min-height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+      }
+
+      .brand {
+        display: flex;
+        flex-direction: column;
+        text-decoration: none;
+        color: var(--ink);
+      }
+
+      .brand strong {
+        font-size: 1rem;
+        letter-spacing: 0.02em;
+      }
+
+      .brand span {
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+
+      .menu-btn {
+        display: none;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--paper);
+        color: var(--ink);
+        padding: 8px 12px;
+        font-weight: 600;
+      }
+
+      nav ul {
+        display: flex;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        gap: 18px;
+      }
+
+      nav a {
+        text-decoration: none;
+        color: var(--ink);
+        font-size: 0.9rem;
+        font-weight: 500;
+        position: relative;
+      }
+
+      nav a::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        bottom: -6px;
+        width: 100%;
+        height: 2px;
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.25s ease;
+        background: var(--accent);
+      }
+
+      nav a:hover::after,
+      nav a:focus-visible::after {
+        transform: scaleX(1);
+      }
+
+      .hero {
+        padding: 90px 0 72px;
+      }
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 26px;
+        align-items: stretch;
+      }
+
+      .hero-main {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow);
+        padding: clamp(24px, 4vw, 42px);
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #f7e6dc;
+        border: 1px solid #efc9b4;
+        color: #a7441f;
+        border-radius: 999px;
+        padding: 7px 12px;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 700;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        line-height: 1.1;
+      }
+
+      h1 {
+        margin-top: 14px;
+        font-size: clamp(2rem, 4.4vw, 4rem);
+        letter-spacing: -0.02em;
+      }
+
+      .lead {
+        margin: 20px 0 0;
+        font-family: "Source Serif 4", Georgia, serif;
+        color: #243444;
+        font-size: clamp(1.06rem, 1.45vw, 1.35rem);
+        line-height: 1.64;
+      }
+
+      .cta-row {
+        margin-top: 24px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .btn {
+        border: 0;
+        border-radius: 10px;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 0.94rem;
+        padding: 12px 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .btn.primary {
+        background: linear-gradient(135deg, var(--accent), #f08a4e);
+        color: white;
+      }
+
+      .btn.ghost {
+        border: 1px solid var(--line);
+        background: #fff;
+        color: var(--ink);
+      }
+
+      .hero-side {
+        display: grid;
+        gap: 14px;
+      }
+
+      .metric,
+      .quote-box {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-md);
+        padding: 20px;
+      }
+
+      .metric strong {
+        font-size: 2rem;
+        color: var(--accent-2);
+      }
+
+      .metric p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 0.94rem;
+      }
+
+      .quote-box p {
+        margin: 0;
+        font-family: "Source Serif 4", Georgia, serif;
+        line-height: 1.58;
+        color: #2f4050;
+      }
+
+      section {
+        padding: 40px 0;
+      }
+
+      .section-head {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+
+      .section-head h2 {
+        font-size: clamp(1.5rem, 2.2vw, 2.3rem);
+      }
+
+      .section-head p {
+        margin: 0;
+        color: var(--muted);
+        max-width: 640px;
+      }
+
+      .panel {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-lg);
+        padding: clamp(20px, 3.2vw, 34px);
+      }
+
+      .three-col {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .pill-card {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 18px;
+        background: #fff;
+      }
+
+      .pill-card h3 {
+        font-size: 1.1rem;
+      }
+
+      .pill-card p {
+        margin: 10px 0 0;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .stack-line {
+        margin-top: 18px;
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 8px;
+      }
+
+      .stack-line div {
+        border-radius: 999px;
+        padding: 8px;
+        font-size: 0.78rem;
+        text-align: center;
+        border: 1px solid var(--line);
+        background: #fff;
+        color: #314556;
+      }
+
+      .stack-line .see {
+        background: #e7f4f7;
+      }
+
+      .stack-line .think {
+        background: #fef4e1;
+      }
+
+      .stack-line .act {
+        background: #fbe9df;
+      }
+
+      .gallery-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .gallery-item {
+        position: relative;
+        border-radius: 14px;
+        overflow: hidden;
+        min-height: 180px;
+      }
+
+      .gallery-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        transform: scale(1.02);
+      }
+
+      .gallery-item span {
+        position: absolute;
+        left: 10px;
+        bottom: 10px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 6px 9px;
+        border-radius: 8px;
+      }
+
+      .parts-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .part-card {
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: #fff;
+        padding: 18px;
+      }
+
+      .part-card .tag {
+        display: inline-block;
+        font-size: 0.74rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 6px 8px;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        font-weight: 700;
+      }
+
+      .part-card:nth-child(1) .tag {
+        background: #fbe4db;
+        color: #8e3417;
+      }
+
+      .part-card:nth-child(2) .tag {
+        background: #dff0f4;
+        color: #195668;
+      }
+
+      .part-card:nth-child(3) .tag {
+        background: #f7edd8;
+        color: #805e17;
+      }
+
+      .part-card:nth-child(4) .tag {
+        background: #efe4fa;
+        color: #56307e;
+      }
+
+      .part-card h3 {
+        font-size: 1.05rem;
+      }
+
+      .part-card p {
+        margin: 10px 0 0;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .resources {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+
+      .resource {
+        border: 1px dashed #bea57f;
+        background: #fff7eb;
+        border-radius: 14px;
+        padding: 18px;
+      }
+
+      .resource h3 {
+        margin-bottom: 8px;
+      }
+
+      .resource p {
+        margin: 0;
+        color: #364758;
+      }
+
+      .resource a {
+        margin-top: 12px;
+        display: inline-block;
+        color: #8c3e1f;
+        font-weight: 700;
+      }
+
+      details {
+        border-top: 1px solid var(--line);
+        padding: 12px 0;
+      }
+
+      details:first-child {
+        border-top: 0;
+      }
+
+      summary {
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      details p {
+        margin: 10px 0 0;
+        color: var(--muted);
+        line-height: 1.58;
+      }
+
+      .footer {
+        padding: 44px 0 54px;
+        color: #324355;
+      }
+
+      .footer .panel {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 18px;
+        align-items: center;
+      }
+
+      .footer p {
+        margin: 0;
+      }
+
+      .reveal {
+        opacity: 0;
+        transform: translateY(16px);
+        transition: opacity 0.7s ease, transform 0.7s ease;
+      }
+
+      .reveal.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      @media (max-width: 1050px) {
+        .hero-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .parts-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .three-col {
+          grid-template-columns: 1fr;
+        }
+
+        .stack-line {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+
+      @media (max-width: 760px) {
+        .topbar-inner {
+          flex-wrap: wrap;
+          min-height: 62px;
+          padding: 8px 0;
+        }
+
+        .menu-btn {
+          display: inline-flex;
+        }
+
+        nav {
+          width: 100%;
+          display: none;
+        }
+
+        nav.open {
+          display: block;
+        }
+
+        nav ul {
+          width: 100%;
+          flex-direction: column;
+          padding-bottom: 8px;
+        }
+
+        .gallery-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .resources,
+        .footer .panel {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 520px) {
+        .parts-grid,
+        .gallery-grid,
+        .stack-line {
+          grid-template-columns: 1fr;
+        }
+
+        .hero {
+          padding-top: 68px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg-shape one" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <div class="container topbar-inner">
+        <a class="brand" href="#top">
+          <strong>Principles of Robot Autonomy</strong>
+          <span>Official textbook website</span>
+        </a>
+        <button class="menu-btn" id="menuBtn" aria-label="Toggle navigation">Menu</button>
+        <nav id="siteNav" aria-label="Main">
+          <ul>
+            <li><a href="#top">Home</a></li>
+            <li><a href="#coming-soon">Coming Soon</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="container hero-grid">
+          <article class="hero-main reveal">
+            <!-- <span class="eyebrow">Stanford Autonomous Systems Lab</span> -->
+            <h1>Learn to build robots that can see, think, and act.</h1>
+            <p class="lead">
+              <em>Principles of Robot Autonomy</em> presents a unified view of perception,
+              estimation, planning, and control, from classical model-based pipelines to
+              modern learned and end-to-end methods.
+            </p>
+            <div class="cta-row">
+              <a class="btn primary" href="#coming-soon">Coming Soon</a>
+              <a class="btn ghost" href="https://github.com/StanfordASL/pora-exercises.git" target="_blank" rel="noreferrer">Exercises Repository</a>
+            </div>
+          </article>
+
+          <aside class="hero-side">
+            <div class="metric reveal">
+              <strong>Textbook + Notebooks</strong>
+              <p>A practical roadmap for modern autonomy systems, from theory to implementation.</p>
+            </div>
+            <div class="metric reveal">
+              <strong id="coming-soon">Coming soon!</strong>
+              <p>
+                The full website with chapters, teaching materials, and additional resources is currently in development.
+              </p>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container panel">
+        <p>
+          Principles of Robot Autonomy. Official textbook website.
+        </p>
+        <a class="btn ghost" href="#top">Back to Top</a>
+      </div>
+    </footer>
+
+    <script>
+      const nav = document.getElementById("siteNav");
+      const menuBtn = document.getElementById("menuBtn");
+      menuBtn.addEventListener("click", () => {
+        nav.classList.toggle("open");
+      });
+
+      nav.querySelectorAll("a").forEach((link) => {
+        link.addEventListener("click", () => nav.classList.remove("open"));
+      });
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("visible");
+              observer.unobserve(entry.target);
+            }
+          });
+        },
+        { threshold: 0.12 }
+      );
+
+      document.querySelectorAll(".reveal").forEach((el, i) => {
+        el.style.transitionDelay = `${Math.min(i * 40, 240)}ms`;
+        observer.observe(el);
+      });
+    </script>
+  </body>
+</html>
