@@ -1,0 +1,1133 @@
+
+<div id="p1" class="ltx_para">
+<p class="ltx_p">The previous chapters focused on using camera models to identify the relationship between points in a 3D scene and their projections onto the camera image, as well as how to leverage those models to reconstruct 3D scene structure from images.
+In this chapter, we introduce methods for extracting various types of information from images through both low-level image processing and higher-level feature extraction techniques.</p>
+</div>
+<div id="p2" class="ltx_para">
+<p class="ltx_p">We begin with image processing fundamentals, including filtering, feature detection, and description in Section <a href="#S1" title="8.1 Image Processing Fundamentals" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.1</span></a>. We then discuss geometric feature extraction methods in Section <a href="#S2" title="8.2 Geometric Feature Extraction" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.2</span></a> for identifying structure in sensor data. Finally, in Section <a href="#S3" title="8.3 Feature-Based Object Detection" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.3</span></a>, we cover feature-based object detection approaches and discuss how classical perception methods remain relevant in modern robotics applications.</p>
+</div>
+<section id="S1" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">8.1 </span>Image Processing Fundamentals</h2>
+
+<div id="S1.p1" class="ltx_para">
+<p class="ltx_p">At its core, image processing is a form of signal processing where the input signal is an image, such as a photo or a video, and the output is either an image or a set of parameters associated with the image. Extracting visual content from raw images is important for mobile robots to be able to intelligently interpret their surroundings<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.p1.p1" class="ltx_para">
+<span class="ltx_p">Information extracted through image processing can have a significant impact on a robot’s ability to perform fundamental tasks including localization, mapping, and decision making.</span>
+</span></span></span></span></span>. While a large number of image processing techniques exist, in this chapter, we focus on some of the more fundamental methods that are relevant for robotics<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">7</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">7.</span> Siegwart, R., Nourbakhsh, I. R., Scaramuzza, D. <em>Introduction to Autonomous Mobile Robots</em>. MIT Press, 2011.</span></span></span>.</p>
+</div>
+<section id="S1.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">8.1.1 </span>Image Filtering</h3>
+
+<div id="S1.SS1.p1" class="ltx_para">
+<p class="ltx_p">Image filtering is one of the principal tasks in image processing.
+The term <em class="ltx_emph ltx_font_italic">filter</em> comes from frequency domain signal processing and refers to the process of accepting or rejecting certain frequency components of a signal<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS1.p1.p1" class="ltx_para">
+<span class="ltx_p">For example, eliminating high-frequency noise is a classic filtering problem.</span>
+</span></span></span></span></span>.
+Perhaps the most common type of image filtering is <em class="ltx_emph ltx_font_italic">spatial filtering</em>.
+The basic principle of spatial filtering is that a particular pixel is modified in the filtered image based on the pixels in the immediate spatial neighborhood, as we show in Figure&#160;<a href="#S1.F1" title="Figure 8.1 ‣ 8.1.1 Image Filtering ‣ 8.1 Image Processing Fundamentals" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.1</span></a>.</p>
+</div>
+<div id="S1.SS1.p2" class="ltx_para">
+<p class="ltx_p">Mathematically, we describe an image as a function, <math id="S1.SS1.p2.m1" class="ltx_Math" alttext="I(x,y)" display="inline"><mrow><mi>I</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow></math>, that maps a pixel at coordinate <math id="S1.SS1.p2.m2" class="ltx_Math" alttext="(x,y)" display="inline"><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></math> in the domain <math id="S1.SS1.p2.m3" class="ltx_Math" alttext="[a,b]\times[c,d]" display="inline"><mrow><mrow><mo stretchy="false">[</mo><mi>a</mi><mo>,</mo><mi>b</mi><mo rspace="0.055em" stretchy="false">]</mo></mrow><mo rspace="0.222em">×</mo><mrow><mo stretchy="false">[</mo><mi>c</mi><mo>,</mo><mi>d</mi><mo stretchy="false">]</mo></mrow></mrow></math> to either a scalar for grayscale images or a three-dimensional vector corresponding to red, green, and blue values for color images.
+A spatial filter for an image, <math id="S1.SS1.p2.m4" class="ltx_Math" alttext="I(x,y)" display="inline"><mrow><mi>I</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow></math>, consists of a neighborhood of pixels around a particular point, <math id="S1.SS1.p2.m5" class="ltx_Math" alttext="(x,y)" display="inline"><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></math>, under examination, which we denote as <math id="S1.SS1.p2.m6" class="ltx_Math" alttext="S_{xy}" display="inline"><msub><mi>S</mi><mrow><mi>x</mi><mo>⁢</mo><mi>y</mi></mrow></msub></math><span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS1.p2.p1" class="ltx_para">
+<span class="ltx_p">This region is typically rectangular.</span>
+</span></span></span></span></span>, and a predefined operation, <math id="S1.SS1.p2.m7" class="ltx_Math" alttext="F" display="inline"><mi>F</mi></math>, that is performed on the image pixels encompassed by the neighborhood <math id="S1.SS1.p2.m8" class="ltx_Math" alttext="S_{xy}" display="inline"><msub><mi>S</mi><mrow><mi>x</mi><mo>⁢</mo><mi>y</mi></mrow></msub></math>.
+We define a new image, <math id="S1.SS1.p2.m9" class="ltx_Math" alttext="I^{\prime}(x,y)" display="inline"><mrow><msup><mi>I</mi><mo>′</mo></msup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow></math>, by applying the spatial filter operation <math id="S1.SS1.p2.m10" class="ltx_Math" alttext="F" display="inline"><mi>F</mi></math> to all pixels, <math id="S1.SS1.p2.m11" class="ltx_Math" alttext="(x,y)" display="inline"><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></math>, in the original image, <math id="S1.SS1.p2.m12" class="ltx_Math" alttext="I" display="inline"><mi>I</mi></math>.</p>
+</div>
+<figure id="S1.F1" class="ltx_figure"><img style="width:75%;height:auto" src="/book-assets/classical-perception/figs__ch10_figs__spatialfiltering.png" id="S1.F1.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 8.1</span>: </span><span class="ltx_text" style="font-size:90%;">Illustration of the concept of spatial filtering.
+The spatial filter operates on a neighborhood, <math id="S1.F1.m2" class="ltx_Math" alttext="S_{xy}" display="inline"><msub><mi>S</mi><mrow><mi>x</mi><mo>⁢</mo><mi>y</mi></mrow></msub></math>, of each point in the original image to produce a new pixel in the filtered image.</span></figcaption>
+</figure>
+<div id="S1.SS1.p3" class="ltx_para">
+<p class="ltx_p">In general, filters can leverage linear or nonlinear operations, but many of the most fundamental filters are linear and we can express them mathematically as:</p>
+<table id="S1.E1" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E1.m1" class="ltx_Math" alttext="I^{\prime}(x,y)=F\circ I=\sum_{i=-N}^{N}\sum_{j=-M}^{M}F(i,j)I(x+i,y+j)," display="block"><mrow><mrow><mrow><msup><mi>I</mi><mo>′</mo></msup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>F</mi><mo lspace="0.222em" rspace="0.222em">∘</mo><mi>I</mi></mrow><mo rspace="0.111em">=</mo><mrow><munderover><mo movablelimits="false" rspace="0em">∑</mo><mrow><mi>i</mi><mo>=</mo><mrow><mo>−</mo><mi>N</mi></mrow></mrow><mi>N</mi></munderover><mrow><munderover><mo movablelimits="false">∑</mo><mrow><mi>j</mi><mo>=</mo><mrow><mo>−</mo><mi>M</mi></mrow></mrow><mi>M</mi></munderover><mrow><mi>F</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mi>I</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>+</mo><mi>i</mi></mrow><mo>,</mo><mrow><mi>y</mi><mo>+</mo><mi>j</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(8.1)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S1.SS1.p3.m1" class="ltx_Math" alttext="N" display="inline"><mi>N</mi></math> and <math id="S1.SS1.p3.m2" class="ltx_Math" alttext="M" display="inline"><mi>M</mi></math> are integers that define the width and height of a rectangular neighborhood, <math id="S1.SS1.p3.m3" class="ltx_Math" alttext="S_{xy}" display="inline"><msub><mi>S</mi><mrow><mi>x</mi><mo>⁢</mo><mi>y</mi></mrow></msub></math>.
+Based on the size of this neighborhood, we say that this filter is of size <math id="S1.SS1.p3.m4" class="ltx_Math" alttext="(2N+1)\times(2M+1)" display="inline"><mrow><mrow><mo stretchy="false">(</mo><mrow><mrow><mn>2</mn><mo>⁢</mo><mi>N</mi></mrow><mo>+</mo><mn>1</mn></mrow><mo rspace="0.055em" stretchy="false">)</mo></mrow><mo rspace="0.222em">×</mo><mrow><mo stretchy="false">(</mo><mrow><mrow><mn>2</mn><mo>⁢</mo><mi>M</mi></mrow><mo>+</mo><mn>1</mn></mrow><mo stretchy="false">)</mo></mrow></mrow></math>.
+We generally refer to the filter operation <math id="S1.SS1.p3.m5" class="ltx_Math" alttext="F" display="inline"><mi>F</mi></math> as a <em class="ltx_emph ltx_font_italic">mask</em> or <em class="ltx_emph ltx_font_italic">kernel</em>.
+Broadly speaking, we refer to filters expressed by Equation&#160;<a href="#S1.E1" title="In 8.1.1 Image Filtering ‣ 8.1 Image Processing Fundamentals" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.1</span></a> as <em class="ltx_emph ltx_font_italic">correlation filters</em>.</p>
+</div>
+<div id="S1.SS1.p4" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Convolution</em> filters are another class of linear filters that we commonly use.
+Convolution filters are similar to correlation filters, but use reverse image indices<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS1.p4.p1" class="ltx_para">
+<span class="ltx_p">In fact, correlation and convolution filters are identical when the filter mask is symmetric in both the horizontal and vertical directions.</span>
+</span></span></span></span></span>.
+In particular, we express convolution filters mathematically by:</p>
+<table id="S1.E2" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E2.m1" class="ltx_Math" alttext="I^{\prime}(x,y)=F\ast I=\sum_{i=-N}^{N}\sum_{j=-M}^{M}F(i,j)I(x-i,y-j)." display="block"><mrow><mrow><mrow><msup><mi>I</mi><mo>′</mo></msup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>F</mi><mo lspace="0.222em" rspace="0.222em">∗</mo><mi>I</mi></mrow><mo rspace="0.111em">=</mo><mrow><munderover><mo movablelimits="false" rspace="0em">∑</mo><mrow><mi>i</mi><mo>=</mo><mrow><mo>−</mo><mi>N</mi></mrow></mrow><mi>N</mi></munderover><mrow><munderover><mo movablelimits="false">∑</mo><mrow><mi>j</mi><mo>=</mo><mrow><mo>−</mo><mi>M</mi></mrow></mrow><mi>M</mi></munderover><mrow><mi>F</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mi>I</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>−</mo><mi>i</mi></mrow><mo>,</mo><mrow><mi>y</mi><mo>−</mo><mi>j</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(8.2)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Convolution filters are associative, meaning that for two different filter masks, <math id="S1.SS1.p4.m1" class="ltx_Math" alttext="F" display="inline"><mi>F</mi></math> and <math id="S1.SS1.p4.m2" class="ltx_Math" alttext="G" display="inline"><mi>G</mi></math>, it is true that <math id="S1.SS1.p4.m3" class="ltx_Math" alttext="F*(G*I)=(F*G)*I" display="inline"><mrow><mrow><mi>F</mi><mo lspace="0.222em" rspace="0.222em">∗</mo><mrow><mo stretchy="false">(</mo><mrow><mi>G</mi><mo lspace="0.222em" rspace="0.222em">∗</mo><mi>I</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mrow><mo stretchy="false">(</mo><mrow><mi>F</mi><mo lspace="0.222em" rspace="0.222em">∗</mo><mi>G</mi></mrow><mo rspace="0.055em" stretchy="false">)</mo></mrow><mo rspace="0.222em">∗</mo><mi>I</mi></mrow></mrow></math>.
+This associative property is useful for tasks such as smoothing an image before applying a differentiation filter.
+Suppose the mask <math id="S1.SS1.p4.m4" class="ltx_Math" alttext="F" display="inline"><mi>F</mi></math> implements a derivative filter and <math id="S1.SS1.p4.m5" class="ltx_Math" alttext="G" display="inline"><mi>G</mi></math> implements a smoothing filter, then sequentially applying these filters would result in <math id="S1.SS1.p4.m6" class="ltx_Math" alttext="F*(G*I)" display="inline"><mrow><mi>F</mi><mo lspace="0.222em" rspace="0.222em">∗</mo><mrow><mo stretchy="false">(</mo><mrow><mi>G</mi><mo lspace="0.222em" rspace="0.222em">∗</mo><mi>I</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></math>.
+However, because of the associative property, we can convolve the masks together first such that only the single filter <math id="S1.SS1.p4.m7" class="ltx_Math" alttext="(F*G)*I" display="inline"><mrow><mrow><mo stretchy="false">(</mo><mrow><mi>F</mi><mo lspace="0.222em" rspace="0.222em">∗</mo><mi>G</mi></mrow><mo rspace="0.055em" stretchy="false">)</mo></mrow><mo rspace="0.222em">∗</mo><mi>I</mi></mrow></math> needs to be applied to the image.</p>
+</div>
+<div id="S1.SS1.p5" class="ltx_para">
+<p class="ltx_p">Note that in both correlation and convolution filters, the boundaries of the image need some special care because of the width and height of the mask.
+For example, in Figure&#160;<a href="#S1.F2" title="Figure 8.2 ‣ 8.1.1 Image Filtering ‣ 8.1 Image Processing Fundamentals" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.2</span></a> we show how the filtered image is smaller than the original due to the width and height of the mask.
+Some possible options to handle this include padding the image, cropping it, extending it, or wrapping it.
+However, as images are generally quite large relative to the mask size, the exact approach likely won’t vary the final result significantly.</p>
+</div>
+<figure id="S1.F2" class="ltx_figure"><img style="width:65%;height:auto" src="/book-assets/classical-perception/figs__ch10_figs__centerfilter_nopadding.png" id="S1.F2.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 8.2</span>: </span><span class="ltx_text" style="font-size:90%;">Due to the width and height of the mask, the filtered image may be smaller than the original.
+This can be fixed with several techniques, such as padding.</span></figcaption>
+</figure>
+<div id="S1.Thmexample1" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 8.1.1</span></span><span class="ltx_text ltx_font_bold"> </span>(Practical tricks for image filtering)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmexample1.p1" class="ltx_para">
+<p class="ltx_p">When implementing correlation and convolution filters, we can leverage special tricks to simplify the process.
+In this example, we introduce two simplification tricks: a change in indexing and zero-padding.</p>
+</div>
+<div id="S1.Thmexample1.p2" class="ltx_para">
+<p class="ltx_p">First, to accommodate varying sizes of filters, including even and odd sized filters, we can change the indexing such that the coordinate of interest is associated with the top-left element in the window rather than the center.
+For a correlation filter, this would correspond to:</p>
+<table id="S1.E3" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E3.m1" class="ltx_Math" alttext="I^{\prime}(x,y)=F\circ I=\sum_{i=0}^{K-1}\sum_{j=0}^{L-1}F(i,j)I(x+i,y+j)," display="block"><mrow><mrow><mrow><msup><mi>I</mi><mo>′</mo></msup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>F</mi><mo lspace="0.222em" rspace="0.222em">∘</mo><mi>I</mi></mrow><mo rspace="0.111em">=</mo><mrow><munderover><mo movablelimits="false" rspace="0em">∑</mo><mrow><mi>i</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>K</mi><mo>−</mo><mn>1</mn></mrow></munderover><mrow><munderover><mo movablelimits="false">∑</mo><mrow><mi>j</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>L</mi><mo>−</mo><mn>1</mn></mrow></munderover><mrow><mi>F</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mi>I</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>+</mo><mi>i</mi></mrow><mo>,</mo><mrow><mi>y</mi><mo>+</mo><mi>j</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(8.3)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S1.Thmexample1.p2.m1" class="ltx_Math" alttext="K" display="inline"><mi>K</mi></math> and <math id="S1.Thmexample1.p2.m2" class="ltx_Math" alttext="L" display="inline"><mi>L</mi></math> are integers that define the width and height of the filter, and the pixel <math id="S1.Thmexample1.p2.m3" class="ltx_Math" alttext="(x,y)" display="inline"><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></math> is at row <math id="S1.Thmexample1.p2.m4" class="ltx_Math" alttext="x" display="inline"><mi>x</mi></math> and column <math id="S1.Thmexample1.p2.m5" class="ltx_Math" alttext="y" display="inline"><mi>y</mi></math>.
+Note that this formulation results in an output image, <math id="S1.Thmexample1.p2.m6" class="ltx_Math" alttext="I^{\prime}" display="inline"><msup><mi>I</mi><mo>′</mo></msup></math>, that is shifted up and to the left.
+To see this shift, consider the top-left pixel at <math id="S1.Thmexample1.p2.m7" class="ltx_Math" alttext="x=0" display="inline"><mrow><mi>x</mi><mo>=</mo><mn>0</mn></mrow></math> and <math id="S1.Thmexample1.p2.m8" class="ltx_Math" alttext="y=0" display="inline"><mrow><mi>y</mi><mo>=</mo><mn>0</mn></mrow></math> in the new image, <math id="S1.Thmexample1.p2.m9" class="ltx_Math" alttext="I^{\prime}" display="inline"><msup><mi>I</mi><mo>′</mo></msup></math>.
+We generate this new pixel value by applying the filter, <math id="S1.Thmexample1.p2.m10" class="ltx_Math" alttext="F" display="inline"><mi>F</mi></math>, over the pixels in the original image at rows <math id="S1.Thmexample1.p2.m11" class="ltx_Math" alttext="\{0,\dots,K-1\}" display="inline"><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><mi>K</mi><mo>−</mo><mn>1</mn></mrow><mo stretchy="false">}</mo></mrow></math> and columns <math id="S1.Thmexample1.p2.m12" class="ltx_Math" alttext="\{0,\dots,L-1\}" display="inline"><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><mi>L</mi><mo>−</mo><mn>1</mn></mrow><mo stretchy="false">}</mo></mrow></math>, which is not centered at <math id="S1.Thmexample1.p2.m13" class="ltx_Math" alttext="(0,0)" display="inline"><mrow><mo stretchy="false">(</mo><mn>0</mn><mo>,</mo><mn>0</mn><mo stretchy="false">)</mo></mrow></math> in the original image, <math id="S1.Thmexample1.p2.m14" class="ltx_Math" alttext="I" display="inline"><mi>I</mi></math>.
+In practice, this shifting is not an issue as long as we always index with respect to the top-left corner.
+We show an example of top-left indexing in Figure&#160;<a href="#S1.F3" title="Figure 8.3 ‣ Example 8.1.1 (Practical tricks for image filtering). ‣ 8.1.1 Image Filtering ‣ 8.1 Image Processing Fundamentals" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.3</span></a>.</p>
+</div>
+<figure id="S1.F3" class="ltx_figure"><img style="width:65%;height:auto" src="/book-assets/classical-perception/figs__ch10_figs__topleftfilter_nopadding.png" id="S1.F3.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 8.3</span>: </span><span class="ltx_text" style="font-size:90%;">Top-left indexing is typically easier to implement than center indexing.
+Notice that when top-left indexing, it appears as if the filtered image has shifted with respect to when we use center indexing.</span></figcaption>
+</figure>
+<div id="S1.Thmexample1.p3" class="ltx_para">
+<p class="ltx_p">Zero-padding<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.Thmexample1.p3.p1" class="ltx_para">
+<span class="ltx_p">Also commonly referred to as <em class="ltx_emph ltx_font_italic">same padding</em>.</span>
+</span></span></span></span></span> is another simple trick that we can use to ensure that the output filtered image, <math id="S1.Thmexample1.p3.m1" class="ltx_Math" alttext="I^{\prime}" display="inline"><msup><mi>I</mi><mo>′</mo></msup></math>, has the same dimension as the input image, <math id="S1.Thmexample1.p3.m2" class="ltx_Math" alttext="I" display="inline"><mi>I</mi></math>.
+In this approach, we pad the left and right boundaries of the image by <math id="S1.Thmexample1.p3.m3" class="ltx_Math" alttext="\lfloor K/2\rfloor" display="inline"><mrow><mo stretchy="false">⌊</mo><mrow><mi>K</mi><mo>/</mo><mn>2</mn></mrow><mo stretchy="false">⌋</mo></mrow></math> columns of zeros, and pad the top and bottom boundaries by <math id="S1.Thmexample1.p3.m4" class="ltx_Math" alttext="\lfloor L/2\rfloor" display="inline"><mrow><mo stretchy="false">⌊</mo><mrow><mi>L</mi><mo>/</mo><mn>2</mn></mrow><mo stretchy="false">⌋</mo></mrow></math> rows of zeros, where <math id="S1.Thmexample1.p3.m5" class="ltx_Math" alttext="\lfloor\cdot\rfloor" display="inline"><mrow><mo stretchy="false">⌊</mo><mo lspace="0em" rspace="0em">⋅</mo><mo stretchy="false">⌋</mo></mrow></math> denotes the <em class="ltx_emph ltx_font_italic">floor</em> operation.
+For example, the image:</p>
+<table id="S1.Ex1" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex1.m1" class="ltx_Math" alttext="I=\begin{bmatrix}1&amp;2&amp;3\\
+4&amp;5&amp;6\\
+7&amp;8&amp;9\\
+\end{bmatrix}," display="block"><mrow><mrow><mi>I</mi><mo>=</mo><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true" rowspacing="0pt"><mtr><mtd><mn>1</mn></mtd><mtd><mn>2</mn></mtd><mtd><mn>3</mn></mtd></mtr><mtr><mtd><mn>4</mn></mtd><mtd><mn>5</mn></mtd><mtd><mn>6</mn></mtd></mtr><mtr><mtd><mn>7</mn></mtd><mtd><mn>8</mn></mtd><mtd><mn>9</mn></mtd></mtr></mtable><mo>]</mo></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">becomes:</p>
+<table id="S1.Ex2" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex2.m1" class="ltx_Math" alttext="I_{\text{padded}}=\begin{bmatrix}0&amp;0&amp;0&amp;0&amp;0\\
+0&amp;1&amp;2&amp;3&amp;0\\
+0&amp;4&amp;5&amp;6&amp;0\\
+0&amp;7&amp;8&amp;9&amp;0\\
+0&amp;0&amp;0&amp;0&amp;0\\
+\end{bmatrix}," display="block"><mrow><mrow><msub><mi>I</mi><mtext>padded</mtext></msub><mo>=</mo><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true" rowspacing="0pt"><mtr><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd></mtr><mtr><mtd><mn>0</mn></mtd><mtd><mn>1</mn></mtd><mtd><mn>2</mn></mtd><mtd><mn>3</mn></mtd><mtd><mn>0</mn></mtd></mtr><mtr><mtd><mn>0</mn></mtd><mtd><mn>4</mn></mtd><mtd><mn>5</mn></mtd><mtd><mn>6</mn></mtd><mtd><mn>0</mn></mtd></mtr><mtr><mtd><mn>0</mn></mtd><mtd><mn>7</mn></mtd><mtd><mn>8</mn></mtd><mtd><mn>9</mn></mtd><mtd><mn>0</mn></mtd></mtr><mtr><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd></mtr></mtable><mo>]</mo></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">for filters <math id="S1.Thmexample1.p3.m6" class="ltx_Math" alttext="F\in\mathbb{R}^{3\times 3}" display="inline"><mrow><mi>F</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mn>3</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>3</mn></mrow></msup></mrow></math>, <math id="S1.Thmexample1.p3.m7" class="ltx_Math" alttext="F\in\mathbb{R}^{2\times 2}" display="inline"><mrow><mi>F</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mn>2</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>2</mn></mrow></msup></mrow></math>, <math id="S1.Thmexample1.p3.m8" class="ltx_Math" alttext="F\in\mathbb{R}^{2\times 3}" display="inline"><mrow><mi>F</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mn>2</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>3</mn></mrow></msup></mrow></math> and <math id="S1.Thmexample1.p3.m9" class="ltx_Math" alttext="F\in\mathbb{R}^{3\times 2}" display="inline"><mrow><mi>F</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mn>3</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>2</mn></mrow></msup></mrow></math>.
+When using this padding rule with a correlation filter from Equation&#160;<a href="#S1.E3" title="In Example 8.1.1 (Practical tricks for image filtering). ‣ 8.1.1 Image Filtering ‣ 8.1 Image Processing Fundamentals" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.3</span></a> and a filter, <math id="S1.Thmexample1.p3.m10" class="ltx_Math" alttext="F" display="inline"><mi>F</mi></math>, with <math id="S1.Thmexample1.p3.m11" class="ltx_Math" alttext="K=2,3" display="inline"><mrow><mi>K</mi><mo>=</mo><mrow><mn>2</mn><mo>,</mo><mn>3</mn></mrow></mrow></math> and <math id="S1.Thmexample1.p3.m12" class="ltx_Math" alttext="L=2,3" display="inline"><mrow><mi>L</mi><mo>=</mo><mrow><mn>2</mn><mo>,</mo><mn>3</mn></mrow></mrow></math>, we can define the new image, <math id="S1.Thmexample1.p3.m13" class="ltx_Math" alttext="I^{\prime}" display="inline"><msup><mi>I</mi><mo>′</mo></msup></math>, for values <math id="S1.Thmexample1.p3.m14" class="ltx_Math" alttext="x\in\{1,2,3\}" display="inline"><mrow><mi>x</mi><mo>∈</mo><mrow><mo stretchy="false">{</mo><mn>1</mn><mo>,</mo><mn>2</mn><mo>,</mo><mn>3</mn><mo stretchy="false">}</mo></mrow></mrow></math> and <math id="S1.Thmexample1.p3.m15" class="ltx_Math" alttext="y\in\{1,2,3\}" display="inline"><mrow><mi>y</mi><mo>∈</mo><mrow><mo stretchy="false">{</mo><mn>1</mn><mo>,</mo><mn>2</mn><mo>,</mo><mn>3</mn><mo stretchy="false">}</mo></mrow></mrow></math>, resulting in <math id="S1.Thmexample1.p3.m16" class="ltx_Math" alttext="I^{\prime}" display="inline"><msup><mi>I</mi><mo>′</mo></msup></math> being the same dimension as the original image, <math id="S1.Thmexample1.p3.m17" class="ltx_Math" alttext="I" display="inline"><mi>I</mi></math>.
+We show an example use of padding combined with top-left indexing graphically in Figure&#160;<a href="#S1.F4" title="Figure 8.4 ‣ Example 8.1.1 (Practical tricks for image filtering). ‣ 8.1.1 Image Filtering ‣ 8.1 Image Processing Fundamentals" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.4</span></a>.</p>
+</div>
+<figure id="S1.F4" class="ltx_figure"><img style="width:70%;height:auto" src="/book-assets/classical-perception/figs__ch10_figs__topleftfilter_padding.png" id="S1.F4.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 8.4</span>: </span><span class="ltx_text" style="font-size:90%;">Image padding is a commonly used technique to ensure that the size of the filtered image is the same size as the original.</span></figcaption>
+</figure>
+</div>
+<section id="S1.SS1.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Moving average filter.</h4>
+
+<div id="S1.SS1.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">The moving average filter returns the average of the pixels in the mask, which achieves a smoothing effect<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS1.SSS0.Px1.p1.p1" class="ltx_para">
+<span class="ltx_p">Smoothing removes sharp features in the image.</span>
+</span></span></span></span></span>.
+For example, we can define a moving average filter with a normalized<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS1.SSS0.Px1.p1.p2" class="ltx_para">
+<span class="ltx_p">The normalization is used to maintain the overall brightness of the image.</span>
+</span></span></span></span></span> <math id="S1.SS1.SSS0.Px1.p1.m1" class="ltx_Math" alttext="3\times 3" display="inline"><mrow><mn>3</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>3</mn></mrow></math> mask with <math id="S1.SS1.SSS0.Px1.p1.m2" class="ltx_Math" alttext="F" display="inline"><mi>F</mi></math> from Equation&#160;<a href="#S1.E1" title="In 8.1.1 Image Filtering ‣ 8.1 Image Processing Fundamentals" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.1</span></a> defined as:</p>
+<table id="S1.Ex3" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex3.m1" class="ltx_Math" alttext="F=\frac{1}{9}\begin{bmatrix}1&amp;1&amp;1\\
+1&amp;1&amp;1\\
+1&amp;1&amp;1\\
+\end{bmatrix}." display="block"><mrow><mrow><mi>F</mi><mo>=</mo><mrow><mfrac><mn>1</mn><mn>9</mn></mfrac><mo>⁢</mo><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true" rowspacing="0pt"><mtr><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd></mtr><mtr><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd></mtr><mtr><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd></mtr></mtable><mo>]</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Due to the symmetry of the mask, the correlation filter from Equation&#160;<a href="#S1.E1" title="In 8.1.1 Image Filtering ‣ 8.1 Image Processing Fundamentals" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.1</span></a> and convolution filter from Equation&#160;<a href="#S1.E2" title="In 8.1.1 Image Filtering ‣ 8.1 Image Processing Fundamentals" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.2</span></a> will be identical.</p>
+</div>
+</section>
+<section id="S1.SS1.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Gaussian smoothing filter.</h4>
+
+<div id="S1.SS1.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">Gaussian smoothing filters are similar to the moving average filter, but instead of weighting all of the pixels evenly they are weighted by the Gaussian function:</p>
+<table id="S1.Ex4" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex4.m1" class="ltx_Math" alttext="G_{\sigma}(x,y)=\frac{1}{2\pi\sigma^{2}}\exp\bigg{(}-\frac{x^{2}+y^{2}}{2%
+\sigma^{2}}\bigg{)}." display="block"><mrow><mrow><mrow><msub><mi>G</mi><mi>σ</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mfrac><mn>1</mn><mrow><mn>2</mn><mo>⁢</mo><mi>π</mi><mo>⁢</mo><msup><mi>σ</mi><mn>2</mn></msup></mrow></mfrac><mo lspace="0.167em">⁢</mo><mrow><mi>exp</mi><mo>⁡</mo><mrow><mo maxsize="210%" minsize="210%">(</mo><mrow><mo>−</mo><mfrac><mrow><msup><mi>x</mi><mn>2</mn></msup><mo>+</mo><msup><mi>y</mi><mn>2</mn></msup></mrow><mrow><mn>2</mn><mo>⁢</mo><msup><mi>σ</mi><mn>2</mn></msup></mrow></mfrac></mrow><mo maxsize="210%" minsize="210%">)</mo></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">We use this function to obtain the mask operation, <math id="S1.SS1.SSS0.Px2.p1.m1" class="ltx_Math" alttext="F" display="inline"><mi>F</mi></math>, by sampling the function about the center pixel.
+For example, for the center pixel with <math id="S1.SS1.SSS0.Px2.p1.m2" class="ltx_Math" alttext="i=j=0" display="inline"><mrow><mi>i</mi><mo>=</mo><mi>j</mi><mo>=</mo><mn>0</mn></mrow></math> in Equation&#160;<a href="#S1.E1" title="In 8.1.1 Image Filtering ‣ 8.1 Image Processing Fundamentals" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.1</span></a>, we sample <math id="S1.SS1.SSS0.Px2.p1.m3" class="ltx_Math" alttext="G_{\sigma}(0,0)" display="inline"><mrow><msub><mi>G</mi><mi>σ</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>0</mn><mo>,</mo><mn>0</mn><mo stretchy="false">)</mo></mrow></mrow></math>.
+For a normalized <math id="S1.SS1.SSS0.Px2.p1.m4" class="ltx_Math" alttext="3\times 3" display="inline"><mrow><mn>3</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>3</mn></mrow></math> mask with <math id="S1.SS1.SSS0.Px2.p1.m5" class="ltx_Math" alttext="\sigma=0.85" display="inline"><mrow><mi>σ</mi><mo>=</mo><mn>0.85</mn></mrow></math>, this filter is approximately defined by:</p>
+<table id="S1.Ex5" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex5.m1" class="ltx_Math" alttext="F=\frac{1}{16}\begin{bmatrix}1&amp;2&amp;1\\
+2&amp;4&amp;2\\
+1&amp;2&amp;1\end{bmatrix}." display="block"><mrow><mrow><mi>F</mi><mo>=</mo><mrow><mfrac><mn>1</mn><mn>16</mn></mfrac><mo>⁢</mo><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true" rowspacing="0pt"><mtr><mtd><mn>1</mn></mtd><mtd><mn>2</mn></mtd><mtd><mn>1</mn></mtd></mtr><mtr><mtd><mn>2</mn></mtd><mtd><mn>4</mn></mtd><mtd><mn>2</mn></mtd></mtr><mtr><mtd><mn>1</mn></mtd><mtd><mn>2</mn></mtd><mtd><mn>1</mn></mtd></mtr></mtable><mo>]</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Like the moving average filter, this filter mask is symmetric and therefore yields identical results with respect to the correlation or convolution filters.
+The advantage of the Gaussian filter is that it provides more weight to the neighboring pixels that are closer.
+We show an example of this filter in Figure&#160;<a href="#S1.F5" title="Figure 8.5 ‣ Gaussian smoothing filter. ‣ 8.1.1 Image Filtering ‣ 8.1 Image Processing Fundamentals" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.5</span></a>.</p>
+</div>
+<figure id="S1.F5" class="ltx_figure"><img style="width:80%;height:auto" src="/book-assets/classical-perception/figs__ch10_figs__gaussianfilter.png" id="S1.F5.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 8.5</span>: </span><span class="ltx_text" style="font-size:90%;">Example of a Gaussian smoothing filter, which produces a smoothing (blurring) effect on the filtered image.</span></figcaption>
+</figure>
+</section>
+<section id="S1.SS1.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Separable masks.</h4>
+
+<div id="S1.SS1.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">We call a mask <em class="ltx_emph ltx_font_italic">separable</em> if it can be broken down into the convolution of two kernels, <math id="S1.SS1.SSS0.Px3.p1.m1" class="ltx_Math" alttext="F=F_{1}\ast F_{2}" display="inline"><mrow><mi>F</mi><mo>=</mo><mrow><msub><mi>F</mi><mn>1</mn></msub><mo lspace="0.222em" rspace="0.222em">∗</mo><msub><mi>F</mi><mn>2</mn></msub></mrow></mrow></math>.
+If a mask is separable into smaller masks, then it is often cheaper to apply <math id="S1.SS1.SSS0.Px3.p1.m2" class="ltx_Math" alttext="F_{1}" display="inline"><msub><mi>F</mi><mn>1</mn></msub></math> followed by <math id="S1.SS1.SSS0.Px3.p1.m3" class="ltx_Math" alttext="F_{2}" display="inline"><msub><mi>F</mi><mn>2</mn></msub></math>, rather than by <math id="S1.SS1.SSS0.Px3.p1.m4" class="ltx_Math" alttext="F" display="inline"><mi>F</mi></math> directly.
+One special case of this is when we can represent the mask as an outer product of two vectors, meaning it is equivalent to the 2D convolution of those two vectors.
+If a separable mask has shape <math id="S1.SS1.SSS0.Px3.p1.m5" class="ltx_Math" alttext="M\times M" display="inline"><mrow><mi>M</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>M</mi></mrow></math> and the input image has size <math id="S1.SS1.SSS0.Px3.p1.m6" class="ltx_Math" alttext="w\times h" display="inline"><mrow><mi>w</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>h</mi></mrow></math>, then the computational complexity of directly performing the convolution is <math id="S1.SS1.SSS0.Px3.p1.m7" class="ltx_Math" alttext="O(M^{2}wh)" display="inline"><mrow><mi>O</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msup><mi>M</mi><mn>2</mn></msup><mo>⁢</mo><mi>w</mi><mo>⁢</mo><mi>h</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></math>.
+By separating the masks, the computational cost is <math id="S1.SS1.SSS0.Px3.p1.m8" class="ltx_Math" alttext="O(2Mwh)" display="inline"><mrow><mi>O</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mn>2</mn><mo>⁢</mo><mi>M</mi><mo>⁢</mo><mi>w</mi><mo>⁢</mo><mi>h</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></math>, which is linear in <math id="S1.SS1.SSS0.Px3.p1.m9" class="ltx_Math" alttext="M" display="inline"><mi>M</mi></math> rather than quadratic.
+As an example, consider the moving average filter mask from before:</p>
+<table id="S1.Ex6" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex6.m1" class="ltx_Math" alttext="F=\frac{1}{9}\begin{bmatrix}1&amp;1&amp;1\\
+1&amp;1&amp;1\\
+1&amp;1&amp;1\end{bmatrix}=\frac{1}{9}\begin{bmatrix}1\\
+1\\
+1\end{bmatrix}\begin{bmatrix}1&amp;1&amp;1\\
+\end{bmatrix}." display="block"><mrow><mrow><mi>F</mi><mo>=</mo><mrow><mfrac><mn>1</mn><mn>9</mn></mfrac><mo>⁢</mo><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true" rowspacing="0pt"><mtr><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd></mtr><mtr><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd></mtr><mtr><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd></mtr></mtable><mo>]</mo></mrow></mrow><mo>=</mo><mrow><mfrac><mn>1</mn><mn>9</mn></mfrac><mo>⁢</mo><mrow><mo>[</mo><mtable displaystyle="true" rowspacing="0pt"><mtr><mtd><mn>1</mn></mtd></mtr><mtr><mtd><mn>1</mn></mtd></mtr><mtr><mtd><mn>1</mn></mtd></mtr></mtable><mo>]</mo></mrow><mo>⁢</mo><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true"><mtr><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd></mtr></mtable><mo>]</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">As another example, we note that the Gaussian smoothing filter mask is also separable.
+To see why this is, note that we can decompose the Gaussian weighting function as:</p>
+<table id="S1.Ex7" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex7.m1" class="ltx_Math" alttext="\begin{split}G_{\sigma}(x,y)&amp;=\frac{1}{2\pi\sigma^{2}}\exp\bigg{(}-\frac{x^{2}%
++y^{2}}{2\sigma^{2}}\bigg{)}\\
+&amp;=\frac{1}{\sqrt{2\pi}\sigma}\exp\bigg{(}-\frac{x^{2}}{2\sigma^{2}}\bigg{)}%
+\frac{1}{\sqrt{2\pi}\sigma}\exp\bigg{(}-\frac{y^{2}}{2\sigma^{2}}\bigg{)}\\
+&amp;=g_{\sigma}(x)\cdot g_{\sigma}(y).\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msub><mi>G</mi><mi>σ</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mi></mi><mo>=</mo><mrow><mfrac><mn>1</mn><mrow><mn>2</mn><mo>⁢</mo><mi>π</mi><mo>⁢</mo><msup><mi>σ</mi><mn>2</mn></msup></mrow></mfrac><mo lspace="0.167em">⁢</mo><mrow><mi>exp</mi><mo>⁡</mo><mrow><mo maxsize="210%" minsize="210%">(</mo><mrow><mo>−</mo><mfrac><mrow><msup><mi>x</mi><mn>2</mn></msup><mo>+</mo><msup><mi>y</mi><mn>2</mn></msup></mrow><mrow><mn>2</mn><mo>⁢</mo><msup><mi>σ</mi><mn>2</mn></msup></mrow></mfrac></mrow><mo maxsize="210%" minsize="210%">)</mo></mrow></mrow></mrow></mrow></mtd></mtr><mtr><mtd></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mi></mi><mo>=</mo><mrow><mfrac><mn>1</mn><mrow><msqrt><mrow><mn>2</mn><mo>⁢</mo><mi>π</mi></mrow></msqrt><mo>⁢</mo><mi>σ</mi></mrow></mfrac><mo lspace="0.167em">⁢</mo><mrow><mi>exp</mi><mo>⁡</mo><mrow><mo maxsize="210%" minsize="210%">(</mo><mrow><mo>−</mo><mfrac><msup><mi>x</mi><mn>2</mn></msup><mrow><mn>2</mn><mo>⁢</mo><msup><mi>σ</mi><mn>2</mn></msup></mrow></mfrac></mrow><mo maxsize="210%" minsize="210%">)</mo></mrow></mrow><mo>⁢</mo><mfrac><mn>1</mn><mrow><msqrt><mrow><mn>2</mn><mo>⁢</mo><mi>π</mi></mrow></msqrt><mo>⁢</mo><mi>σ</mi></mrow></mfrac><mo lspace="0.167em">⁢</mo><mrow><mi>exp</mi><mo>⁡</mo><mrow><mo maxsize="210%" minsize="210%">(</mo><mrow><mo>−</mo><mfrac><msup><mi>y</mi><mn>2</mn></msup><mrow><mn>2</mn><mo>⁢</mo><msup><mi>σ</mi><mn>2</mn></msup></mrow></mfrac></mrow><mo maxsize="210%" minsize="210%">)</mo></mrow></mrow></mrow></mrow></mtd></mtr><mtr><mtd></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mrow><mrow><mrow><msub><mi>g</mi><mi>σ</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo rspace="0.055em" stretchy="false">)</mo></mrow></mrow><mo rspace="0.222em">⋅</mo><msub><mi>g</mi><mi>σ</mi></msub></mrow><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+</section>
+<section id="S1.SS1.SSS0.Px4" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Image differentiation filters.</h4>
+
+<div id="S1.SS1.SSS0.Px4.p1" class="ltx_para">
+<p class="ltx_p">We can identify some image features, such as edges, by looking at the spatial derivatives in the pixel intensity values in both the vertical and horizontal directions.
+Since we represent images as functions defined over a discrete domain, the traditional method for differentiating continuous functions is not applicable.
+Instead, we can compute differences between pixels using techniques like the central difference method:</p>
+<table id="S1.E4" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E4.m1" class="ltx_Math" alttext="\begin{split}\frac{\partial I}{\partial x}&amp;=\frac{I(x+1,y)-I(x-1,y)}{2},\\
+\frac{\partial I}{\partial y}&amp;=\frac{I(x,y+1)-I(x,y-1)}{2}.\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mfrac><mrow><mo rspace="0em">∂</mo><mi>I</mi></mrow><mrow><mo rspace="0em">∂</mo><mi>x</mi></mrow></mfrac></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mfrac><mrow><mrow><mi>I</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>+</mo><mn>1</mn></mrow><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow><mo>−</mo><mrow><mi>I</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>−</mo><mn>1</mn></mrow><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mn>2</mn></mfrac></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mfrac><mrow><mo rspace="0em">∂</mo><mi>I</mi></mrow><mrow><mo rspace="0em">∂</mo><mi>y</mi></mrow></mfrac></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mfrac><mrow><mrow><mi>I</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mrow><mi>y</mi><mo>+</mo><mn>1</mn></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>−</mo><mrow><mi>I</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mrow><mi>y</mi><mo>−</mo><mn>1</mn></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mn>2</mn></mfrac></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(8.4)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S1.SS1.SSS0.Px4.p1.m1" class="ltx_Math" alttext="\partial I/\partial x" display="inline"><mrow><mo rspace="0em">∂</mo><mrow><mi>I</mi><mo>/</mo><mrow><mo lspace="0em" rspace="0em">∂</mo><mi>x</mi></mrow></mrow></mrow></math> is the derivative in the horizontal direction and <math id="S1.SS1.SSS0.Px4.p1.m2" class="ltx_Math" alttext="\partial I/\partial y" display="inline"><mrow><mo rspace="0em">∂</mo><mrow><mi>I</mi><mo>/</mo><mrow><mo lspace="0em" rspace="0em">∂</mo><mi>y</mi></mrow></mrow></mrow></math> is the derivative in the vertical direction.
+We can also define the derivatives using just one side instead of a central difference, for example <math id="S1.SS1.SSS0.Px4.p1.m3" class="ltx_Math" alttext="\frac{\partial I}{\partial x}=I(x+1,y)-I(x,y)" display="inline"><mrow><mfrac><mrow><mo rspace="0em">∂</mo><mi>I</mi></mrow><mrow><mo rspace="0em">∂</mo><mi>x</mi></mrow></mfrac><mo>=</mo><mrow><mrow><mi>I</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>+</mo><mn>1</mn></mrow><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow><mo>−</mo><mrow><mi>I</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow></math>.</p>
+</div>
+<div id="S1.SS1.SSS0.Px4.p2" class="ltx_para">
+<p class="ltx_p">We can also differentiate an image using convolution filters.
+In particular, one common approach is to use a convolution filter of the form Equation&#160;<a href="#S1.E2" title="In 8.1.1 Image Filtering ‣ 8.1 Image Processing Fundamentals" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.2</span></a> defined with a mask, <math id="S1.SS1.SSS0.Px4.p2.m1" class="ltx_Math" alttext="F" display="inline"><mi>F</mi></math>, called a <em class="ltx_emph ltx_font_italic">Sobel mask</em><span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS1.SSS0.Px4.p2.p1" class="ltx_para">
+<span class="ltx_p">Also referred to as simply a <em class="ltx_emph ltx_font_italic">Sobel operator</em>.</span>
+</span></span></span></span></span>.
+We denote this mask as <math id="S1.SS1.SSS0.Px4.p2.m2" class="ltx_Math" alttext="S_{x}" display="inline"><msub><mi>S</mi><mi>x</mi></msub></math> for the <math id="S1.SS1.SSS0.Px4.p2.m3" class="ltx_Math" alttext="x" display="inline"><mi>x</mi></math> direction and <math id="S1.SS1.SSS0.Px4.p2.m4" class="ltx_Math" alttext="S_{y}" display="inline"><msub><mi>S</mi><mi>y</mi></msub></math> for the <math id="S1.SS1.SSS0.Px4.p2.m5" class="ltx_Math" alttext="y" display="inline"><mi>y</mi></math> direction:</p>
+<table id="S1.E5" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E5.m1" class="ltx_Math" alttext="S_{x}=\begin{bmatrix}1&amp;0&amp;-1\\
+2&amp;0&amp;-2\\
+1&amp;0&amp;-1\end{bmatrix},\quad S_{y}=\begin{bmatrix}1&amp;2&amp;1\\
+0&amp;0&amp;0\\
+-1&amp;-2&amp;-1\end{bmatrix}." display="block"><mrow><mrow><mrow><msub><mi>S</mi><mi>x</mi></msub><mo>=</mo><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true" rowspacing="0pt"><mtr><mtd><mn>1</mn></mtd><mtd><mn>0</mn></mtd><mtd><mrow><mo>−</mo><mn>1</mn></mrow></mtd></mtr><mtr><mtd><mn>2</mn></mtd><mtd><mn>0</mn></mtd><mtd><mrow><mo>−</mo><mn>2</mn></mrow></mtd></mtr><mtr><mtd><mn>1</mn></mtd><mtd><mn>0</mn></mtd><mtd><mrow><mo>−</mo><mn>1</mn></mrow></mtd></mtr></mtable><mo>]</mo></mrow></mrow><mo rspace="1.167em">,</mo><mrow><msub><mi>S</mi><mi>y</mi></msub><mo>=</mo><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true" rowspacing="0pt"><mtr><mtd><mn>1</mn></mtd><mtd><mn>2</mn></mtd><mtd><mn>1</mn></mtd></mtr><mtr><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd></mtr><mtr><mtd><mrow><mo>−</mo><mn>1</mn></mrow></mtd><mtd><mrow><mo>−</mo><mn>2</mn></mrow></mtd><mtd><mrow><mo>−</mo><mn>1</mn></mrow></mtd></mtr></mtable><mo>]</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(8.5)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Sobel masks are similar to the central difference method but use more neighboring pixels when calculating the derivative<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS1.SSS0.Px4.p2.p2" class="ltx_para">
+<span class="ltx_p">Specifically, they also consider the rows above and below to compute the difference.</span>
+</span></span></span></span></span>.
+Note that Sobel masks are <em class="ltx_emph ltx_font_italic">separable</em>.</p>
+</div>
+</section>
+<section id="S1.SS1.SSS0.Px5" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Similarity measures.</h4>
+
+<div id="S1.SS1.SSS0.Px5.p1" class="ltx_para">
+<p class="ltx_p">We can also use filtering to find similar features in different images, which can be useful for solving the correspondence problem in stereo vision or structure-from-motion techniques.
+In particular, we can compute the similarity between the pixel <math id="S1.SS1.SSS0.Px5.p1.m1" class="ltx_Math" alttext="(x,y)" display="inline"><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></math> in image <math id="S1.SS1.SSS0.Px5.p1.m2" class="ltx_Math" alttext="I_{1}" display="inline"><msub><mi>I</mi><mn>1</mn></msub></math> and pixel <math id="S1.SS1.SSS0.Px5.p1.m3" class="ltx_Math" alttext="(x^{\prime},y^{\prime})" display="inline"><mrow><mo stretchy="false">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><msup><mi>y</mi><mo>′</mo></msup><mo stretchy="false">)</mo></mrow></math> in image <math id="S1.SS1.SSS0.Px5.p1.m4" class="ltx_Math" alttext="I_{2}" display="inline"><msub><mi>I</mi><mn>2</mn></msub></math> by:</p>
+<table id="S1.E6" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E6.m1" class="ltx_Math" alttext="\begin{split}SAD&amp;=\sum_{i=-N}^{N}\sum_{j=-M}^{M}\lvert I_{1}(x+i,y+j)-I_{2}(x^%
+{\prime}+i,y^{\prime}+j)\rvert,\\
+SSD&amp;=\sum_{i=-N}^{N}\sum_{j=-M}^{M}[I_{1}(x+i,y+j)-I_{2}(x^{\prime}+i,y^{%
+\prime}+j)]^{2},\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mi>S</mi><mo>⁢</mo><mi>A</mi><mo>⁢</mo><mi>D</mi></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo rspace="0.111em">=</mo><mrow><munderover><mo movablelimits="false" rspace="0em">∑</mo><mrow><mi>i</mi><mo>=</mo><mrow><mo>−</mo><mi>N</mi></mrow></mrow><mi>N</mi></munderover><mrow><munderover><mo movablelimits="false" rspace="0em">∑</mo><mrow><mi>j</mi><mo>=</mo><mrow><mo>−</mo><mi>M</mi></mrow></mrow><mi>M</mi></munderover><mrow><mo stretchy="false">|</mo><mrow><mrow><msub><mi>I</mi><mn>1</mn></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>+</mo><mi>i</mi></mrow><mo>,</mo><mrow><mi>y</mi><mo>+</mo><mi>j</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>−</mo><mrow><msub><mi>I</mi><mn>2</mn></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msup><mi>x</mi><mo>′</mo></msup><mo>+</mo><mi>i</mi></mrow><mo>,</mo><mrow><msup><mi>y</mi><mo>′</mo></msup><mo>+</mo><mi>j</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo stretchy="false">|</mo></mrow></mrow></mrow></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mi>S</mi><mo>⁢</mo><mi>S</mi><mo>⁢</mo><mi>D</mi></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo rspace="0.111em">=</mo><mrow><munderover><mo movablelimits="false" rspace="0em">∑</mo><mrow><mi>i</mi><mo>=</mo><mrow><mo>−</mo><mi>N</mi></mrow></mrow><mi>N</mi></munderover><mrow><munderover><mo movablelimits="false" rspace="0em">∑</mo><mrow><mi>j</mi><mo>=</mo><mrow><mo>−</mo><mi>M</mi></mrow></mrow><mi>M</mi></munderover><msup><mrow><mo stretchy="false">[</mo><mrow><mrow><msub><mi>I</mi><mn>1</mn></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>+</mo><mi>i</mi></mrow><mo>,</mo><mrow><mi>y</mi><mo>+</mo><mi>j</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>−</mo><mrow><msub><mi>I</mi><mn>2</mn></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msup><mi>x</mi><mo>′</mo></msup><mo>+</mo><mi>i</mi></mrow><mo>,</mo><mrow><msup><mi>y</mi><mo>′</mo></msup><mo>+</mo><mi>j</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo stretchy="false">]</mo></mrow><mn>2</mn></msup></mrow></mrow></mrow><mo>,</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(8.6)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where SAD is an acronym for <em class="ltx_emph ltx_font_italic">sum of absolute differences</em>, SSD is an acronym for <em class="ltx_emph ltx_font_italic">sum of squared differences</em>, and <math id="S1.SS1.SSS0.Px5.p1.m5" class="ltx_Math" alttext="N" display="inline"><mi>N</mi></math> and <math id="S1.SS1.SSS0.Px5.p1.m6" class="ltx_Math" alttext="M" display="inline"><mi>M</mi></math> define the size of the window around the pixels that we consider.</p>
+</div>
+</section>
+</section>
+<section id="S1.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">8.1.2 </span>Image Feature Detection</h3>
+
+<div id="S1.SS2.p1" class="ltx_para">
+<p class="ltx_p">A local feature<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS2.p1.p1" class="ltx_para">
+<span class="ltx_p">Also sometimes referred to as interest points, interest regions, or keypoints.</span>
+</span></span></span></span></span> in an image is a pattern that differs from its immediate neighborhood in terms of intensity, color, or texture.
+We can generally categorize local features in several ways, for example by whether or not they provide semantic content.
+For example, features that may provide semantic content include edges or other geometric shapes, such as lanes of a road or blobs corresponding to blood cells in medical images.
+Features that do not provide semantic content may also be useful, for example in feature tracking, camera calibration, 3D reconstruction, image mosaicing, and panorama stitching.
+In these cases, it may be more important that the feature be able to be located accurately and robustly over time.
+A third category of features are those that may not have semantic interpretations individually, but may have meaning as a collection.
+For instance, we could recognize a scene by counting the number of feature matches between the observed scene and a query image.
+In this case, only the number of matches is relevant and not the location or type of feature.
+Applications where these types of features are important include texture analysis, scene classification, video mining, and
+image retrieval.</p>
+</div>
+<div id="S1.SS2.p2" class="ltx_para">
+<p class="ltx_p">We discuss several feature detection strategies below.
+While many strategies exist for different types of features, our focus will be on two common features that are often useful in robotics: edges and corners.</p>
+</div>
+<section id="S1.SS2.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Edge detection.</h4>
+
+<div id="S1.SS2.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">An <em class="ltx_emph ltx_font_italic">edge</em> in an image is a region where there is a significant change in intensity values along one direction, and negligible change along the orthogonal direction.
+In one dimension an edge corresponds to a point where there is a sharp change in intensity, which mathematically can be thought of as a point of a function having a large first derivative and a small second derivative.
+Many edge detectors rely on this concept by differentiating images and looking for spikes in the derivative.
+We can evaluate an edge detector based on several criteria for robustness and performance, including accuracy, localization, and single response.
+Good accuracy implies few false positives or negatives<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS2.SSS0.Px1.p1.p1" class="ltx_para">
+<span class="ltx_p">In this case, a false positive is a detection of an edge that isn’t real, and a false negative is a missed edge.</span>
+</span></span></span></span></span>, good localization implies that the detected edge should be exactly where the true edge is in the image, and a single response implies that only one edge is detected for each real edge.
+Noise and discretization effects can make edge detection challenging in practice.</p>
+</div>
+<div id="S1.SS2.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">Most edge detection methods rely on two key steps: smoothing and differentiation.
+We perform differentiation in both the vertical and horizontal directions to find locations in the image with high intensity gradients.
+However, differentiation alone is vulnerable to false positives due to image noise, which is why many algorithms will first smooth the image.</p>
+</div>
+<div id="S1.Thmexample2" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 8.1.2</span></span><span class="ltx_text ltx_font_bold"> </span>(Edge detection in 1D)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmexample2.p1" class="ltx_para">
+<p class="ltx_p">In Figure&#160;<a href="#S1.F6" title="Figure 8.6 ‣ Example 8.1.2 (Edge detection in 1D). ‣ Edge detection. ‣ 8.1.2 Image Feature Detection ‣ 8.1 Image Processing Fundamentals" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.6</span></a>, we show an example of how noise can corrupt image differentiation.</p>
+</div>
+<figure id="S1.F6" class="ltx_figure"><img style="width:50%;height:auto" src="/book-assets/classical-perception/figs__ch10_figs__edge_detection.png" id="S1.F6.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 8.6</span>: </span><span class="ltx_text" style="font-size:90%;">Differentiation of a signal with noise can be particularly challenging.
+We can address this by first smoothing the signal.</span></figcaption>
+</figure>
+<div id="S1.Thmexample2.p2" class="ltx_para">
+<p class="ltx_p">Notice that in this case it is impossible to identify the jump in the signal due to the noise levels.
+Smoothing filters, such as the Gaussian smoothing filter discussed earlier, can help remedy this problem.
+In particular, suppose the original signal in Figure&#160;<a href="#S1.F6" title="Figure 8.6 ‣ Example 8.1.2 (Edge detection in 1D). ‣ Edge detection. ‣ 8.1.2 Image Feature Detection ‣ 8.1 Image Processing Fundamentals" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.6</span></a> is defined by <math id="S1.Thmexample2.p2.m1" class="ltx_Math" alttext="I(x)" display="inline"><mrow><mi>I</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow></math>.
+We can compute a smoothed version by applying a smoothing convolution filter:</p>
+<table id="S1.Ex8" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex8.m1" class="ltx_Math" alttext="s(x)=g_{\sigma}(x)\ast I(x)," display="block"><mrow><mrow><mrow><mi>s</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mrow><mrow><msub><mi>g</mi><mi>σ</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo rspace="0.055em" stretchy="false">)</mo></mrow></mrow><mo rspace="0.222em">∗</mo><mi>I</mi></mrow><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S1.Thmexample2.p2.m2" class="ltx_Math" alttext="g_{\sigma}(x)" display="inline"><mrow><msub><mi>g</mi><mi>σ</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow></math> represents a Gaussian smoothing filter, and then by applying the differentiation filter:</p>
+<table id="S1.Ex9" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex9.m1" class="ltx_Math" alttext="s^{\prime}(x)=\frac{d}{dx}\ast s(x)." display="block"><mrow><mrow><mrow><msup><mi>s</mi><mo>′</mo></msup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mrow><mfrac><mi>d</mi><mrow><mi>d</mi><mo>⁢</mo><mi>x</mi></mrow></mfrac><mo lspace="0.222em" rspace="0.222em">∗</mo><mi>s</mi></mrow><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">We show this process in Figure&#160;<a href="#S1.F7" title="Figure 8.7 ‣ Example 8.1.2 (Edge detection in 1D). ‣ Edge detection. ‣ 8.1.2 Image Feature Detection ‣ 8.1 Image Processing Fundamentals" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.7</span></a>.</p>
+</div>
+<figure id="S1.F7" class="ltx_figure"><img style="width:55%;height:auto" src="/book-assets/classical-perception/figs__ch10_figs__edge_detection_smooth.png" id="S1.F7.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 8.7</span>: </span><span class="ltx_text" style="font-size:90%;">Edge detection through convolution with a Gaussian smoothing filter, followed by a differentiation filter.</span></figcaption>
+</figure>
+<div id="S1.Thmexample2.p3" class="ltx_para">
+<p class="ltx_p">Note that since these filters are convolutions, we can leverage the associativity property to combine them into a single filter:</p>
+<table id="S1.Ex10" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex10.m1" class="ltx_Math" alttext="s^{\prime}=(\frac{d}{dx}*g_{\sigma})*I." display="block"><mrow><mrow><msup><mi>s</mi><mo>′</mo></msup><mo>=</mo><mrow><mrow><mo stretchy="false">(</mo><mrow><mfrac><mi>d</mi><mrow><mi>d</mi><mo>⁢</mo><mi>x</mi></mrow></mfrac><mo lspace="0.222em" rspace="0.222em">∗</mo><msub><mi>g</mi><mi>σ</mi></msub></mrow><mo rspace="0.055em" stretchy="false">)</mo></mrow><mo rspace="0.222em">∗</mo><mi>I</mi></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+</div>
+<div id="S1.Thmexample3" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 8.1.3</span></span><span class="ltx_text ltx_font_bold"> </span>(Edge detection in 2D)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmexample3.p1" class="ltx_para">
+<p class="ltx_p">Edge detection in a two-dimensional image is quite similar to the example previously discussed for one dimension.
+Let the smoothing filter be the Gaussian smoothing filter from before, and consider a differentiation filter such as the Sobel filter.
+We can write the gradient of the smoothed image in both the <math id="S1.Thmexample3.p1.m1" class="ltx_Math" alttext="x" display="inline"><mi>x</mi></math> and <math id="S1.Thmexample3.p1.m2" class="ltx_Math" alttext="y" display="inline"><mi>y</mi></math> directions as:</p>
+<table id="S1.Ex11" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex11.m1" class="ltx_Math" alttext="\nabla S=\begin{bmatrix}\frac{\partial}{\partial x}*G_{\sigma}*I\\
+\frac{\partial}{\partial y}*G_{\sigma}*I\end{bmatrix}=\begin{bmatrix}G_{\sigma%
+,x}*I\\
+G_{\sigma,y}*I\end{bmatrix}=\begin{bmatrix}S_{x}\\
+S_{y}\end{bmatrix}," display="block"><mrow><mrow><mrow><mo rspace="0.167em">∇</mo><mi>S</mi></mrow><mo>=</mo><mrow><mo>[</mo><mtable displaystyle="true" rowspacing="0pt"><mtr><mtd><mrow><mstyle displaystyle="false"><mfrac><mo>∂</mo><mrow><mo rspace="0em">∂</mo><mi>x</mi></mrow></mfrac></mstyle><mo lspace="0.222em" rspace="0.222em">∗</mo><msub><mi>G</mi><mi>σ</mi></msub><mo lspace="0.222em" rspace="0.222em">∗</mo><mi>I</mi></mrow></mtd></mtr><mtr><mtd><mrow><mstyle displaystyle="false"><mfrac><mo>∂</mo><mrow><mo rspace="0em">∂</mo><mi>y</mi></mrow></mfrac></mstyle><mo lspace="0.222em" rspace="0.222em">∗</mo><msub><mi>G</mi><mi>σ</mi></msub><mo lspace="0.222em" rspace="0.222em">∗</mo><mi>I</mi></mrow></mtd></mtr></mtable><mo>]</mo></mrow><mo>=</mo><mrow><mo>[</mo><mtable displaystyle="true" rowspacing="0pt"><mtr><mtd><mrow><msub><mi>G</mi><mrow><mi>σ</mi><mo>,</mo><mi>x</mi></mrow></msub><mo lspace="0.222em" rspace="0.222em">∗</mo><mi>I</mi></mrow></mtd></mtr><mtr><mtd><mrow><msub><mi>G</mi><mrow><mi>σ</mi><mo>,</mo><mi>y</mi></mrow></msub><mo lspace="0.222em" rspace="0.222em">∗</mo><mi>I</mi></mrow></mtd></mtr></mtable><mo>]</mo></mrow><mo>=</mo><mrow><mo>[</mo><mtable displaystyle="true" rowspacing="0pt"><mtr><mtd><msub><mi>S</mi><mi>x</mi></msub></mtd></mtr><mtr><mtd><msub><mi>S</mi><mi>y</mi></msub></mtd></mtr></mtable><mo>]</mo></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S1.Thmexample3.p1.m3" class="ltx_Math" alttext="I" display="inline"><mi>I</mi></math> is the original image and we use the associativity property of the smoothing and differentiation convolution filters to define the combined filters <math id="S1.Thmexample3.p1.m4" class="ltx_Math" alttext="G_{\sigma,x}" display="inline"><msub><mi>G</mi><mrow><mi>σ</mi><mo>,</mo><mi>x</mi></mrow></msub></math> and <math id="S1.Thmexample3.p1.m5" class="ltx_Math" alttext="G_{\sigma,y}" display="inline"><msub><mi>G</mi><mrow><mi>σ</mi><mo>,</mo><mi>y</mi></mrow></msub></math>.
+We can then compute the magnitude of the gradient by:</p>
+<table id="S1.Ex12" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex12.m1" class="ltx_Math" alttext="\lvert\nabla S\rvert=\sqrt{S_{x}^{2}+S_{y}^{2}}," display="block"><mrow><mrow><mrow><mo stretchy="false">|</mo><mrow><mo rspace="0.167em">∇</mo><mi>S</mi></mrow><mo stretchy="false">|</mo></mrow><mo>=</mo><msqrt><mrow><msubsup><mi>S</mi><mi>x</mi><mn>2</mn></msubsup><mo>+</mo><msubsup><mi>S</mi><mi>y</mi><mn>2</mn></msubsup></mrow></msqrt></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">which we can use to compare against a predefined threshold value for edge detection.
+To guarantee that we define thin edges, it is also possible to filter out points with gradient magnitude above the threshold that are not local maxima.
+We show an example of this process in Figure&#160;<a href="#S1.F8" title="Figure 8.8 ‣ Example 8.1.3 (Edge detection in 2D). ‣ Edge detection. ‣ 8.1.2 Image Feature Detection ‣ 8.1 Image Processing Fundamentals" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.8</span></a>.</p>
+</div>
+<figure id="S1.F8" class="ltx_figure"><img style="width:90%;height:auto" src="/book-assets/classical-perception/figs__ch10_figs__sobel.png" id="S1.F8.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 8.8</span>: </span><span class="ltx_text" style="font-size:90%;">Edge detection using the Sobel edge detector.</span></figcaption>
+</figure>
+</div>
+</section>
+<section id="S1.SS2.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Corner detection.</h4>
+
+<div id="S1.SS2.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">A <em class="ltx_emph ltx_font_italic">corner</em> in an image is defined as an intersection of two or more edges, and also sometimes as a point where there is a large intensity variation in every direction.
+Important properties of corner detectors include repeatability and distinctiveness.
+The repeatability of a corner detector quantifies how well we can find the same features in multiple images even under geometric and photometric transformations.
+Distinctiveness refers to whether the information carried by the patch surrounding the feature is distinctive, which we can use to reliably produce correspondences.
+Both of these properties are particularly important in applications such as panorama stitching and 3D reconstruction.</p>
+</div>
+<div id="S1.SS2.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">We can generally think of corner detection in a similar way to edge detection, except that instead of looking for change along one direction there should be changes in all directions.
+One well-known corner detector is known as the Harris detector<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">8</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">8.</span> Harris, C., Stephens, M. “A combined corner and edge detector.” In <em>4th Alvey Vision Conference</em>, 1988.</span></span></span>, which has the useful property that the detection is invariant to rotations and linear intensity changes, such as geometric and photometric invariance.
+However, the Harris detector is not invariant to scale changes or geometric affine changes, which has led to the development of scale-invariant detectors such as the Harris-Laplacian detector or the scale-invariant feature transform (SIFT) detector.</p>
+</div>
+</section>
+</section>
+<section id="S1.SS3" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">8.1.3 </span>Image Descriptors</h3>
+
+<div id="S1.SS3.p1" class="ltx_para">
+<p class="ltx_p">Image <em class="ltx_emph ltx_font_italic">descriptors</em> describe features so that they can be compared across images, or used for object detection and matching.
+Similar to image detectors, it is desirable for image descriptors to be repeatable<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS3.p1.p1" class="ltx_para">
+<span class="ltx_p">For example, invariant with respect to pose, scale, and illumination.</span>
+</span></span></span></span></span> and distinct.
+Perhaps the simplest example of a descriptor is an <math id="S1.SS3.p1.m1" class="ltx_Math" alttext="n\times m" display="inline"><mrow><mi>n</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>m</mi></mrow></math> window of pixel intensities centered at the feature, which we can normalize to be illumination invariant.
+However, such a descriptor is not invariant to pose or scale and is not distinctive, and therefore is generally not useful in practice.</p>
+</div>
+</section>
+</section>
+<section id="S2" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">8.2 </span>Geometric Feature Extraction</h2>
+
+<div id="S2.p1" class="ltx_para">
+<p class="ltx_p">It is common in robotic localization and mapping to represent the environment using simple geometric primitives<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.p1.p1" class="ltx_para">
+<span class="ltx_p">Common geometric primitives include lines, circles, corners, and planes.</span>
+</span></span></span></span></span> that we can efficiently extract from sensor data.
+In this section, we present some techniques for line extraction from range data<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.p1.p2" class="ltx_para">
+<span class="ltx_p">Range data can generally come from a variety of sources, including laser rangefinders, radar, or even computer vision.</span>
+</span></span></span></span></span>.
+Lines are one of the most fundamental geometric primitives that we would want to extract from data, and techniques for extracting other primitives are conceptually similar.</p>
+</div>
+<div id="S2.p2" class="ltx_para">
+<p class="ltx_p">There are two main challenges with extracting lines from range data.
+The first is <em class="ltx_emph ltx_font_italic">segmentation</em>, which is the task of identifying which data points belong to which line, and inherently also identifying how many lines there are.
+The second is <em class="ltx_emph ltx_font_italic">fitting</em>, which is the task of estimating the parameters that define a line given a set of points.
+For simplicity, in this chapter, we consider line extraction problems based on two-dimensional range data.</p>
+</div>
+<section id="S2.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">8.2.1 </span>Line Segmentation</h3>
+
+<div id="S2.SS1.p1" class="ltx_para">
+<p class="ltx_p">The line segmentation problem is to determine how many lines exist in a given set of data and which data points correspond to each line.
+We will discuss three popular algorithms for line segmentation: the <em class="ltx_emph ltx_font_italic">split-and-merge</em> algorithm, the <em class="ltx_emph ltx_font_italic">random sample consensus (RANSAC)</em> algorithm, and the <em class="ltx_emph ltx_font_italic">Hough-transform</em> algorithm.</p>
+</div>
+<section id="S2.SS1.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Split-and-merge.</h4>
+
+<div id="S2.SS1.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">The split-and-merge algorithm is a popular line extraction algorithm that is fast but not very robust to outliers.
+The split-and-merge algorithm repeatedly fits lines to sets of points and then splits the set of points into two sets if any point lies more than a specified distance, <math id="S2.SS1.SSS0.Px1.p1.m1" class="ltx_Math" alttext="d" display="inline"><mi>d</mi></math>, from the line.
+By repeating this process until no more splits occur, we are guaranteed that all points will lie less than the distance, <math id="S2.SS1.SSS0.Px1.p1.m2" class="ltx_Math" alttext="d" display="inline"><mi>d</mi></math>, to a line.
+After this splitting process is complete, a second step merges any of the newly formed lines that are collinear.
+We present this algorithm in more detail in Algorithm&#160;<a href="#algorithm1" title="In Split-and-merge. ‣ 8.2.1 Line Segmentation ‣ 8.2 Geometric Feature Extraction" class="ltx_ref"><span class="ltx_text ltx_ref_tag">1</span></a>.</p>
+</div>
+<figure id="algorithm1" class="ltx_float ltx_algorithm">
+<div class="ltx_listing ltx_lst_numbers_left ltx_listing">
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Data:</span> Set, <math id="algorithm1.m1" class="ltx_Math" alttext="S" display="inline"><mi>S</mi></math>, of <math id="algorithm1.m2" class="ltx_Math" alttext="N" display="inline"><mi>N</mi></math> points, distance threshold, <math id="algorithm1.m3" class="ltx_Math" alttext="d&gt;0" display="inline"><mrow><mi>d</mi><mo>&gt;</mo><mn>0</mn></mrow></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Result:</span> A list, <math id="algorithm1.m4" class="ltx_Math" alttext="L" display="inline"><mi>L</mi></math>, of sets of points, each resembling a line</div>
+<div class="ltx_listingline"><math id="algorithm1.m5" class="ltx_Math" alttext="L\xleftarrow{}[S]" display="inline"><mrow><mi>L</mi><mover accent="true"><mo stretchy="false">←</mo><mi></mi></mover><mrow><mo stretchy="false">[</mo><mi>S</mi><mo stretchy="false">]</mo></mrow></mrow></math> </div>
+<div class="ltx_listingline"><math id="algorithm1.m6" class="ltx_Math" alttext="i\xleftarrow{}1" display="inline"><mrow><mi>i</mi><mover accent="true"><mo stretchy="false">←</mo><mi></mi></mover><mn>1</mn></mrow></math> </div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">while</span> <em class="ltx_emph ltx_font_italic"><math id="algorithm1.m7" class="ltx_Math" alttext="i\leq\text{length}(L)" display="inline"><mrow><mi>i</mi><mo>≤</mo><mrow><mtext class="ltx_mathvariant_italic">length</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>L</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></math></em> <span class="ltx_text ltx_font_bold">do</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Fit a line <math id="algorithm1.m8" class="ltx_Math" alttext="(\alpha,r)" display="inline"><mrow><mo stretchy="false">(</mo><mi>α</mi><mo>,</mo><mi>r</mi><mo stretchy="false">)</mo></mrow></math> to the set <math id="algorithm1.m9" class="ltx_Math" alttext="L[i]" display="inline"><mrow><mi>L</mi><mo>⁢</mo><mrow><mo stretchy="false">[</mo><mi>i</mi><mo stretchy="false">]</mo></mrow></mrow></math> </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Detect the point <math id="algorithm1.m10" class="ltx_Math" alttext="P\in L[i]" display="inline"><mrow><mi>P</mi><mo>∈</mo><mrow><mi>L</mi><mo>⁢</mo><mrow><mo stretchy="false">[</mo><mi>i</mi><mo stretchy="false">]</mo></mrow></mrow></mrow></math> with maximum distance, <math id="algorithm1.m11" class="ltx_Math" alttext="D" display="inline"><mi>D</mi></math>, to the line <math id="algorithm1.m12" class="ltx_Math" alttext="(\alpha,r)" display="inline"><mrow><mo stretchy="false">(</mo><mi>α</mi><mo>,</mo><mi>r</mi><mo stretchy="false">)</mo></mrow></math> </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <span class="ltx_text ltx_font_bold">if</span> <em class="ltx_emph ltx_font_italic"><math id="algorithm1.m13" class="ltx_Math" alttext="D&lt;d" display="inline"><mrow><mi>D</mi><mo>&lt;</mo><mi>d</mi></mrow></math></em> <span class="ltx_text ltx_font_bold">then</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>     <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm1.m14" class="ltx_Math" alttext="i\xleftarrow{}i+1" display="inline"><mrow><mi>i</mi><mover accent="true"><mo stretchy="false">←</mo><mi></mi></mover><mrow><mi>i</mi><mo>+</mo><mn>1</mn></mrow></mrow></math></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <span class="ltx_text ltx_font_bold">else</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>     <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Split <math id="algorithm1.m15" class="ltx_Math" alttext="L[i]" display="inline"><mrow><mi>L</mi><mo>⁢</mo><mrow><mo stretchy="false">[</mo><mi>i</mi><mo stretchy="false">]</mo></mrow></mrow></math> at <math id="algorithm1.m16" class="ltx_Math" alttext="P" display="inline"><mi>P</mi></math> into new sets, <math id="algorithm1.m17" class="ltx_Math" alttext="S_{1}" display="inline"><msub><mi>S</mi><mn>1</mn></msub></math> and <math id="algorithm1.m18" class="ltx_Math" alttext="S_{2}" display="inline"><msub><mi>S</mi><mn>2</mn></msub></math> </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>     <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm1.m19" class="ltx_Math" alttext="L[i]\xleftarrow{}S_{1}" display="inline"><mrow><mrow><mi>L</mi><mo>⁢</mo><mrow><mo stretchy="false">[</mo><mi>i</mi><mo stretchy="false">]</mo></mrow></mrow><mover accent="true"><mo stretchy="false">←</mo><mi></mi></mover><msub><mi>S</mi><mn>1</mn></msub></mrow></math> </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>     <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm1.m20" class="ltx_Math" alttext="L[i+1]\xleftarrow{}S_{2}" display="inline"><mrow><mrow><mi>L</mi><mo>⁢</mo><mrow><mo stretchy="false">[</mo><mrow><mi>i</mi><mo>+</mo><mn>1</mn></mrow><mo stretchy="false">]</mo></mrow></mrow><mover accent="true"><mo stretchy="false">←</mo><mi></mi></mover><msub><mi>S</mi><mn>2</mn></msub></mrow></math> </div>
+<div class="ltx_listingline">&#160;</div>
+<div class="ltx_listingline">&#160;</div>
+<div class="ltx_listingline">Merge collinear sets in <math id="algorithm1.m21" class="ltx_Math" alttext="L" display="inline"><mi>L</mi></math></div>
+</div>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_float"><span class="ltx_text ltx_font_bold">Algorithm 1</span> </span>Split-and-Merge</figcaption>
+</figure>
+<div id="S2.SS1.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">A popular variant of the split-and-merge algorithm is known as the iterative-end-point-fit algorithm.
+This algorithm is the split-and-merge algorithm in Algorithm&#160;<a href="#algorithm1" title="In Split-and-merge. ‣ 8.2.1 Line Segmentation ‣ 8.2 Geometric Feature Extraction" class="ltx_ref"><span class="ltx_text ltx_ref_tag">1</span></a> where the line is constructed by simply connecting the first and the last points of the set.
+We show this approach graphically in Figure&#160;<a href="#S2.F9" title="Figure 8.9 ‣ Split-and-merge. ‣ 8.2.1 Line Segmentation ‣ 8.2 Geometric Feature Extraction" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.9</span></a>.</p>
+</div>
+<figure id="S2.F9" class="ltx_figure"><img style="width:85%;height:auto" src="/book-assets/classical-perception/figs__ch11_figs__iterative_end_point_fit.png" id="S2.F9.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 8.9</span>: </span><span class="ltx_text" style="font-size:90%;">Iterative-end-point-fit variation of the split-and-merge algorithm for extracting lines from data.</span></figcaption>
+</figure>
+</section>
+<section id="S2.SS1.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Random sample consensus (RANSAC).</h4>
+
+<div id="S2.SS1.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">Random Sample Consensus (RANSAC)<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">9</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">9.</span> Fischler, Martin A., Bolles, Robert C. “Random sample consensus: a paradigm for model fitting with applications to image analysis and automated cartography.” <em>Commun. ACM</em> 24(6), 381–395, 1981.</span></span></span> is an algorithm to estimate the parameters of a model from a set of data that may contain outliers<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.SS1.SSS0.Px2.p1.p1" class="ltx_para">
+<span class="ltx_p">This problem is sometimes referred to as <em class="ltx_emph ltx_font_italic">robust</em> model parameter estimation.</span>
+</span></span></span></span></span>.
+Outliers are data points that do not fit the model and may be the result of high noise in the data, incorrect measurements, or simply points which come from objects that are unrelated to the current model.
+For example, a laser scan of an indoor environment may contain distinct lines from the surrounding walls but also points from other static and dynamic objects such as chairs or humans.
+In this case, if the goal is to extract lines to represent the walls, then any data point corresponding to other objects would be an outlier.
+In general, we can apply RANSAC to many parameter estimation problems, and typical applications in robotics include line extraction from 2D range data, plane extraction from 3D point clouds, and structure-from-motion<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.SS1.SSS0.Px2.p1.p2" class="ltx_para">
+<span class="ltx_p">Where the goal in structure-from-motion problems is to identify image correspondences which satisfy a rigid body transformation.</span>
+</span></span></span></span></span>.
+We focus on using RANSAC for line extraction from two-dimensional data below.</p>
+</div>
+<div id="S2.SS1.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">RANSAC is an iterative method and is non-deterministic<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.SS1.SSS0.Px2.p2.p1" class="ltx_para">
+<span class="ltx_p">In other words, it is stochastic or random.
+Running the algorithm twice on the same inputs will not necessarily produce the same results.</span>
+</span></span></span></span></span>.
+Given a dataset, <math id="S2.SS1.SSS0.Px2.p2.m1" class="ltx_Math" alttext="S" display="inline"><mi>S</mi></math>, of <math id="S2.SS1.SSS0.Px2.p2.m2" class="ltx_Math" alttext="N" display="inline"><mi>N</mi></math> points, we start by randomly selecting a sample of two points from <math id="S2.SS1.SSS0.Px2.p2.m3" class="ltx_Math" alttext="S" display="inline"><mi>S</mi></math>.
+Next, we construct a line from the two sampled points and compute the distance of all other points to this line.
+We then define the set of <em class="ltx_emph ltx_font_italic">inliers</em>, which is comprised of all points whose distance to the line is within a predefined threshold, <math id="S2.SS1.SSS0.Px2.p2.m4" class="ltx_Math" alttext="d" display="inline"><mi>d</mi></math>.
+By repeating this process <math id="S2.SS1.SSS0.Px2.p2.m5" class="ltx_Math" alttext="k" display="inline"><mi>k</mi></math> times, we generate <math id="S2.SS1.SSS0.Px2.p2.m6" class="ltx_Math" alttext="k" display="inline"><mi>k</mi></math> inlier sets and their associated lines and return the inlier set with the most points.
+We detail this procedure in Algorithm&#160;<a href="#algorithm2" title="In Random sample consensus (RANSAC). ‣ 8.2.1 Line Segmentation ‣ 8.2 Geometric Feature Extraction" class="ltx_ref"><span class="ltx_text ltx_ref_tag">2</span></a> and illustrate the process in Figure&#160;<a href="#S2.F10" title="Figure 8.10 ‣ Random sample consensus (RANSAC). ‣ 8.2.1 Line Segmentation ‣ 8.2 Geometric Feature Extraction" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.10</span></a>.</p>
+</div>
+<figure id="algorithm2" class="ltx_float ltx_algorithm">
+<div class="ltx_listing ltx_lst_numbers_left ltx_listing">
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Data:</span> Set, <math id="algorithm2.m1" class="ltx_Math" alttext="S" display="inline"><mi>S</mi></math>, of <math id="algorithm2.m2" class="ltx_Math" alttext="N" display="inline"><mi>N</mi></math> points, distance threshold, <math id="algorithm2.m3" class="ltx_Math" alttext="d" display="inline"><mi>d</mi></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Result:</span> Set with maximum number of inliers and corresponding line</div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">while</span> <em class="ltx_emph ltx_font_italic"><math id="algorithm2.m4" class="ltx_Math" alttext="i\leq k" display="inline"><mrow><mi>i</mi><mo>≤</mo><mi>k</mi></mrow></math></em> <span class="ltx_text ltx_font_bold">do</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Randomly select two points from <math id="algorithm2.m5" class="ltx_Math" alttext="S" display="inline"><mi>S</mi></math>. </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Fit line, <math id="algorithm2.m6" class="ltx_Math" alttext="l_{i}" display="inline"><msub><mi>l</mi><mi>i</mi></msub></math>, through the two points. </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Compute distance of all other points to <math id="algorithm2.m7" class="ltx_Math" alttext="l_{i}" display="inline"><msub><mi>l</mi><mi>i</mi></msub></math>. </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Construct set of points, <math id="algorithm2.m8" class="ltx_Math" alttext="\tilde{S}_{i}" display="inline"><msub><mover accent="true"><mi>S</mi><mo>~</mo></mover><mi>i</mi></msub></math>, with distance less than <math id="algorithm2.m9" class="ltx_Math" alttext="d" display="inline"><mi>d</mi></math> to <math id="algorithm2.m10" class="ltx_Math" alttext="l_{i}" display="inline"><msub><mi>l</mi><mi>i</mi></msub></math>. </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Store line, <math id="algorithm2.m11" class="ltx_Math" alttext="l_{i}" display="inline"><msub><mi>l</mi><mi>i</mi></msub></math>, and set of points, <math id="algorithm2.m12" class="ltx_Math" alttext="\tilde{S}_{i}" display="inline"><msub><mover accent="true"><mi>S</mi><mo>~</mo></mover><mi>i</mi></msub></math>.</div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm2.m13" class="ltx_Math" alttext="i\xleftarrow{}i+1" display="inline"><mrow><mi>i</mi><mover accent="true"><mo stretchy="false">←</mo><mi></mi></mover><mrow><mi>i</mi><mo>+</mo><mn>1</mn></mrow></mrow></math></div>
+<div class="ltx_listingline">Choose set <math id="algorithm2.m14" class="ltx_Math" alttext="\tilde{S}_{i}" display="inline"><msub><mover accent="true"><mi>S</mi><mo>~</mo></mover><mi>i</mi></msub></math> with maximum number of points.</div>
+</div>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_float"><span class="ltx_text ltx_font_bold">Algorithm 2</span> </span>Random Sample Consensus (RANSAC) for Line Extraction</figcaption>
+</figure>
+<figure id="S2.F10" class="ltx_figure"><img style="width:85%;height:auto" src="/book-assets/classical-perception/figs__ch11_figs__ransac.png" id="S2.F10.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 8.10</span>: </span><span class="ltx_text" style="font-size:90%;">Example of the RANSAC algorithm, showing four iterations of the algorithm.
+If the algorithm was terminated after these four iterations, line <math id="S2.F10.m2" class="ltx_Math" alttext="l_{3}" display="inline"><msub><mi>l</mi><mn>3</mn></msub></math> would be returned since it contains the maximum number of points.</span></figcaption>
+</figure>
+<div id="S2.SS1.SSS0.Px2.p3" class="ltx_para">
+<p class="ltx_p">Due to the probabilistic nature of the algorithm, as the number of iterations, <math id="S2.SS1.SSS0.Px2.p3.m1" class="ltx_Math" alttext="k" display="inline"><mi>k</mi></math>, increases the probability of finding a good solution increases.
+This approach is used over a brute force search of all possible combinations of two points since the total number of combinations is <math id="S2.SS1.SSS0.Px2.p3.m2" class="ltx_Math" alttext="N(N-1)/2" display="inline"><mrow><mrow><mi>N</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>N</mi><mo>−</mo><mn>1</mn></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>/</mo><mn>2</mn></mrow></math>, which can be extremely large.
+In fact, we can perform a simple statistical analysis of RANSAC.
+Let <math id="S2.SS1.SSS0.Px2.p3.m3" class="ltx_Math" alttext="p" display="inline"><mi>p</mi></math> be the <em class="ltx_emph ltx_font_italic">desired</em> probability of finding a set of points free of outliers and let <math id="S2.SS1.SSS0.Px2.p3.m4" class="ltx_Math" alttext="w" display="inline"><mi>w</mi></math> be the probability of selecting an inlier from the dataset, <math id="S2.SS1.SSS0.Px2.p3.m5" class="ltx_Math" alttext="S" display="inline"><mi>S</mi></math>, of <math id="S2.SS1.SSS0.Px2.p3.m6" class="ltx_Math" alttext="N" display="inline"><mi>N</mi></math> points, which we can express as:</p>
+<table id="S2.Ex13" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex13.m1" class="ltx_Math" alttext="w\coloneqq\frac{\text{\# inliers}}{N}." display="block"><mrow><mrow><mi>w</mi><mo>≔</mo><mfrac><mtext># inliers</mtext><mi>N</mi></mfrac></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Assuming we draw point samples independently from <math id="S2.SS1.SSS0.Px2.p3.m7" class="ltx_Math" alttext="S" display="inline"><mi>S</mi></math>, the probability of drawing two inliers is <math id="S2.SS1.SSS0.Px2.p3.m8" class="ltx_Math" alttext="w^{2}" display="inline"><msup><mi>w</mi><mn>2</mn></msup></math>, and <math id="S2.SS1.SSS0.Px2.p3.m9" class="ltx_Math" alttext="1-w^{2}" display="inline"><mrow><mn>1</mn><mo>−</mo><msup><mi>w</mi><mn>2</mn></msup></mrow></math> is the probability that at least one is an outlier.
+Therefore, with <math id="S2.SS1.SSS0.Px2.p3.m10" class="ltx_Math" alttext="k" display="inline"><mi>k</mi></math> iterations, the probability that RANSAC never selects two points that are both inliers is <math id="S2.SS1.SSS0.Px2.p3.m11" class="ltx_Math" alttext="(1-w^{2})^{k}" display="inline"><msup><mrow><mo stretchy="false">(</mo><mrow><mn>1</mn><mo>−</mo><msup><mi>w</mi><mn>2</mn></msup></mrow><mo stretchy="false">)</mo></mrow><mi>k</mi></msup></math>.
+We can therefore find the minimum number of iterations, <math id="S2.SS1.SSS0.Px2.p3.m12" class="ltx_Math" alttext="\bar{k}" display="inline"><mover accent="true"><mi>k</mi><mo>¯</mo></mover></math>, needed to find an outlier-free set with probability <math id="S2.SS1.SSS0.Px2.p3.m13" class="ltx_Math" alttext="p" display="inline"><mi>p</mi></math> by solving:</p>
+<table id="S2.Ex14" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex14.m1" class="ltx_Math" alttext="1-p=(1-w^{2})^{k}," display="block"><mrow><mrow><mrow><mn>1</mn><mo>−</mo><mi>p</mi></mrow><mo>=</mo><msup><mrow><mo stretchy="false">(</mo><mrow><mn>1</mn><mo>−</mo><msup><mi>w</mi><mn>2</mn></msup></mrow><mo stretchy="false">)</mo></mrow><mi>k</mi></msup></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">for <math id="S2.SS1.SSS0.Px2.p3.m14" class="ltx_Math" alttext="k" display="inline"><mi>k</mi></math>.
+In other words, we can compute <math id="S2.SS1.SSS0.Px2.p3.m15" class="ltx_Math" alttext="\bar{k}" display="inline"><mover accent="true"><mi>k</mi><mo>¯</mo></mover></math> as:</p>
+<table id="S2.Ex15" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex15.m1" class="ltx_Math" alttext="\bar{k}=\frac{\log(1-p)}{\log(1-w^{2})}." display="block"><mrow><mrow><mover accent="true"><mi>k</mi><mo>¯</mo></mover><mo>=</mo><mfrac><mrow><mi>log</mi><mo>⁡</mo><mrow><mo stretchy="false">(</mo><mrow><mn>1</mn><mo>−</mo><mi>p</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mrow><mi>log</mi><mo>⁡</mo><mrow><mo stretchy="false">(</mo><mrow><mn>1</mn><mo>−</mo><msup><mi>w</mi><mn>2</mn></msup></mrow><mo stretchy="false">)</mo></mrow></mrow></mfrac></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">While the value of <math id="S2.SS1.SSS0.Px2.p3.m16" class="ltx_Math" alttext="w" display="inline"><mi>w</mi></math> may not be known exactly<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.SS1.SSS0.Px2.p3.p1" class="ltx_para">
+<span class="ltx_p">There are advanced versions of RANSAC that can estimate <math id="S2.SS1.SSS0.Px2.p3.p1.m1" class="ltx_Math" alttext="w" display="inline"><mi>w</mi></math> in an adaptive online fashion.</span>
+</span></span></span></span></span>, we can still use this expression to get a good estimate of the number of iterations, <math id="S2.SS1.SSS0.Px2.p3.m17" class="ltx_Math" alttext="k" display="inline"><mi>k</mi></math>, that we need for good results.
+It is important to note that this probabilistic approach often leads to a much smaller number of iterations than a brute force search through all combinations.
+We can attribute this to the fact that <math id="S2.SS1.SSS0.Px2.p3.m18" class="ltx_Math" alttext="\bar{k}" display="inline"><mover accent="true"><mi>k</mi><mo>¯</mo></mover></math> is only a function of <math id="S2.SS1.SSS0.Px2.p3.m19" class="ltx_Math" alttext="w" display="inline"><mi>w</mi></math> and not the total number of samples, <math id="S2.SS1.SSS0.Px2.p3.m20" class="ltx_Math" alttext="N" display="inline"><mi>N</mi></math>, in the dataset.</p>
+</div>
+<div id="S2.SS1.SSS0.Px2.p4" class="ltx_para">
+<p class="ltx_p">Overall, the main advantage of RANSAC is that it is a generic extraction method and can be used with many types of features given a feature model.
+It is also simple to implement and is robust to data outliers.
+The main disadvantages are that the algorithm needs to run multiple times to extract multiple features, and there are no guarantees that the solutions will be optimal.</p>
+</div>
+</section>
+<section id="S2.SS1.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Hough transform.</h4>
+
+<div id="S2.SS1.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">In the Hough transform algorithm, each point, <math id="S2.SS1.SSS0.Px3.p1.m1" class="ltx_Math" alttext="(x_{i},y_{i})" display="inline"><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>y</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow></math>, of the dataset, <math id="S2.SS1.SSS0.Px3.p1.m2" class="ltx_Math" alttext="S" display="inline"><mi>S</mi></math>, votes for a <em class="ltx_emph ltx_font_italic">set</em> of possible line parameters, <math id="S2.SS1.SSS0.Px3.p1.m3" class="ltx_Math" alttext="(m,b)" display="inline"><mrow><mo stretchy="false">(</mo><mi>m</mi><mo>,</mo><mi>b</mi><mo stretchy="false">)</mo></mrow></math>, where <math id="S2.SS1.SSS0.Px3.p1.m4" class="ltx_Math" alttext="m" display="inline"><mi>m</mi></math> is the slope and <math id="S2.SS1.SSS0.Px3.p1.m5" class="ltx_Math" alttext="b" display="inline"><mi>b</mi></math> is the intercept point.
+For any given point, <math id="S2.SS1.SSS0.Px3.p1.m6" class="ltx_Math" alttext="(x_{i},y_{i})" display="inline"><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>y</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow></math>, the candidate set of line parameters, <math id="S2.SS1.SSS0.Px3.p1.m7" class="ltx_Math" alttext="(m,b)" display="inline"><mrow><mo stretchy="false">(</mo><mi>m</mi><mo>,</mo><mi>b</mi><mo stretchy="false">)</mo></mrow></math>, that could pass through this point must satisfy <math id="S2.SS1.SSS0.Px3.p1.m8" class="ltx_Math" alttext="y_{i}=mx_{i}+b" display="inline"><mrow><msub><mi>y</mi><mi>i</mi></msub><mo>=</mo><mrow><mrow><mi>m</mi><mo>⁢</mo><msub><mi>x</mi><mi>i</mi></msub></mrow><mo>+</mo><mi>b</mi></mrow></mrow></math>, which we can also write as:</p>
+<table id="S2.Ex16" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex16.m1" class="ltx_Math" alttext="\quad b=-mx_{i}+y_{i}." display="block"><mrow><mrow><mi>b</mi><mo>=</mo><mrow><mrow><mo>−</mo><mrow><mi>m</mi><mo>⁢</mo><msub><mi>x</mi><mi>i</mi></msub></mrow></mrow><mo>+</mo><msub><mi>y</mi><mi>i</mi></msub></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Therefore, each point, <math id="S2.SS1.SSS0.Px3.p1.m9" class="ltx_Math" alttext="(x,y)" display="inline"><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></math>, in the original space maps to a <em class="ltx_emph ltx_font_italic">line</em>, <math id="S2.SS1.SSS0.Px3.p1.m10" class="ltx_Math" alttext="(m,b)" display="inline"><mrow><mo stretchy="false">(</mo><mi>m</mi><mo>,</mo><mi>b</mi><mo stretchy="false">)</mo></mrow></math>, in the Hough space, as we show in Figure&#160;<a href="#S2.F11" title="Figure 8.11 ‣ Hough transform. ‣ 8.2.1 Line Segmentation ‣ 8.2 Geometric Feature Extraction" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.11</span></a>.
+The Hough transform algorithm exploits this fact by noting that two points on the same line in the original space will yield two <em class="ltx_emph ltx_font_italic">intersecting</em> lines in Hough space.
+In particular, the point where they intersect in the Hough space corresponds to the parameters <math id="S2.SS1.SSS0.Px3.p1.m11" class="ltx_Math" alttext="m^{*}" display="inline"><msup><mi>m</mi><mo>∗</mo></msup></math> and <math id="S2.SS1.SSS0.Px3.p1.m12" class="ltx_Math" alttext="b^{*}" display="inline"><msup><mi>b</mi><mo>∗</mo></msup></math> that defines the line passing between the points in the original space, as we show in Figure&#160;<a href="#S2.F12" title="Figure 8.12 ‣ Hough transform. ‣ 8.2.1 Line Segmentation ‣ 8.2 Geometric Feature Extraction" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.12</span></a>.</p>
+</div>
+<figure id="S2.F11" class="ltx_figure"><img style="width:75%;height:auto" src="/book-assets/classical-perception/figs__ch11_figs__hough.png" id="S2.F11.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 8.11</span>: </span><span class="ltx_text" style="font-size:90%;">Each point, <math id="S2.F11.m5" class="ltx_Math" alttext="(x_{i},y_{i})" display="inline"><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>y</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow></math>, in the original space maps to a <em class="ltx_emph ltx_font_italic">line</em> in the Hough space which describes all possible parameters <math id="S2.F11.m6" class="ltx_Math" alttext="m" display="inline"><mi>m</mi></math> and <math id="S2.F11.m7" class="ltx_Math" alttext="b" display="inline"><mi>b</mi></math> that would generate a line passing through the point <math id="S2.F11.m8" class="ltx_Math" alttext="(x_{i},y_{i})" display="inline"><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>y</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow></math>.</span></figcaption>
+</figure>
+<figure id="S2.F12" class="ltx_figure"><img style="width:75%;height:auto" src="/book-assets/classical-perception/figs__ch11_figs__hough2.png" id="S2.F12.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 8.12</span>: </span><span class="ltx_text" style="font-size:90%;">All points on a line in the original space yield lines in the Hough space that intersect at a common point.</span></figcaption>
+</figure>
+<div id="S2.SS1.SSS0.Px3.p2" class="ltx_para">
+<p class="ltx_p">We can apply this concept to the line segmentation problem by searching in the Hough space for intersections among the lines that correspond to each point, <math id="S2.SS1.SSS0.Px3.p2.m1" class="ltx_Math" alttext="(x,y)" display="inline"><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></math>, in the set, <math id="S2.SS1.SSS0.Px3.p2.m2" class="ltx_Math" alttext="S" display="inline"><mi>S</mi></math>.
+In practice, we do this by discretizing the Hough space with a grid and simply counting for each grid cell the number of lines corresponding to <math id="S2.SS1.SSS0.Px3.p2.m3" class="ltx_Math" alttext="(x_{i},y_{i})" display="inline"><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>y</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow></math> points from <math id="S2.SS1.SSS0.Px3.p2.m4" class="ltx_Math" alttext="S" display="inline"><mi>S</mi></math> that pass through it.
+We choose local maxima among the cells as lines that “fit” the data set, <math id="S2.SS1.SSS0.Px3.p2.m5" class="ltx_Math" alttext="S" display="inline"><mi>S</mi></math>.</p>
+</div>
+<div id="S2.SS1.SSS0.Px3.p3" class="ltx_para">
+<p class="ltx_p">However, performing a discretization of the Hough space requires a trade-off between range and resolution, in particular because the slope, <math id="S2.SS1.SSS0.Px3.p3.m1" class="ltx_Math" alttext="m" display="inline"><mi>m</mi></math>, can range from <math id="S2.SS1.SSS0.Px3.p3.m2" class="ltx_Math" alttext="-\infty" display="inline"><mrow><mo>−</mo><mi mathvariant="normal">∞</mi></mrow></math> to <math id="S2.SS1.SSS0.Px3.p3.m3" class="ltx_Math" alttext="\infty" display="inline"><mi mathvariant="normal">∞</mi></math>.
+Alternatively, we can use a polar coordinate representation of the Hough space which defines a line as:</p>
+<table id="S2.Ex17" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex17.m1" class="ltx_Math" alttext="x\cos\alpha+y\sin\alpha=r," display="block"><mrow><mrow><mrow><mrow><mi>x</mi><mo lspace="0.167em">⁢</mo><mrow><mi>cos</mi><mo lspace="0.167em">⁡</mo><mi>α</mi></mrow></mrow><mo>+</mo><mrow><mi>y</mi><mo lspace="0.167em">⁢</mo><mrow><mi>sin</mi><mo lspace="0.167em">⁡</mo><mi>α</mi></mrow></mrow></mrow><mo>=</mo><mi>r</mi></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S2.SS1.SSS0.Px3.p3.m4" class="ltx_Math" alttext="(\alpha,r)" display="inline"><mrow><mo stretchy="false">(</mo><mi>α</mi><mo>,</mo><mi>r</mi><mo stretchy="false">)</mo></mrow></math> are the new line parameters.
+With this representation, we map a point, <math id="S2.SS1.SSS0.Px3.p3.m5" class="ltx_Math" alttext="(x_{i},y_{i})" display="inline"><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>y</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow></math>, from the original space to the polar Hough space, <math id="S2.SS1.SSS0.Px3.p3.m6" class="ltx_Math" alttext="(\alpha,r)" display="inline"><mrow><mo stretchy="false">(</mo><mi>α</mi><mo>,</mo><mi>r</mi><mo stretchy="false">)</mo></mrow></math>, as a sinusoidal curve, as we show in Figure&#160;<a href="#S2.F13" title="Figure 8.13 ‣ Hough transform. ‣ 8.2.1 Line Segmentation ‣ 8.2 Geometric Feature Extraction" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.13</span></a>.
+We provide an example of the Hough transform using the polar representation in Figure&#160;<a href="#S2.F14" title="Figure 8.14 ‣ Hough transform. ‣ 8.2.1 Line Segmentation ‣ 8.2 Geometric Feature Extraction" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.14</span></a>.</p>
+</div>
+<figure id="S2.F13" class="ltx_figure"><img style="width:75%;height:auto" src="/book-assets/classical-perception/figs__ch11_figs__hough3.png" id="S2.F13.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 8.13</span>: </span><span class="ltx_text" style="font-size:90%;">Representation of a point, <math id="S2.F13.m4" class="ltx_Math" alttext="(x_{i},y_{i})" display="inline"><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>y</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow></math>, in the Hough space when using a polar coordinate representation of a line with parameters <math id="S2.F13.m5" class="ltx_Math" alttext="\alpha" display="inline"><mi>α</mi></math> and <math id="S2.F13.m6" class="ltx_Math" alttext="r" display="inline"><mi>r</mi></math>.</span></figcaption>
+</figure>
+<figure id="S2.F14" class="ltx_figure"><img style="width:85%;height:auto" src="/book-assets/classical-perception/figs__ch11_figs__hough4.png" id="S2.F14.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 8.14</span>: </span><span class="ltx_text" style="font-size:90%;">Example of the Hough transformation using a polar coordinate representation of lines.</span></figcaption>
+</figure>
+</section>
+</section>
+<section id="S2.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">8.2.2 </span>Point Cloud Registration</h3>
+
+<div id="S2.SS2.p1" class="ltx_para">
+<p class="ltx_p">In robotics, another important sensor modality consists of point clouds, which we can obtain from lidar or RGB-D sensors. One important consideration is to align two point clouds, generally to localize a sensor in its surroundings or to merge data from multiple viewpoints into a unified representation. We refer to this alignment problem formally as <em class="ltx_emph ltx_font_italic">point cloud registration</em>, which is the task of finding the geometric transformation that best aligns one point cloud to another.</p>
+</div>
+<div id="S2.SS2.p2" class="ltx_para">
+<p class="ltx_p">The point cloud registration problem can be formulated as follows. Given a source point cloud <math id="S2.SS2.p2.m1" class="ltx_Math" alttext="P\coloneqq\{p_{1},\ldots,p_{N}\}" display="inline"><mrow><mi>P</mi><mo>≔</mo><mrow><mo stretchy="false">{</mo><msub><mi>p</mi><mn>1</mn></msub><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msub><mi>p</mi><mi>N</mi></msub><mo stretchy="false">}</mo></mrow></mrow></math> and a reference point cloud <math id="S2.SS2.p2.m2" class="ltx_Math" alttext="Q\coloneqq\{q_{1},\ldots,q_{M}\}" display="inline"><mrow><mi>Q</mi><mo>≔</mo><mrow><mo stretchy="false">{</mo><msub><mi>q</mi><mn>1</mn></msub><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msub><mi>q</mi><mi>M</mi></msub><mo stretchy="false">}</mo></mrow></mrow></math>, where each <math id="S2.SS2.p2.m3" class="ltx_Math" alttext="p_{i},q_{j}\in\mathbb{R}^{3}" display="inline"><mrow><mrow><msub><mi>p</mi><mi>i</mi></msub><mo>,</mo><msub><mi>q</mi><mi>j</mi></msub></mrow><mo>∈</mo><msup><mi>ℝ</mi><mn>3</mn></msup></mrow></math>, our goal is to find the rigid transformation consisting of a rotation matrix <math id="S2.SS2.p2.m4" class="ltx_Math" alttext="R\in SO(3)" display="inline"><mrow><mi>R</mi><mo>∈</mo><mrow><mi>S</mi><mo>⁢</mo><mi>O</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>3</mn><mo stretchy="false">)</mo></mrow></mrow></mrow></math> and translation vector <math id="S2.SS2.p2.m5" class="ltx_Math" alttext="t\in\mathbb{R}^{3}" display="inline"><mrow><mi>t</mi><mo>∈</mo><msup><mi>ℝ</mi><mn>3</mn></msup></mrow></math> that best aligns <math id="S2.SS2.p2.m6" class="ltx_Math" alttext="P" display="inline"><mi>P</mi></math> to <math id="S2.SS2.p2.m7" class="ltx_Math" alttext="Q" display="inline"><mi>Q</mi></math>. We can express this mathematically as minimizing the error metric:</p>
+<table id="S2.E7" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.E7.m1" class="ltx_Math" alttext="E(R,t)=\sum_{i=1}^{N}\|Rp_{i}+t-q_{i}^{*}\|^{2}," display="block"><mrow><mrow><mrow><mi>E</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>R</mi><mo>,</mo><mi>t</mi><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.111em">=</mo><mrow><munderover><mo movablelimits="false" rspace="0em">∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></munderover><msup><mrow><mo stretchy="false">‖</mo><mrow><mrow><mrow><mi>R</mi><mo>⁢</mo><msub><mi>p</mi><mi>i</mi></msub></mrow><mo>+</mo><mi>t</mi></mrow><mo>−</mo><msubsup><mi>q</mi><mi>i</mi><mo>∗</mo></msubsup></mrow><mo stretchy="false">‖</mo></mrow><mn>2</mn></msup></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(8.7)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S2.SS2.p2.m8" class="ltx_Math" alttext="q_{i}^{*}" display="inline"><msubsup><mi>q</mi><mi>i</mi><mo>∗</mo></msubsup></math> denotes the closest point in <math id="S2.SS2.p2.m9" class="ltx_Math" alttext="Q" display="inline"><mi>Q</mi></math> to the transformed point <math id="S2.SS2.p2.m10" class="ltx_Math" alttext="Rp_{i}+t" display="inline"><mrow><mrow><mi>R</mi><mo>⁢</mo><msub><mi>p</mi><mi>i</mi></msub></mrow><mo>+</mo><mi>t</mi></mrow></math>. This formulation leads to a challenging optimization problem because both the transformation parameters and the point correspondences are unknown.</p>
+</div>
+<section id="S2.SS2.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Iterative closest point.</h4>
+
+<div id="S2.SS2.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">The Iterative Closest Point (ICP) algorithm<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">10</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">10.</span> Zhang, Zhengyou. “Iterative point matching for registration of free-form curves and surfaces.” <em>International journal of computer vision</em> 13(2), 119–152, 1994.</span></span></span> is a widely used method for solving the point cloud registration problem. The algorithm alternates between two steps: finding point correspondences and estimating the optimal transformation given those correspondences.
+We present the complete ICP algorithm in Algorithm&#160;<a href="#algorithm3" title="In Iterative closest point. ‣ 8.2.2 Point Cloud Registration ‣ 8.2 Geometric Feature Extraction" class="ltx_ref"><span class="ltx_text ltx_ref_tag">3</span></a> and illustrate the iterative alignment process in Figure&#160;<a href="#S2.F15" title="Figure 8.15 ‣ Iterative closest point. ‣ 8.2.2 Point Cloud Registration ‣ 8.2 Geometric Feature Extraction" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.15</span></a>.</p>
+</div>
+<figure id="algorithm3" class="ltx_float ltx_algorithm">
+<div class="ltx_listing ltx_lst_numbers_left ltx_listing">
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Data:</span> Source point cloud <math id="algorithm3.m1" class="ltx_Math" alttext="P" display="inline"><mi>P</mi></math>, reference point cloud <math id="algorithm3.m2" class="ltx_Math" alttext="Q" display="inline"><mi>Q</mi></math>, initial transformation <math id="algorithm3.m3" class="ltx_Math" alttext="(R_{0},t_{0})" display="inline"><mrow><mo stretchy="false">(</mo><msub><mi>R</mi><mn>0</mn></msub><mo>,</mo><msub><mi>t</mi><mn>0</mn></msub><mo stretchy="false">)</mo></mrow></math> (optional), convergence threshold <math id="algorithm3.m4" class="ltx_Math" alttext="\epsilon" display="inline"><mi>ϵ</mi></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Result:</span> Refined transformation <math id="algorithm3.m5" class="ltx_Math" alttext="(R,t)" display="inline"><mrow><mo stretchy="false">(</mo><mi>R</mi><mo>,</mo><mi>t</mi><mo stretchy="false">)</mo></mrow></math></div>
+<div class="ltx_listingline">Initialize <math id="algorithm3.m6" class="ltx_Math" alttext="(R,t)\xleftarrow{}(R_{0},t_{0})" display="inline"><mrow><mrow><mo stretchy="false">(</mo><mi>R</mi><mo>,</mo><mi>t</mi><mo stretchy="false">)</mo></mrow><mover accent="true"><mo stretchy="false">←</mo><mi></mi></mover><mrow><mo stretchy="false">(</mo><msub><mi>R</mi><mn>0</mn></msub><mo>,</mo><msub><mi>t</mi><mn>0</mn></msub><mo stretchy="false">)</mo></mrow></mrow></math> or <math id="algorithm3.m7" class="ltx_Math" alttext="(I,0)" display="inline"><mrow><mo stretchy="false">(</mo><mi>I</mi><mo>,</mo><mn>0</mn><mo stretchy="false">)</mo></mrow></math> if no initial guess provided </div>
+<div class="ltx_listingline"><math id="algorithm3.m8" class="ltx_Math" alttext="E_{\text{prev}}\xleftarrow{}\infty" display="inline"><mrow><msub><mi>E</mi><mtext>prev</mtext></msub><mover accent="true"><mo stretchy="false">←</mo><mi></mi></mover><mi mathvariant="normal">∞</mi></mrow></math> </div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">repeat</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <span class="ltx_text ltx_font_typewriter">// </span><span class="ltx_text ltx_font_typewriter">Step 1: Find correspondences </span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <span class="ltx_text ltx_font_bold">for</span> <em class="ltx_emph ltx_font_italic">each point <math id="algorithm3.m9" class="ltx_Math" alttext="p_{i}\in P" display="inline"><mrow><msub><mi>p</mi><mi>i</mi></msub><mo>∈</mo><mi>P</mi></mrow></math></em> <span class="ltx_text ltx_font_bold">do</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>     <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Find closest point <math id="algorithm3.m10" class="ltx_Math" alttext="q_{i}^{*}\in Q" display="inline"><mrow><msubsup><mi>q</mi><mi>i</mi><mo>∗</mo></msubsup><mo>∈</mo><mi>Q</mi></mrow></math> to <math id="algorithm3.m11" class="ltx_Math" alttext="Rp_{i}+t" display="inline"><mrow><mrow><mi>R</mi><mo>⁢</mo><msub><mi>p</mi><mi>i</mi></msub></mrow><mo>+</mo><mi>t</mi></mrow></math> </div>
+<div class="ltx_listingline">&#160;</div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <span class="ltx_text ltx_font_typewriter">// </span><span class="ltx_text ltx_font_typewriter">Step 2: Estimate transformation </span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Compute optimal <math id="algorithm3.m12" class="ltx_Math" alttext="(R_{\text{new}},t_{\text{new}})" display="inline"><mrow><mo stretchy="false">(</mo><msub><mi>R</mi><mtext>new</mtext></msub><mo>,</mo><msub><mi>t</mi><mtext>new</mtext></msub><mo stretchy="false">)</mo></mrow></math> that minimizes <math id="algorithm3.m13" class="ltx_Math" alttext="\sum_{i=1}^{N}\|R_{\text{new}}p_{i}+t_{\text{new}}-q_{i}^{*}\|^{2}" display="inline"><mrow><msubsup><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></msubsup><msup><mrow><mo lspace="0em" stretchy="false">‖</mo><mrow><mrow><mrow><msub><mi>R</mi><mtext>new</mtext></msub><mo>⁢</mo><msub><mi>p</mi><mi>i</mi></msub></mrow><mo>+</mo><msub><mi>t</mi><mtext>new</mtext></msub></mrow><mo>−</mo><msubsup><mi>q</mi><mi>i</mi><mo>∗</mo></msubsup></mrow><mo stretchy="false">‖</mo></mrow><mn>2</mn></msup></mrow></math> </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <span class="ltx_text ltx_font_typewriter">// </span><span class="ltx_text ltx_font_typewriter">Step 3: Apply transformation </span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm3.m14" class="ltx_Math" alttext="(R,t)\xleftarrow{}(R_{\text{new}},t_{\text{new}})" display="inline"><mrow><mrow><mo stretchy="false">(</mo><mi>R</mi><mo>,</mo><mi>t</mi><mo stretchy="false">)</mo></mrow><mover accent="true"><mo stretchy="false">←</mo><mi></mi></mover><mrow><mo stretchy="false">(</mo><msub><mi>R</mi><mtext>new</mtext></msub><mo>,</mo><msub><mi>t</mi><mtext>new</mtext></msub><mo stretchy="false">)</mo></mrow></mrow></math> </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm3.m15" class="ltx_Math" alttext="E_{\text{prev}}\xleftarrow{}E" display="inline"><mrow><msub><mi>E</mi><mtext>prev</mtext></msub><mover accent="true"><mo stretchy="false">←</mo><mi></mi></mover><mi>E</mi></mrow></math> </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm3.m16" class="ltx_Math" alttext="E\xleftarrow{}\sum_{i=1}^{N}\|Rp_{i}+t-q_{i}^{*}\|^{2}" display="inline"><mrow><mi>E</mi><mover accent="true"><mo rspace="0.111em" stretchy="false">←</mo><mi></mi></mover><mrow><msubsup><mo rspace="0em">∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></msubsup><msup><mrow><mo stretchy="false">‖</mo><mrow><mrow><mrow><mi>R</mi><mo>⁢</mo><msub><mi>p</mi><mi>i</mi></msub></mrow><mo>+</mo><mi>t</mi></mrow><mo>−</mo><msubsup><mi>q</mi><mi>i</mi><mo>∗</mo></msubsup></mrow><mo stretchy="false">‖</mo></mrow><mn>2</mn></msup></mrow></mrow></math> </div>
+<div class="ltx_listingline">&#160;</div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">until</span> <em class="ltx_emph ltx_font_italic"><math id="algorithm3.m17" class="ltx_Math" alttext="|E-E_{\text{prev}}|&lt;\epsilon" display="inline"><mrow><mrow><mo stretchy="false">|</mo><mrow><mi>E</mi><mo>−</mo><msub><mi>E</mi><mtext class="ltx_mathvariant_italic"><em class="ltx_emph" style="font-size:70%;">prev</em></mtext></msub></mrow><mo stretchy="false">|</mo></mrow><mo>&lt;</mo><mi>ϵ</mi></mrow></math></em>;</div>
+<div class="ltx_listingline">&#160;</div>
+</div>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_float"><span class="ltx_text ltx_font_bold">Algorithm 3</span> </span>Iterative Closest Point (ICP)</figcaption>
+</figure>
+<figure id="S2.F15" class="ltx_figure"><img style="width:75%;height:auto" src="/book-assets/classical-perception/figs__ch10_figs__icp_bunny.png" id="S2.F15.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 8.15</span>: </span><span class="ltx_text" style="font-size:90%;">Illustration of the ICP algorithm iteratively aligning a source point cloud to a reference point cloud. The algorithm alternates between finding correspondences and estimating the transformation until convergence.</span></figcaption>
+</figure>
+<div id="S2.SS2.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">The correspondence step in ICP requires finding the nearest neighbor in <math id="S2.SS2.SSS0.Px1.p2.m1" class="ltx_Math" alttext="Q" display="inline"><mi>Q</mi></math> for each transformed point in <math id="S2.SS2.SSS0.Px1.p2.m2" class="ltx_Math" alttext="P" display="inline"><mi>P</mi></math>. Note that while a naive implementation would require <math id="S2.SS2.SSS0.Px1.p2.m3" class="ltx_Math" alttext="O(NM)" display="inline"><mrow><mi>O</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>N</mi><mo>⁢</mo><mi>M</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></math> distance computations per iteration, in practice, we can accelerate this using spatial data structures such as KD-trees, which reduce the average complexity to <math id="S2.SS2.SSS0.Px1.p2.m4" class="ltx_Math" alttext="O(N\log M)" display="inline"><mrow><mi>O</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>N</mi><mo lspace="0.167em">⁢</mo><mrow><mi>log</mi><mo lspace="0.167em">⁡</mo><mi>M</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></math>. However, it is important to note that the nearest neighbor matching can produce incorrect correspondences, particularly when the point clouds are far from alignment or when they have limited overlap.
+The transformation estimation step computes the optimal rotation and translation given the current correspondences. This has a closed-form solution that we can obtain using singular value decomposition (SVD). First, we compute the centroids of the corresponding point sets:</p>
+<table id="S2.E8" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.E8.m1" class="ltx_Math" alttext="\bar{p}=\frac{1}{N}\sum_{i=1}^{N}p_{i},\quad\bar{q}=\frac{1}{N}\sum_{i=1}^{N}q%
+_{i}^{*}." display="block"><mrow><mrow><mrow><mover accent="true"><mi>p</mi><mo>¯</mo></mover><mo>=</mo><mrow><mfrac><mn>1</mn><mi>N</mi></mfrac><mo>⁢</mo><mrow><munderover><mo movablelimits="false">∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></munderover><msub><mi>p</mi><mi>i</mi></msub></mrow></mrow></mrow><mo rspace="1.167em">,</mo><mrow><mover accent="true"><mi>q</mi><mo>¯</mo></mover><mo>=</mo><mrow><mfrac><mn>1</mn><mi>N</mi></mfrac><mo>⁢</mo><mrow><munderover><mo movablelimits="false">∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></munderover><msubsup><mi>q</mi><mi>i</mi><mo>∗</mo></msubsup></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(8.8)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Next, we construct the cross-covariance matrix:</p>
+<table id="S2.E9" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.E9.m1" class="ltx_Math" alttext="H=\sum_{i=1}^{N}(p_{i}-\bar{p})(q_{i}^{*}-\bar{q})^{T}." display="block"><mrow><mrow><mi>H</mi><mo rspace="0.111em">=</mo><mrow><munderover><mo movablelimits="false" rspace="0em">∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></munderover><mrow><mrow><mo stretchy="false">(</mo><mrow><msub><mi>p</mi><mi>i</mi></msub><mo>−</mo><mover accent="true"><mi>p</mi><mo>¯</mo></mover></mrow><mo stretchy="false">)</mo></mrow><mo>⁢</mo><msup><mrow><mo stretchy="false">(</mo><mrow><msubsup><mi>q</mi><mi>i</mi><mo>∗</mo></msubsup><mo>−</mo><mover accent="true"><mi>q</mi><mo>¯</mo></mover></mrow><mo stretchy="false">)</mo></mrow><mi>T</mi></msup></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(8.9)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Computing the SVD of <math id="S2.SS2.SSS0.Px1.p2.m5" class="ltx_Math" alttext="H=U\Sigma V^{T}" display="inline"><mrow><mi>H</mi><mo>=</mo><mrow><mi>U</mi><mo>⁢</mo><mi mathvariant="normal">Σ</mi><mo>⁢</mo><msup><mi>V</mi><mi>T</mi></msup></mrow></mrow></math>, the optimal rotation is <math id="S2.SS2.SSS0.Px1.p2.m6" class="ltx_Math" alttext="R=VU^{T}" display="inline"><mrow><mi>R</mi><mo>=</mo><mrow><mi>V</mi><mo>⁢</mo><msup><mi>U</mi><mi>T</mi></msup></mrow></mrow></math>, and the optimal translation is <math id="S2.SS2.SSS0.Px1.p2.m7" class="ltx_Math" alttext="t=\bar{q}-R\bar{p}" display="inline"><mrow><mi>t</mi><mo>=</mo><mrow><mover accent="true"><mi>q</mi><mo>¯</mo></mover><mo>−</mo><mrow><mi>R</mi><mo>⁢</mo><mover accent="true"><mi>p</mi><mo>¯</mo></mover></mrow></mrow></mrow></math><span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.SS2.SSS0.Px1.p2.p1" class="ltx_para">
+<span class="ltx_p">We must check that <math id="S2.SS2.SSS0.Px1.p2.p1.m1" class="ltx_Math" alttext="\det(R)=1" display="inline"><mrow><mrow><mo rspace="0em">det</mo><mrow><mo stretchy="false">(</mo><mi>R</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mn>1</mn></mrow></math> to ensure a proper rotation. If <math id="S2.SS2.SSS0.Px1.p2.p1.m2" class="ltx_Math" alttext="\det(R)=-1" display="inline"><mrow><mrow><mo rspace="0em">det</mo><mrow><mo stretchy="false">(</mo><mi>R</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mo>−</mo><mn>1</mn></mrow></mrow></math>, we negate the column of <math id="S2.SS2.SSS0.Px1.p2.p1.m3" class="ltx_Math" alttext="V" display="inline"><mi>V</mi></math> corresponding to the smallest singular value.</span>
+</span></span></span></span></span>.</p>
+</div>
+<div id="S2.SS2.SSS0.Px1.p3" class="ltx_para">
+<p class="ltx_p">The ICP algorithm converges when the change in error between iterations falls below a threshold <math id="S2.SS2.SSS0.Px1.p3.m1" class="ltx_Math" alttext="\epsilon" display="inline"><mi>ϵ</mi></math>, or when the change in transformation parameters is sufficiently small. The algorithm is guaranteed to monotonically decrease the alignment error and converge to a local minimum, though the quality of the final alignment is highly sensitive to the initial transformation estimate. In practice, several strategies can improve ICP’s robustness and performance, including outlier rejection methods that discard point pairs with distances exceeding a threshold to prevent corrupted correspondences from degrading the solution. As ICP remains a local optimization method, it benefits significantly from good initialization, which we can obtain from odometry, inertial sensors, or coarse global registration methods.</p>
+</div>
+</section>
+</section>
+</section>
+<section id="S3" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">8.3 </span>Feature-Based Object Detection</h2>
+
+<div id="S3.p1" class="ltx_para">
+<p class="ltx_p">Another high-level information extraction task that is common in robotics is <em class="ltx_emph ltx_font_italic">object recognition</em>.
+Object recognition is the task of classifying or naming discrete objects in the world, usually based on images or video.
+This is a particularly challenging task because real-world scenes are commonly made up of many varying types of objects which can appear at different poses and can occlude each other.
+Additionally, objects within a specific class can have a large amount of variability, for example breeds of dogs or car models.
+In this section, we introduce common methods for feature-based object detection, namely <em class="ltx_emph ltx_font_italic">template matching</em> and <em class="ltx_emph ltx_font_italic">bag of visual words</em>.</p>
+</div>
+<section id="S3.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">8.3.1 </span>Template Matching</h3>
+
+<div id="S3.SS1.p1" class="ltx_para">
+<p class="ltx_p">Template matching<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">11</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">11.</span> Perveen, N., Kumar, D., Bhardwaj, I. “An overview on template matching methodologies and its applications.” <em>International Journal of Research in Computer and Communication Technology</em> 2(10), 988–995, 2013.</span></span></span> is a machine vision technique for identifying parts of an image that match a given image pattern<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S3.SS1.p1.p1" class="ltx_para">
+<span class="ltx_p">Advanced template matching algorithms enable finding pattern occurrences regardless of their orientation and local brightness.</span>
+</span></span></span></span></span>.
+This approach has seen success in a variety of applications, including manufacturing quality control, mobile robotics, and more.
+The two primary components needed for template matching are the source image, <math id="S3.SS1.p1.m1" class="ltx_Math" alttext="I" display="inline"><mi>I</mi></math>, and a template image, <math id="S3.SS1.p1.m2" class="ltx_Math" alttext="T" display="inline"><mi>T</mi></math>.</p>
+</div>
+<div id="S3.SS1.p2" class="ltx_para">
+<p class="ltx_p">Given a source and template image, one approach to template matching is to leverage the linear spatial correlation filters discussed earlier in this chapter.
+In particular, a naive approach would be to use the normalized template image as a filter mask in a correlation filter.
+By applying this filter mask to every pixel in the source image, the resulting output would quantify the similarity of that region of the source image to the template.
+This type of approach is sometimes referred to as a <em class="ltx_emph ltx_font_italic">cross-correlation</em>.
+Another approach based on linear spatial filters would be to leverage the similarity filters that compute the sum of absolute differences (SAD) metric for each pixel in the source image.
+Regions of the source image similar to the template would correspond to low SAD scores.
+The disadvantages of these approaches are that they do not handle rotations or scale changes, which are quite common in real-world applications.</p>
+</div>
+<div id="S3.SS1.p3" class="ltx_para">
+<p class="ltx_p">One solution to the scaling issue in correlation filter based template matching is to simply re-scale the source image multiple times and perform template matching on each.
+We can use this concept, referred to as using <em class="ltx_emph ltx_font_italic">image pyramids</em><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">12</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">12.</span> Szeliski, R. <em>Computer vision: algorithms and applications</em>. Springer Science &amp; Business Media, 2010.</span></span></span>, to accelerate object search by first using a coarser resolution image to localize the object, and then using finer resolution images for actual detection.
+We can build image pyramids in several ways.
+One naive approach is to simply eliminate some rows and columns of the image.
+Another approach is to first use a Gaussian smoothing filter to remove high frequency content from the image and then subsample the image.
+We refer to the sequence of images resulting from this approach as a <em class="ltx_emph ltx_font_italic">Gaussian pyramid</em>.</p>
+</div>
+</section>
+<section id="S3.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">8.3.2 </span>Bag of Visual Words</h3>
+
+<div id="S3.SS2.p1" class="ltx_para">
+<p class="ltx_p">The key idea behind the bag of visual words<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S3.SS2.p1.p1" class="ltx_para">
+<span class="ltx_p">The model originated in natural language processing, where we consider texts such as documents, paragraphs, and sentences as collections, or “bags”, of words.</span>
+</span></span></span></span></span> approach is that we can simplify object representations by considering them as a collection of their subparts<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S3.SS2.p1.p2" class="ltx_para">
+<span class="ltx_p">For example, a bike is an object with wheels, a frame, and handlebars.</span>
+</span></span></span></span></span>, and we refer to the subparts as <em class="ltx_emph ltx_font_italic">visual words</em>.
+In this approach, we search a source image for <em class="ltx_emph ltx_font_italic">visual words</em>, and we create a distribution of visual words that we find in the image in the form of a histogram.
+We can then perform object detection by comparing this distribution to a set of training images.
+For example, suppose the source image contains a human face and the recognized features included eyes and a nose.
+Then, by comparing the distribution to training images, we would likely determine that the training images that also have eyes and a nose are also images of faces.</p>
+</div>
+</section>
+<section id="S3.SS3" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">8.3.3 </span>Classical Perception Approaches Today</h3>
+
+<div id="S3.SS3.p1" class="ltx_para">
+<p class="ltx_p">While modern deep learning methods have revolutionized many computer vision tasks, classical perception techniques remain essential in robotics, particularly for specific instance detection and registration tasks. The fundamental methods we have discussed—feature detection, description, and matching—continue to form the backbone of many practical robotic systems. We will explore modern deep learning approaches to perception in detail in a subsequent chapter, but it is important to understand where classical methods continue to excel.</p>
+</div>
+<div id="S3.SS3.p2" class="ltx_para">
+<p class="ltx_p">One area where classical methods remain dominant is in <em class="ltx_emph ltx_font_italic">instance detection</em>, where the goal is to identify and localize a specific object rather than classify object categories. For example, detecting a particular coffee cup on a cluttered desk, recognizing a specific tool in a manufacturing environment, or localizing a known landmark for robot navigation all benefit from classical approaches. Unlike category-level classification (e.g., “this is a cup”), instance detection requires identifying <em class="ltx_emph ltx_font_italic">which specific</em> cup among many possible cups.</p>
+</div>
+<div id="S3.SS3.p3" class="ltx_para">
+<p class="ltx_p">The typical pipeline for instance detection leverages the classical methods we have covered:</p>
+<ol id="S3.I1" class="ltx_enumerate">
+<li id="S3.I1.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">1.</span> 
+<div id="S3.I1.i1.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Feature Detection and Description</em>: Extract distinctive keypoints from both the query image (the specific object to find) and the target image (the scene to search). Scale-invariant detectors like SIFT or its variants remain popular because they are robust to changes in viewpoint, scale, and illumination.</p>
+</div>
+</li>
+<li id="S3.I1.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">2.</span> 
+<div id="S3.I1.i2.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Feature Matching</em>: Match features between the query and target images using descriptor similarity. This step identifies potential correspondences between the known object and regions in the scene.</p>
+</div>
+</li>
+<li id="S3.I1.i3" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">3.</span> 
+<div id="S3.I1.i3.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Geometric Verification</em>: Use robust estimation techniques like RANSAC to fit a geometric transformation (such as a homography or rigid body transformation) to the matched features. This step filters out incorrect matches and verifies that the pattern of features is geometrically consistent with the object model.</p>
+</div>
+</li>
+<li id="S3.I1.i4" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">4.</span> 
+<div id="S3.I1.i4.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Pose Estimation</em>: Once verified correspondences are obtained, estimate the 3D pose of the object relative to the camera, enabling the robot to interact with or manipulate the object.</p>
+</div>
+</li>
+</ol>
+</div>
+<div id="S3.SS3.p4" class="ltx_para">
+<p class="ltx_p">This classical pipeline offers several advantages that keep it relevant today. First, it requires only a small number of example images or even a 3D model of the specific object, whereas deep learning approaches typically require large labeled datasets. Second, it provides explicit geometric reasoning, yielding not just detection but precise pose estimation needed for robotic manipulation. Third, it is interpretable—engineers can inspect features, matches, and geometric fits to understand and debug system behavior.</p>
+</div>
+<div id="S3.SS3.p5" class="ltx_para">
+<p class="ltx_p">Classical methods also remain important in <em class="ltx_emph ltx_font_italic">registration</em> problems, where the goal is to align sensor data from different viewpoints or modalities. Applications include point cloud alignment for 3D reconstruction, image stitching for panoramas, and multi-sensor fusion, which we will discuss in later chapters. The Iterative Closest Point (ICP) algorithm and feature-based registration using RANSAC continue to be workhorses in these domains. However, modern systems increasingly adopt hybrid approaches that combine classical and learning-based methods. For instance, learned feature detectors and descriptors (such as SuperPoint<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">13</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">13.</span> DeTone, Daniel, Malisiewicz, Tomasz, Rabinovich, Andrew. “Superpoint: Self-supervised interest point detection and description.” In <em>Proceedings of the IEEE conference on computer vision and pattern recognition workshops</em>, 224–236, 2018.</span></span></span>) can replace hand-crafted features like SIFT while maintaining the geometric reasoning framework. Similarly, learned feature matching networks can improve correspondence quality before geometric verification. These hybrid pipelines leverage the strengths of both paradigms: the data efficiency and geometric rigor of classical methods with the representational power of learned features.</p>
+</div>
+<div id="S3.SS3.p6" class="ltx_para">
+<p class="ltx_p">In summary, while deep learning has transformed object classification and semantic understanding, classical perception methods remain indispensable for tasks requiring precise instance detection, geometric reasoning, and data-efficient operation. Understanding these fundamental techniques is essential for roboticists working on manipulation, localization, and any application where knowing exactly which object is where matters more than simply recognizing what category it belongs to.</p>
+</div>
+</section>
+</section>
+<section id="S4" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">8.4 </span>Summary</h2>
+
+<div id="S4.p1" class="ltx_para">
+<p class="ltx_p">In this chapter, we introduced methods for extracting various types of information from images and sensor data through a pipeline of low-level image processing and higher-level feature extraction techniques.
+We began with image processing fundamentals, covering filtering operations such as Gaussian smoothing for noise reduction and Sobel operators for differentiation and edge detection. We discussed the mathematical principles of correlation and convolution, along with practical implementation tricks like zero-padding. This foundation extended to feature detection, where we explored strategies for identifying semantically useful patterns like edges and corners, and the role of descriptors for representing these features.</p>
+</div>
+<div id="S4.p2" class="ltx_para">
+<p class="ltx_p">Building on these low-level techniques, the chapter then presented methods for geometric feature extraction, focusing on the challenge of identifying structure like lines in range data. We detailed and compared three core segmentation algorithms: the fast but less robust Split-and-Merge, the robust but stochastic RANSAC, and the model-based Hough Transform. We also introduced the Iterative Closest Point (ICP) algorithm as a fundamental tool for point cloud registration.
+Finally, we transitioned to feature-based object detection, covering classical approaches such as template matching and the Bag of Visual Words model. We concluded by discussing the enduring relevance of these classical perception methods in modern robotics, particularly for precise instance detection and geometric verification tasks, and noted their role in hybrid systems that combine classical pipelines with learned components.</p>
+</div>
+<section id="S4.SS0.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">To learn more.</h4>
+
+<div id="S4.SS0.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">For a deeper exploration of the topics covered in this chapter, several key resources are available.
+A comprehensive introduction to the computer vision algorithms that underpin robotic perception can be found in <span class="ltx_cite">Szeliski (2010)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">1</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">1.</span> Szeliski, R. <em>Computer vision: algorithms and applications</em>. Springer Science &amp; Business Media, 2010.</span></span></span> and <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">14</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">14.</span> Moravec, H. P. “Towards automatic visual obstacle avoidance.” In <em>5th International Joint Conference on Artificial Intelligence</em>, 1977.</span></span></span>.
+The original papers on key algorithms provide invaluable insight: <span class="ltx_cite">Fischler and Bolles (1981)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">2</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">2.</span> Fischler, Martin A., Bolles, Robert C. “Random sample consensus: a paradigm for model fitting with applications to image analysis and automated cartography.” <em>Commun. ACM</em> 24(6), 381–395, 1981.</span></span></span> for RANSAC, <span class="ltx_cite">Harris and Stephens (1988)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">3</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">3.</span> Harris, C., Stephens, M. “A combined corner and edge detector.” In <em>4th Alvey Vision Conference</em>, 1988.</span></span></span> for the corner detector, and <span class="ltx_cite">Zhang (1994)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">4</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">4.</span> Zhang, Zhengyou. “Iterative point matching for registration of free-form curves and surfaces.” <em>International journal of computer vision</em> 13(2), 119–152, 1994.</span></span></span> for ICP.
+For a deeper dive into feature descriptors, explore SIFT <span class="ltx_cite">Lowe (2004)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">5</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">5.</span> Lowe, David G. “Distinctive Image Features from Scale-Invariant Keypoints.” <em>International Journal of Computer Vision</em> 60(2), 91–110, 2004.</span></span></span> and its modern learned counterparts like SuperPoint <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">15</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">15.</span> DeTone, Daniel, Malisiewicz, Tomasz, Rabinovich, Andrew. “Superpoint: Self-supervised interest point detection and description.” In <em>Proceedings of the IEEE conference on computer vision and pattern recognition workshops</em>, 224–236, 2018.</span></span></span>.
+Finally, for a broader perspective on how these classical techniques are employed in state-of-the-art systems, consult robotics and computer vision texts such as <span class="ltx_cite">Siegwart et al. (2011)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">6</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">6.</span> Siegwart, R., Nourbakhsh, I. R., Scaramuzza, D. <em>Introduction to Autonomous Mobile Robots</em>. MIT Press, 2011.</span></span></span>.</p>
+</div>
+</section>
+</section>
+<section id="S5" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">8.5 </span>Exercises</h2>
+
+<div id="S5.p1" class="ltx_para">
+<p class="ltx_p">The starter code for the exercises provided below is available online through GitHub.
+To get started, download the code by running in a terminal window:</p>
+</div>
+<div id="S5.p2" class="ltx_para ltx_noindent">
+<div class="ltx_listing ltx_lst_language_bash ltx_lstlisting ltx_listing">
+<div class="ltx_listing_data"><a href="data:text/plain;base64,ICAgIGdpdCBjbG9uZSBodHRwczovL2dpdGh1Yi5jb20vU3RhbmZvcmRBU0wvcG9yYS1leGVyY2lzZXMuZ2l0" download="">⬇</a></div>
+<div id="lstnumberx1" class="ltx_listingline"><span class="ltx_text ltx_lst_space ltx_font_typewriter">    </span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">git</span><span class="ltx_text ltx_lst_space ltx_font_typewriter"> </span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">clone</span><span class="ltx_text ltx_lst_space ltx_font_typewriter"> </span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">https</span><span class="ltx_text ltx_font_typewriter">://</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">github</span><span class="ltx_text ltx_font_typewriter">.</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">com</span><span class="ltx_text ltx_font_typewriter">/</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">StanfordASL</span><span class="ltx_text ltx_font_typewriter">/</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">pora</span><span class="ltx_text ltx_font_typewriter">-</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">exercises</span><span class="ltx_text ltx_font_typewriter">.</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">git</span></div>
+</div>
+</div>
+<div id="S5.p3" class="ltx_para">
+<p class="ltx_p">We denote Problems requiring hand-written solutions and coding in Python with <img src="/book-assets/classical-perception/figs__write.png" id="S5.p3.g1" class="ltx_graphics ltx_img_square" width="26" height="28" alt="[Uncaptioned image]"> and <img src="/book-assets/classical-perception/figs__code.png" id="S5.p3.g2" class="ltx_graphics ltx_img_square" width="25" height="25" alt="[Uncaptioned image]">, respectively.</p>
+</div>
+</section>
+<section id="Sx1" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<img src="/book-assets/classical-perception/figs__write.png" id="Sx1.g1" class="ltx_graphics ltx_img_square" width="26" height="28" alt="[Uncaptioned image]"><img src="/book-assets/classical-perception/figs__code.png" id="Sx1.g2" class="ltx_graphics ltx_img_square" width="25" height="25" alt="[Uncaptioned image]"> Problem 1: Correlation and Gaussian Smoothing Filters</h2>
+
+<div id="Sx1.p1" class="ltx_para">
+<p class="ltx_p">In this exercise, you will explore developing a correlation and Gaussian smoothing filter using the top-left indexing approach defined by Equation&#160;<a href="#S1.E3" title="In Example 8.1.1 (Practical tricks for image filtering). ‣ 8.1.1 Image Filtering ‣ 8.1 Image Processing Fundamentals" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.3</span></a>.
+Specifically, complete the following:</p>
+<ol id="Sx1.I1" class="ltx_enumerate">
+<li id="Sx1.I1.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">1.</span> 
+<div id="Sx1.I1.i1.p1" class="ltx_para">
+<p class="ltx_p">First, consider an image and its zero-padded version:</p>
+<table id="Sx1.Ex18" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="Sx1.Ex18.m1" class="ltx_Math" alttext="I=\begin{bmatrix}7&amp;4&amp;1\\
+8&amp;5&amp;2\\
+9&amp;6&amp;3\\
+\end{bmatrix},\quad I_{\text{padded}}=\begin{bmatrix}0&amp;0&amp;0&amp;0&amp;0\\
+0&amp;7&amp;4&amp;1&amp;0\\
+0&amp;8&amp;5&amp;2&amp;0\\
+0&amp;9&amp;6&amp;3&amp;0\\
+0&amp;0&amp;0&amp;0&amp;0\\
+\end{bmatrix}." display="block"><mrow><mrow><mrow><mi>I</mi><mo>=</mo><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true" rowspacing="0pt"><mtr><mtd><mn>7</mn></mtd><mtd><mn>4</mn></mtd><mtd><mn>1</mn></mtd></mtr><mtr><mtd><mn>8</mn></mtd><mtd><mn>5</mn></mtd><mtd><mn>2</mn></mtd></mtr><mtr><mtd><mn>9</mn></mtd><mtd><mn>6</mn></mtd><mtd><mn>3</mn></mtd></mtr></mtable><mo>]</mo></mrow></mrow><mo rspace="1.167em">,</mo><mrow><msub><mi>I</mi><mtext>padded</mtext></msub><mo>=</mo><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true" rowspacing="0pt"><mtr><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd></mtr><mtr><mtd><mn>0</mn></mtd><mtd><mn>7</mn></mtd><mtd><mn>4</mn></mtd><mtd><mn>1</mn></mtd><mtd><mn>0</mn></mtd></mtr><mtr><mtd><mn>0</mn></mtd><mtd><mn>8</mn></mtd><mtd><mn>5</mn></mtd><mtd><mn>2</mn></mtd><mtd><mn>0</mn></mtd></mtr><mtr><mtd><mn>0</mn></mtd><mtd><mn>9</mn></mtd><mtd><mn>6</mn></mtd><mtd><mn>3</mn></mtd><mtd><mn>0</mn></mtd></mtr><mtr><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd></mtr></mtable><mo>]</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Compute by hand the resulting image <math id="Sx1.I1.i1.p1.m1" class="ltx_Math" alttext="I^{\prime}" display="inline"><msup><mi>I</mi><mo>′</mo></msup></math> from applying the following correlation filters:</p>
+<ol id="Sx1.I1.i1.I1" class="ltx_enumerate">
+<li id="Sx1.I1.i1.I1.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">(a)</span> 
+<div id="Sx1.I1.i1.I1.i1.p1" class="ltx_para">
+<table id="Sx1.Ex19" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="Sx1.Ex19.m1" class="ltx_Math" alttext="F=\begin{bmatrix}0&amp;0&amp;0\\
+0&amp;1&amp;0\\
+0&amp;0&amp;0\\
+\end{bmatrix}." display="block"><mrow><mrow><mi>F</mi><mo>=</mo><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true" rowspacing="0pt"><mtr><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd></mtr><mtr><mtd><mn>0</mn></mtd><mtd><mn>1</mn></mtd><mtd><mn>0</mn></mtd></mtr><mtr><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd></mtr></mtable><mo>]</mo></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+</li>
+<li id="Sx1.I1.i1.I1.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">(b)</span> 
+<div id="Sx1.I1.i1.I1.i2.p1" class="ltx_para">
+<table id="Sx1.Ex20" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="Sx1.Ex20.m1" class="ltx_Math" alttext="F=\begin{bmatrix}1&amp;0&amp;0\\
+0&amp;0&amp;0\\
+0&amp;0&amp;0\\
+\end{bmatrix}." display="block"><mrow><mrow><mi>F</mi><mo>=</mo><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true" rowspacing="0pt"><mtr><mtd><mn>1</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd></mtr><mtr><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd></mtr><mtr><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd></mtr></mtable><mo>]</mo></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+</li>
+<li id="Sx1.I1.i1.I1.i3" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">(c)</span> 
+<div id="Sx1.I1.i1.I1.i3.p1" class="ltx_para">
+<table id="Sx1.Ex21" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="Sx1.Ex21.m1" class="ltx_Math" alttext="F=\begin{bmatrix}1&amp;1&amp;1\\
+0&amp;0&amp;0\\
+-1&amp;-1&amp;-1\\
+\end{bmatrix}." display="block"><mrow><mrow><mi>F</mi><mo>=</mo><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true" rowspacing="0pt"><mtr><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd></mtr><mtr><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd><mtd><mn>0</mn></mtd></mtr><mtr><mtd><mrow><mo>−</mo><mn>1</mn></mrow></mtd><mtd><mrow><mo>−</mo><mn>1</mn></mrow></mtd><mtd><mrow><mo>−</mo><mn>1</mn></mrow></mtd></mtr></mtable><mo>]</mo></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">What is this filter doing to the image?
+Why might this be useful in computer vision?
+How would this be different than the functionality of the filter:</p>
+<table id="Sx1.Ex22" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="Sx1.Ex22.m1" class="ltx_Math" alttext="F^{\prime}=\begin{bmatrix}-1&amp;0&amp;1\\
+-1&amp;0&amp;1\\
+-1&amp;0&amp;1\\
+\end{bmatrix}." display="block"><mrow><mrow><msup><mi>F</mi><mo>′</mo></msup><mo>=</mo><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true" rowspacing="0pt"><mtr><mtd><mrow><mo>−</mo><mn>1</mn></mrow></mtd><mtd><mn>0</mn></mtd><mtd><mn>1</mn></mtd></mtr><mtr><mtd><mrow><mo>−</mo><mn>1</mn></mrow></mtd><mtd><mn>0</mn></mtd><mtd><mn>1</mn></mtd></mtr><mtr><mtd><mrow><mo>−</mo><mn>1</mn></mrow></mtd><mtd><mn>0</mn></mtd><mtd><mn>1</mn></mtd></mtr></mtable><mo>]</mo></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+</li>
+<li id="Sx1.I1.i1.I1.i4" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">(d)</span> 
+<div id="Sx1.I1.i1.I1.i4.p1" class="ltx_para">
+<table id="Sx1.Ex23" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="Sx1.Ex23.m1" class="ltx_Math" alttext="F=\frac{1}{16}\begin{bmatrix}1&amp;2&amp;1\\
+2&amp;4&amp;2\\
+1&amp;2&amp;1\\
+\end{bmatrix}." display="block"><mrow><mrow><mi>F</mi><mo>=</mo><mrow><mfrac><mn>1</mn><mn>16</mn></mfrac><mo>⁢</mo><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true" rowspacing="0pt"><mtr><mtd><mn>1</mn></mtd><mtd><mn>2</mn></mtd><mtd><mn>1</mn></mtd></mtr><mtr><mtd><mn>2</mn></mtd><mtd><mn>4</mn></mtd><mtd><mn>2</mn></mtd></mtr><mtr><mtd><mn>1</mn></mtd><mtd><mn>2</mn></mtd><mtd><mn>1</mn></mtd></mtr></mtable><mo>]</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">What is this filter doing to the image?
+Why might this be useful in computer vision?
+How would this be different than the functionality of the filter:</p>
+<table id="Sx1.Ex24" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="Sx1.Ex24.m1" class="ltx_Math" alttext="F^{\prime}=\frac{1}{9}\begin{bmatrix}1&amp;1&amp;1\\
+1&amp;1&amp;1\\
+1&amp;1&amp;1\\
+\end{bmatrix}." display="block"><mrow><mrow><msup><mi>F</mi><mo>′</mo></msup><mo>=</mo><mrow><mfrac><mn>1</mn><mn>9</mn></mfrac><mo>⁢</mo><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true" rowspacing="0pt"><mtr><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd></mtr><mtr><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd></mtr><mtr><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd><mtd><mn>1</mn></mtd></mtr></mtable><mo>]</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+</li>
+</ol>
+</div>
+</li>
+<li id="Sx1.I1.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">2.</span> 
+<div id="Sx1.I1.i2.p1" class="ltx_para">
+<p class="ltx_p">In the file <span class="ltx_text ltx_font_typewriter">ch08/exercises/correlation_filter.ipynb</span>, you will now implement the correlation filter.
+Specifically, implement the function <span class="ltx_text ltx_font_typewriter">correlate_image</span> using Equation&#160;<a href="#S1.E3" title="In Example 8.1.1 (Practical tricks for image filtering). ‣ 8.1.1 Image Filtering ‣ 8.1 Image Processing Fundamentals" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.3</span></a>.
+Run the provided code to see the result of your implementation for a horizontal and vertical edge detector filter applied to a test image.</p>
+</div>
+</li>
+<li id="Sx1.I1.i3" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">3.</span> 
+<div id="Sx1.I1.i3.p1" class="ltx_para">
+<p class="ltx_p">Also in the file <span class="ltx_text ltx_font_typewriter">ch08/exercises/correlation_filter.ipynb</span>, implement the Gaussian smoothing filter from <a href="#S1.SS1.SSS0.Px2" title="Gaussian smoothing filter. ‣ 8.1.1 Image Filtering ‣ 8.1 Image Processing Fundamentals" class="ltx_ref"><span class="ltx_text ltx_ref_tag">8.1.1</span></a> in the function <span class="ltx_text ltx_font_typewriter">create_gaussian_filter</span>.
+Run the provided code to see the result of your implementation with <math id="Sx1.I1.i3.p1.m1" class="ltx_Math" alttext="\sigma=0.5" display="inline"><mrow><mi>σ</mi><mo>=</mo><mn>0.5</mn></mrow></math> and <math id="Sx1.I1.i3.p1.m2" class="ltx_Math" alttext="\sigma=2" display="inline"><mrow><mi>σ</mi><mo>=</mo><mn>2</mn></mrow></math>.
+Explain the general impact of varying <math id="Sx1.I1.i3.p1.m3" class="ltx_Math" alttext="\sigma" display="inline"><mi>σ</mi></math> on the resulting image.</p>
+</div>
+</li>
+</ol>
+</div>
+</section>
+<section id="Sx2" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<img src="/book-assets/classical-perception/figs__code.png" id="Sx2.g1" class="ltx_graphics ltx_img_square" width="25" height="25" alt="[Uncaptioned image]"> Problem 2: Iterative Closest Point (ICP) for Point Cloud Registration</h2>
+
+<div id="Sx2.p1" class="ltx_para">
+<p class="ltx_p">In this exercise, you will use the ICP algorithm defined in Algorithm&#160;<a href="#algorithm3" title="In Iterative closest point. ‣ 8.2.2 Point Cloud Registration ‣ 8.2 Geometric Feature Extraction" class="ltx_ref"><span class="ltx_text ltx_ref_tag">3</span></a> to register two different point clouds in the same reference frame.
+In the notebook <span class="ltx_text ltx_font_typewriter">ch08/exercises/icp.ipynb</span>, complete the following:</p>
+<ol id="Sx2.I2" class="ltx_enumerate">
+<li id="Sx2.I2.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">1.</span> 
+<div id="Sx2.I2.i1.p1" class="ltx_para">
+<p class="ltx_p">Run the provided code to load two point clouds: one that represents the target “full” point cloud, and another that is just a partial point cloud of the same object.
+The goal will be to determine the transformation that will align the partial point cloud to the target point cloud.</p>
+</div>
+</li>
+<li id="Sx2.I2.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">2.</span> 
+<div id="Sx2.I2.i2.p1" class="ltx_para">
+<p class="ltx_p">The first step before running ICP is to get an initial transformation estimate.
+To accomplish this we will use the RANSAC algorithm.
+Explore and run the provided code to run RANSAC to get this initial estimate.</p>
+</div>
+</li>
+<li id="Sx2.I2.i3" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">3.</span> 
+<div id="Sx2.I2.i3.p1" class="ltx_para">
+<p class="ltx_p">Now, you will implement a basic version of the ICP algorithm.
+Implement the functions <span class="ltx_text ltx_font_typewriter">nearest_neighbor</span> and <span class="ltx_text ltx_font_typewriter">icp</span>.
+Run the provided code, there should now be a rough alignment between the partial and target point clouds.
+Note that this basic version of ICP is not necessarily robust to noise and outliers.</p>
+</div>
+</li>
+<li id="Sx2.I2.i4" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">4.</span> 
+<div id="Sx2.I2.i4.p1" class="ltx_para">
+<p class="ltx_p">Use the <span class="ltx_text ltx_font_typewriter">open3D</span> library’s functions to run a more robust version of the ICP algorithm.
+Run the provided code to see how well the point clouds align with this implementation.</p>
+</div>
+</li>
+</ol>
+</div>
+</section>

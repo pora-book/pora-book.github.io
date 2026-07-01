@@ -1,0 +1,149 @@
+% LaTeXML conversion preamble for PoRA.
+% Replaces the print preamble (tufte-book / tcolorbox / minted / biblatex /
+% pgfplots), none of which convert cleanly. Loads only LaTeXML-supported
+% packages and re-defines the book's custom environments/commands using classic
+% LaTeX2e primitives (NOT xparse: in TeX Live 2025 the xparse/hyperref LaTeXML
+% bindings pull in the real expl3-code.tex, which LaTeXML 0.8.8 cannot parse).
+
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xspace}
+\usepackage{url}
+\usepackage{float}
+
+% bbm/accents fallbacks
+\providecommand{\mathbbm}[1]{\mathbb{#1}}
+\providecommand{\accentset}[2]{\overset{#1}{#2}}
+\providecommand{\nicefrac}[2]{#1/#2}
+% Without hyperref, LaTeXML doesn't linkify \href/\url — the converter linkifies
+% URLs in post-processing. Emit the href target (as \url) so it gets picked up.
+\providecommand{\href}[2]{#2 (\url{#1})}
+\providecommand{\texorpdfstring}[2]{#1}
+
+% ---- theorem-like environments (amsthm; good LaTeXML support) ----
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\theoremstyle{definition}
+\newtheorem{example}{Example}[section]
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{codex}[theorem]{Code Exercise}
+
+% ---- boxed environments -> pass-through blocks (styled by the site theme) ----
+\newenvironment{hint}{\par\noindent\textit{Hint:}\enspace\ignorespaces}{\par}
+\newenvironment{tcolorbox}[1][]{\par\noindent}{\par}
+\newenvironment{definitionbox}[1][]{\par\noindent}{\par}
+\newcommand{\adjustbox}[2]{#2}
+% \resizebox/\scalebox around a (pre-rendered) tikz figure make LaTeXML emit a
+% CSS scale() transform whose scaled height ISN'T reserved in layout, so the
+% figure overflows onto its caption. Drop the box; the SVG then sizes to the
+% column via CSS (max-width:100%).
+\renewcommand{\resizebox}[3]{#3}
+\newcommand{\scalebox}[2]{#2}
+
+% ---- margin material (tufte) -> LaTeXML margin notes ----
+\makeatletter
+% \sidenote swallows up to two optional args, keeps the mandatory text.
+\newcommand{\sidenote}{\@ifnextchar[{\sn@a}{\sn@a[]}}
+\def\sn@a[#1]{\@ifnextchar[{\sn@b[#1]}{\sn@b[#1][]}}
+\def\sn@b[#1][#2]#3{\marginpar{#3}}
+\makeatother
+\newcommand{\mysidenote}[1]{\marginpar{#1}}
+\newcommand{\marginnote}[2][]{\marginpar{#2}}
+
+% ---- citations ------------------------------------------------------------
+% The print book renders \cite as a Tufte sidenote holding the *full* reference
+% (biblatex \sidenote{\fullcite{...}}). We can't run biblatex under LaTeXML, so
+% each citation emits a plain-text marker carrying its key list; scripts/bib.mjs
+% (called from convert.mjs) parses references.bib and rewrites the markers into
+% numbered margin sidenotes (\cite/\citep), inline "Author (Year)" + sidenote
+% (\citet/\textcite), or an inline full reference (\fullcite). Markers are
+% emitted as inline text (NOT \marginpar) so citations that appear inside a
+% \sidenote/\footnote don't produce invalid nested margin notes.
+\makeatletter
+% \lx@cite{<handler>} discards up to two biblatex optional args
+% ([prenote][postnote]) then applies <handler> to the mandatory {key list}.
+\newcommand{\lx@cite}[1]{\@ifnextchar[{\lx@cite@i{#1}}{#1}}
+\def\lx@cite@i#1[#2]{\@ifnextchar[{\lx@cite@ii{#1}}{#1}}
+\def\lx@cite@ii#1[#2]{#1}
+\newcommand{\lx@citemark}[1]{lxCITEP #1 lxCITEEND}
+\newcommand{\lx@textmark}[1]{lxCITET #1 lxCITEEND}
+\newcommand{\lx@fullmark}[1]{lxCITEF #1 lxCITEEND}
+\renewcommand{\cite}{\lx@cite{\lx@citemark}}
+\newcommand{\citep}{\lx@cite{\lx@citemark}}
+\newcommand{\citet}{\lx@cite{\lx@textmark}}
+\newcommand{\textcite}{\lx@cite{\lx@textmark}}
+\newcommand{\fullcite}{\lx@cite{\lx@fullmark}}
+\makeatother
+
+\newcommand{\cref}[1]{\ref{#1}}
+\newcommand{\Cref}[1]{\ref{#1}}
+\newenvironment{marginfigure}[1][]{\begin{figure}}{\end{figure}}
+
+% ---- csquotes replacements (avoids expl3) ----
+\newcommand{\enquote}[1]{``#1''}
+\newenvironment{displayquote}{\begin{quote}}{\end{quote}}
+
+% ---- colored-table + stray tikz/pgf commands -> no-ops ----
+\newcommand{\columncolor}[2][]{}
+\newcommand{\cellcolor}[2][]{}
+\newcommand{\rowcolor}[2][]{}
+\providecommand{\usetikzlibrary}[1]{}
+\providecommand{\usepgfplotslibrary}[1]{}
+\providecommand{\pgfplotsset}[1]{}
+
+% ---- misc print-only commands -> safe web equivalents ----
+\newcommand{\dg}[1]{}
+\newcommand{\colorcode}[1]{\texttt{#1}}
+\newcommand{\writtenQ}{}
+\newcommand{\codeQ}{}
+\newcommand{\notebook}[2]{\texttt{#1}}
+\newcommand{\codeword}[1]{\texttt{#1}}
+\newcommand{\nlt}{\par\noindent}
+\providecommand{\blankpage}{}
+\providecommand{\notessection}[1]{\section*{#1}}
+
+% ---- code listings -> lstlisting (syntax classes coloured in latexml.css) ----
+% The print book uses minted; here we route every code environment through
+% `listings` with a language set, so LaTeXML emits ltx_lst_keyword /
+% ltx_lst_string / ltx_lst_comment classes (styled to match the book's
+% deep-blue keywords / green strings). columns=fullflexible + keepspaces keeps
+% indentation; escapeinside={||} makes the book's |$...$| render as inline math.
+\usepackage{listings}
+\lstset{basicstyle=\ttfamily,columns=fullflexible,keepspaces=true,%
+  showstringspaces=false,breaklines=true,otherkeywords={self}}
+% minted: optional [<lstopts>] then mandatory {<language>}
+% (e.g. [escapeinside=||]{python}, or {bash}).
+\lstnewenvironment{minted}[2][]{\lstset{language=#2,#1}}{}
+\lstnewenvironment{python}[1][]{\lstset{language=Python,escapeinside={||},#1}}{}
+\lstnewenvironment{pythonnoborder}[1][]{\lstset{language=Python,escapeinside={||},#1}}{}
+\lstnewenvironment{gencode}[1][]{\lstset{#1}}{}
+\newcommand{\pythonexternal}[2][]{\lstinputlisting[language=Python,#1]{#2}}
+\newcommand{\pythoninline}[1]{\lstinline!#1!}
+% "listing" float used by the book for code blocks.
+\newfloat{listing}{tbp}{lol}[section]
+\floatname{listing}{Algorithm}
+
+% ---- algorithms: the book mixes algorithm2e and algpseudocode ----
+\usepackage[ruled,vlined]{algorithm2e}
+
+% Pre-rendered tikz figures are injected as a text token that the converter
+% replaces with an <img> in post-processing (LaTeXML can't \includegraphics SVG).
+\newcommand{\lxtikz}[1]{TKZFIG#1ENDTKZ}
+
+% The book authored chapter headings one level down (the print preamble does
+% \let\subsection\section). Replicate so \subsection becomes a top-level heading.
+\let\subsubsection\subsection
+\let\subsection\section
+
+% shared math macros
+\input{pora-macros.tex}

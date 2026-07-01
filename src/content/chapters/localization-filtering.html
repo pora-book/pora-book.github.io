@@ -1,0 +1,1180 @@
+
+<div id="p1" class="ltx_para">
+<p class="ltx_p">We have already discussed the robot motion planning problem and surveyed common algorithms for it, ranging from optimal control to sampling-based methods.
+All of these approaches implicitly assume access to the robot’s current state, for example for initializing trajectory optimization methods or for closing the loop in feedback control.
+In practice, however, this state cannot be read directly; it must be <em class="ltx_emph ltx_font_italic">estimated</em> from noisy, partial sensor data.</p>
+</div>
+<div id="p2" class="ltx_para">
+<p class="ltx_p">Robot perception, as introduced in previous chapters, tackles the challenge of extracting semantic and geometric information from raw sensor streams.
+These methods are indispensable for local, instantaneous awareness.
+For instance, detecting nearby obstacles with a laser scanner or identifying objects in view with a camera.
+Yet this information is inherently <em class="ltx_emph ltx_font_italic">local</em> and relative to the robot’s current position.
+It suffices for collision avoidance, but not for the global reasoning required by full planning and control schemes.</p>
+</div>
+<div id="p3" class="ltx_para">
+<p class="ltx_p">This gap is addressed by <em class="ltx_emph ltx_font_italic">robot localization and mapping</em>, one of the core components of the “think” stage in the classical “see-think-act” cycle.
+The goal of robot localization and mapping is to synthesize local sensor data into a coherent <em class="ltx_emph ltx_font_italic">global estimate</em> of the robot’s state and map the surrounding environment.
+In this chapter, we focus on <em class="ltx_emph ltx_font_italic">localization</em>, which is the ability to infer the robot’s current state with respect to a global frame or map <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">6</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">6.</span> Thrun, S., Burgard, W., Fox, D. <em>Probabilistic Robotics</em>. MIT Press, 2005.<br>Siegwart, R., Nourbakhsh, I. R., Scaramuzza, D. <em>Introduction to Autonomous Mobile Robots</em>. MIT Press, 2011.</span></span></span>.
+For instance, before a robot can navigate to a target room on the floor plan shown in Figure&#160;<a href="#S0.F1" title="Figure 11.1" class="ltx_ref"><span class="ltx_text ltx_ref_tag">11.1</span></a>, it must first establish where in the building it is located.</p>
+</div>
+<figure id="S0.F1" class="ltx_figure"><img style="width:90%;height:auto" src="/book-assets/localization-filtering/figs__ch13_figs__map.png" id="S0.F1.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 11.1</span>: </span><span class="ltx_text" style="font-size:90%;">Localization is crucial for autonomy: to move from A to B, the robot must know which room it occupies, and that the only path to B runs through the hallway.
+Inferring such global information from local range measurements requires specialized algorithms.</span></figcaption>
+</figure>
+<div id="p4" class="ltx_para">
+<p class="ltx_p">A central challenge in localization is <em class="ltx_emph ltx_font_italic">uncertainty</em>.
+Sensor data is noisy, incomplete, and sometimes ambiguous.
+To handle this, localization is cast in a <em class="ltx_emph ltx_font_italic">probabilistic</em> framework: instead of maintaining a single guess of the robot’s state, we maintain a <em class="ltx_emph ltx_font_italic">belief distribution</em> over possible states.
+This representation allows us to extract both point estimates and measures of uncertainty.
+Uncertainty quantification is vital for downstream tasks.
+For example, a planner may avoid high-risk trajectories under localization uncertainty, or even select actions that deliberately reduce uncertainty through information gathering.</p>
+</div>
+<div id="p5" class="ltx_para">
+<p class="ltx_p">The rest of this chapter is organized as follows.
+In Section&#160;<a href="#S1" title="11.1 Preliminary Concepts in Probability" class="ltx_ref"><span class="ltx_text ltx_ref_tag">11.1</span></a>, we review key concepts in probability theory, including random variables, probability distributions, conditional probabilities, and Bayes’ rule.
+In Section&#160;<a href="#S2" title="11.2 Markov Models" class="ltx_ref"><span class="ltx_text ltx_ref_tag">11.2</span></a>, we introduce Markov models as a probabilistic representation of robot motion and sensing.
+Finally, in Section&#160;<a href="#S3" title="11.3 Bayes Filter" class="ltx_ref"><span class="ltx_text ltx_ref_tag">11.3</span></a>, we derive the Bayes filter, a recursive algorithm for maintaining and updating a belief distribution as controls are applied and new measurements arrive.</p>
+</div>
+<section id="S1" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">11.1 </span>Preliminary Concepts in Probability</h2>
+
+<div id="S1.p1" class="ltx_para">
+<p class="ltx_p">Tools from probability theory provide us with a way to systematically reason about uncertainty in robotics.
+Specifically, these tools provide the language to model noisy sensor measurements, uncertain robot states, and stochastic environments.
+In this section, we review several key building blocks that form the foundation for probabilistic filtering algorithms such as the Bayes filter, namely random variables, probability distributions, conditional probabilities, and Bayes’ rule.</p>
+</div>
+<section id="S1.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">11.1.1 </span>Random Variables</h3>
+
+<div id="S1.SS1.p1" class="ltx_para">
+<p class="ltx_p">We can model uncertain quantities in robotics, such as sensor measurements, robot states, or environmental properties, as <em class="ltx_emph ltx_font_italic">random variables</em>.
+Depending on the domain of possible values, random variables are classified as discrete or continuous.</p>
+</div>
+<div id="S1.Thmtheorem1" class="ltx_theorem ltx_theorem_definition">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Definition 11.1</span></span><span class="ltx_text ltx_font_bold"> </span>(Discrete random variable)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmtheorem1.p1" class="ltx_para">
+<p class="ltx_p">A <em class="ltx_emph ltx_font_italic">discrete random variable</em> <math id="S1.Thmtheorem1.p1.m1" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> takes values from a countable set.
+The probability that <math id="S1.Thmtheorem1.p1.m2" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> takes on a specific value <math id="S1.Thmtheorem1.p1.m3" class="ltx_Math" alttext="x" display="inline"><mi>x</mi></math> is denoted by <math id="S1.Thmtheorem1.p1.m4" class="ltx_Math" alttext="p(X=x)" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>X</mi><mo>=</mo><mi>x</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></math>, or more compactly <math id="S1.Thmtheorem1.p1.m5" class="ltx_Math" alttext="p(x)" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow></math>.
+The function <math id="S1.Thmtheorem1.p1.m6" class="ltx_Math" alttext="p(x)" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow></math> is called the <em class="ltx_emph ltx_font_italic">probability mass function</em> (PMF), and it must satisfy:</p>
+<table id="S1.Ex1" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex1.m1" class="ltx_Math" alttext="\sum_{x}p(x)=1," display="block"><mrow><mrow><mrow><munder><mo movablelimits="false">∑</mo><mi>x</mi></munder><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>=</mo><mn>1</mn></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where the sum is over all possible values of <math id="S1.Thmtheorem1.p1.m7" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math>.</p>
+</div>
+</div>
+<div id="S1.Thmtheorem2" class="ltx_theorem ltx_theorem_definition">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Definition 11.2</span></span><span class="ltx_text ltx_font_bold"> </span>(Continuous random variable)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmtheorem2.p1" class="ltx_para">
+<p class="ltx_p">A <em class="ltx_emph ltx_font_italic">continuous random variable</em> <math id="S1.Thmtheorem2.p1.m1" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> takes values in an uncountable set, typically a subset of <math id="S1.Thmtheorem2.p1.m2" class="ltx_Math" alttext="\mathbb{R}^{n}" display="inline"><msup><mi>ℝ</mi><mi>n</mi></msup></math>.
+Its distribution is characterized by a <em class="ltx_emph ltx_font_italic">probability density function</em> (PDF) <math id="S1.Thmtheorem2.p1.m3" class="ltx_Math" alttext="p(x)" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow></math>, which satisfies:</p>
+<table id="S1.Ex2" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex2.m1" class="ltx_Math" alttext="\int_{-\infty}^{\infty}p(x)\,dx=1." display="block"><mrow><mrow><mrow><msubsup><mo>∫</mo><mrow><mo>−</mo><mi mathvariant="normal">∞</mi></mrow><mi mathvariant="normal">∞</mi></msubsup><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><mi>x</mi></mrow></mrow></mrow><mo>=</mo><mn>1</mn></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Unlike the discrete case, the probability that a continuous random variable takes on any <em class="ltx_emph ltx_font_italic">exact</em> value is zero:</p>
+<table id="S1.Ex3" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex3.m1" class="ltx_Math" alttext="P(X=x)=0." display="block"><mrow><mrow><mrow><mi>P</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>X</mi><mo>=</mo><mi>x</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mn>0</mn></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Intuitively, this is because a single point has zero width and probability mass only accumulates over intervals.
+Consequently, probabilities are defined over regions rather than individual values.
+For example, the probability that <math id="S1.Thmtheorem2.p1.m4" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> lies in the interval <math id="S1.Thmtheorem2.p1.m5" class="ltx_Math" alttext="[a,b]" display="inline"><mrow><mo stretchy="false">[</mo><mi>a</mi><mo>,</mo><mi>b</mi><mo stretchy="false">]</mo></mrow></math> is:</p>
+<table id="S1.Ex4" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex4.m1" class="ltx_Math" alttext="P(a\leq X\leq b)=\int_{a}^{b}p(x)\,dx." display="block"><mrow><mrow><mrow><mi>P</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>a</mi><mo>≤</mo><mi>X</mi><mo>≤</mo><mi>b</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.111em">=</mo><mrow><msubsup><mo>∫</mo><mi>a</mi><mi>b</mi></msubsup><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><mi>x</mi></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+</div>
+<div id="S1.Thmexample1" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 11.1.1</span></span><span class="ltx_text ltx_font_bold"> </span>(Discrete vs. continuous random variables)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmexample1.p1" class="ltx_para">
+<p class="ltx_p">A coin flip is a discrete random variable, <math id="S1.Thmexample1.p1.m1" class="ltx_Math" alttext="X\in\{\text{heads},\text{tails}\}" display="inline"><mrow><mi>X</mi><mo>∈</mo><mrow><mo stretchy="false">{</mo><mtext>heads</mtext><mo>,</mo><mtext>tails</mtext><mo stretchy="false">}</mo></mrow></mrow></math>, with a probability mass function:</p>
+<table id="S1.Ex5" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex5.m1" class="ltx_Math" alttext="p(\text{heads})=\tfrac{1}{2},\qquad p(\text{tails})=\tfrac{1}{2}." display="block"><mrow><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mtext>heads</mtext><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mstyle displaystyle="false"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle></mrow><mo rspace="2.167em">,</mo><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mtext>tails</mtext><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mstyle displaystyle="false"><mfrac><mn>1</mn><mn>2</mn></mfrac></mstyle></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">In robotics, we typically model the robot’s pose as a continuous random variable.
+For example, a planar robot pose <math id="S1.Thmexample1.p1.m2" class="ltx_Math" alttext="\bm{x}\in SE(2)" display="inline"><mrow><mi>𝒙</mi><mo>∈</mo><mrow><mi>S</mi><mo>⁢</mo><mi>E</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>2</mn><mo stretchy="false">)</mo></mrow></mrow></mrow></math><span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.Thmexample1.p1.p1" class="ltx_para">
+<span class="ltx_p"><math id="S1.Thmexample1.p1.p1.m1" class="ltx_Math" alttext="SE(2)" display="inline"><mrow><mi>S</mi><mo>⁢</mo><mi>E</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>2</mn><mo stretchy="false">)</mo></mrow></mrow></math> is the <em class="ltx_emph ltx_font_italic">special Euclidean group in two dimensions</em>.
+It represents planar rigid-body transformations and consists of a position <math id="S1.Thmexample1.p1.p1.m2" class="ltx_Math" alttext="(x,y)" display="inline"><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></math> and an orientation <math id="S1.Thmexample1.p1.p1.m3" class="ltx_Math" alttext="\theta" display="inline"><mi>θ</mi></math>.
+For robots operating in three-dimensional space, the pose lies in <math id="S1.Thmexample1.p1.p1.m4" class="ltx_Math" alttext="SE(3)" display="inline"><mrow><mi>S</mi><mo>⁢</mo><mi>E</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>3</mn><mo stretchy="false">)</mo></mrow></mrow></math>, which represents 3D position and orientation.</span>
+</span></span></span></span></span>
+can take infinitely many values because both its position and orientation vary continuously.</p>
+</div>
+</div>
+<section id="S1.SS1.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Probability distributions.</h4>
+
+<div id="S1.SS1.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">The probability mass function for discrete random variables and probability density function for continuous random variables are often collectively referred to as <em class="ltx_emph ltx_font_italic">probability distributions</em>.
+There are many ways to parameterize a probability distribution.
+For discrete variables, the distribution can be specified explicitly by assigning a probability to each possible value.
+For continuous variables, the distribution is often described by a parametric function defined by a small number of parameters.
+Choosing an appropriate representation is important in robotics, since it determines both how uncertainty is modeled and how efficiently algorithms can reason about it.</p>
+</div>
+</section>
+</section>
+<section id="S1.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">11.1.2 </span>Joint Distributions, Independence, and Conditioning</h3>
+
+<div id="S1.SS2.p1" class="ltx_para">
+<p class="ltx_p">Many robotics problems involve more than one uncertain quantity at a time.
+For example, a robot might simultaneously reason about its pose, the position of an obstacle, and a sensor reading.
+In such cases, it is useful to describe the probabilities of multiple random variables together using a <em class="ltx_emph ltx_font_italic">joint distribution</em>.</p>
+</div>
+<div id="S1.Thmtheorem3" class="ltx_theorem ltx_theorem_definition">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Definition 11.3</span></span><span class="ltx_text ltx_font_bold"> </span>(Joint distribution)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmtheorem3.p1" class="ltx_para">
+<p class="ltx_p">The <em class="ltx_emph ltx_font_italic">joint distribution</em> of two random variables <math id="S1.Thmtheorem3.p1.m1" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> and <math id="S1.Thmtheorem3.p1.m2" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math> specifies the probability that both take on specific values simultaneously.
+It is denoted by <math id="S1.Thmtheorem3.p1.m3" class="ltx_Math" alttext="p(X=x,\,Y=y)" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mrow><mi>X</mi><mo>=</mo><mi>x</mi></mrow><mo rspace="0.337em">,</mo><mrow><mi>Y</mi><mo>=</mo><mi>y</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></math>, or more compactly <math id="S1.Thmtheorem3.p1.m4" class="ltx_Math" alttext="p(x,y)" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow></math>.</p>
+</div>
+</div>
+<section id="S1.SS2.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Independence.</h4>
+
+<div id="S1.SS2.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">Random variables can be related to each other in important ways.
+For example, the random variables <math id="S1.SS2.SSS0.Px1.p1.m1" class="ltx_Math" alttext="X=" display="inline"><mrow><mi>X</mi><mo>=</mo><mi></mi></mrow></math> “today is cloudy” and <math id="S1.SS2.SSS0.Px1.p1.m2" class="ltx_Math" alttext="Y=" display="inline"><mrow><mi>Y</mi><mo>=</mo><mi></mi></mrow></math> “today it is raining” are correlated: if there are no clouds, it is unlikely to rain.
+In contrast, two random variables are <em class="ltx_emph ltx_font_italic">probabilistically independent</em> if the value of one does not provide any information about the other.</p>
+</div>
+<div id="S1.Thmtheorem4" class="ltx_theorem ltx_theorem_definition">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Definition 11.4</span></span><span class="ltx_text ltx_font_bold"> </span>(Probabilistic independence)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmtheorem4.p1" class="ltx_para">
+<p class="ltx_p">Two random variables <math id="S1.Thmtheorem4.p1.m1" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> and <math id="S1.Thmtheorem4.p1.m2" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math> are probabilistically <em class="ltx_emph ltx_font_italic">independent</em> if and only if:</p>
+<table id="S1.E1" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E1.m1" class="ltx_Math" alttext="p(x,y)=p(x)\,p(y)." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(11.1)</span></td>
+</tr></tbody>
+</table>
+</div>
+</div>
+<div id="S1.Thmexample2" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 11.1.2</span></span><span class="ltx_text ltx_font_bold"> </span>(Independent sensor measurements)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmexample2.p1" class="ltx_para">
+<p class="ltx_p">Suppose a robot uses a proximity sensor and a temperature sensor, modeled by random variables <math id="S1.Thmexample2.p1.m1" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> and <math id="S1.Thmexample2.p1.m2" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math>.
+Let <math id="S1.Thmexample2.p1.m3" class="ltx_Math" alttext="X\in\{\text{close},\text{medium},\text{far}\}" display="inline"><mrow><mi>X</mi><mo>∈</mo><mrow><mo stretchy="false">{</mo><mtext>close</mtext><mo>,</mo><mtext>medium</mtext><mo>,</mo><mtext>far</mtext><mo stretchy="false">}</mo></mrow></mrow></math> and <math id="S1.Thmexample2.p1.m4" class="ltx_Math" alttext="Y\in\{\text{low},\text{med},\text{high}\}" display="inline"><mrow><mi>Y</mi><mo>∈</mo><mrow><mo stretchy="false">{</mo><mtext>low</mtext><mo>,</mo><mtext>med</mtext><mo>,</mo><mtext>high</mtext><mo stretchy="false">}</mo></mrow></mrow></math>, with <math id="S1.Thmexample2.p1.m5" class="ltx_Math" alttext="p(X=\text{close})=1/3" display="inline"><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>X</mi><mo>=</mo><mtext>close</mtext></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mn>1</mn><mo>/</mo><mn>3</mn></mrow></mrow></math> and <math id="S1.Thmexample2.p1.m6" class="ltx_Math" alttext="p(Y=\text{med})=1/5" display="inline"><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>Y</mi><mo>=</mo><mtext>med</mtext></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mn>1</mn><mo>/</mo><mn>5</mn></mrow></mrow></math>.
+If the two sensors are independent, the joint probability of observing “close” and “med” is:</p>
+<table id="S1.Ex6" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex6.m1" class="ltx_Math" alttext="p(X=\text{close},\,Y=\text{med})=\tfrac{1}{3}\cdot\tfrac{1}{5}=\tfrac{1}{15}." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mrow><mi>X</mi><mo>=</mo><mtext>close</mtext></mrow><mo rspace="0.337em">,</mo><mrow><mi>Y</mi><mo>=</mo><mtext>med</mtext></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mstyle displaystyle="false"><mfrac><mn>1</mn><mn>3</mn></mfrac></mstyle><mo lspace="0.222em" rspace="0.222em">⋅</mo><mstyle displaystyle="false"><mfrac><mn>1</mn><mn>5</mn></mfrac></mstyle></mrow><mo>=</mo><mstyle displaystyle="false"><mfrac><mn>1</mn><mn>15</mn></mfrac></mstyle></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="S1.SS2.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Conditional probability.</h4>
+
+<div id="S1.SS2.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">Another key concept is the probability of one random variable given that another has already been observed.</p>
+</div>
+<div id="S1.Thmtheorem5" class="ltx_theorem ltx_theorem_definition">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Definition 11.5</span></span><span class="ltx_text ltx_font_bold"> </span>(Conditional probability)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmtheorem5.p1" class="ltx_para">
+<p class="ltx_p">The <em class="ltx_emph ltx_font_italic">conditional probability</em> of a random variable <math id="S1.Thmtheorem5.p1.m1" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> taking value <math id="S1.Thmtheorem5.p1.m2" class="ltx_Math" alttext="x" display="inline"><mi>x</mi></math>, given that <math id="S1.Thmtheorem5.p1.m3" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math> took value <math id="S1.Thmtheorem5.p1.m4" class="ltx_Math" alttext="y" display="inline"><mi>y</mi></math>, is:</p>
+<table id="S1.E2" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E2.m1" class="ltx_Math" alttext="p(x\mid y)\coloneqq\frac{p(x,y)}{p(y)}." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>∣</mo><mi>y</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>≔</mo><mfrac><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow></mfrac></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(11.2)</span></td>
+</tr></tbody>
+</table>
+</div>
+</div>
+<div id="S1.SS2.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">Conditional probabilities allow us to update beliefs when new information becomes available.
+If <math id="S1.SS2.SSS0.Px2.p2.m1" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> and <math id="S1.SS2.SSS0.Px2.p2.m2" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math> are independent, then <math id="S1.SS2.SSS0.Px2.p2.m3" class="ltx_Math" alttext="p(x\mid y)=p(x)" display="inline"><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>∣</mo><mi>y</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></math>, meaning that knowing <math id="S1.SS2.SSS0.Px2.p2.m4" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math> provides no additional information about <math id="S1.SS2.SSS0.Px2.p2.m5" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math>.</p>
+</div>
+<div id="S1.Thmexample3" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 11.1.3</span></span><span class="ltx_text ltx_font_bold"> </span>(Sensor conditional probabilities)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmexample3.p1" class="ltx_para">
+<p class="ltx_p">Building on Example&#160;<a href="#S1.Thmexample2" title="Example 11.1.2 (Independent sensor measurements). ‣ Independence. ‣ 11.1.2 Joint Distributions, Independence, and Conditioning ‣ 11.1 Preliminary Concepts in Probability" class="ltx_ref"><span class="ltx_text ltx_ref_tag">11.1.2</span></a>, consider an obstacle detection variable <math id="S1.Thmexample3.p1.m1" class="ltx_Math" alttext="Z\in\{\text{detected},\text{not detected}\}" display="inline"><mrow><mi>Z</mi><mo>∈</mo><mrow><mo stretchy="false">{</mo><mtext>detected</mtext><mo>,</mo><mtext>not detected</mtext><mo stretchy="false">}</mo></mrow></mrow></math>.
+Assume that the detection probability depends on the proximity sensor value:</p>
+<table id="S1.Ex7" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex7.m1" class="ltx_Math" alttext="\begin{split}p(Z=\text{detected}\mid X=\text{close})&amp;=\tfrac{5}{6},\\
+p(Z=\text{detected}\mid X=\text{medium})&amp;=\tfrac{1}{3},\\
+p(Z=\text{detected}\mid X=\text{far})&amp;=\tfrac{1}{5}.\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>Z</mi><mo>=</mo><mrow><mtext>detected</mtext><mo>∣</mo><mi>X</mi></mrow><mo>=</mo><mtext>close</mtext></mrow><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mstyle displaystyle="false"><mfrac><mn>5</mn><mn>6</mn></mfrac></mstyle></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>Z</mi><mo>=</mo><mrow><mtext>detected</mtext><mo>∣</mo><mi>X</mi></mrow><mo>=</mo><mtext>medium</mtext></mrow><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mstyle displaystyle="false"><mfrac><mn>1</mn><mn>3</mn></mfrac></mstyle></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>Z</mi><mo>=</mo><mrow><mtext>detected</mtext><mo>∣</mo><mi>X</mi></mrow><mo>=</mo><mtext>far</mtext></mrow><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mstyle displaystyle="false"><mfrac><mn>1</mn><mn>5</mn></mfrac></mstyle></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">If <math id="S1.Thmexample3.p1.m2" class="ltx_Math" alttext="p(X=\text{close})=\frac{1}{3}" display="inline"><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>X</mi><mo>=</mo><mtext>close</mtext></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mfrac><mn>1</mn><mn>3</mn></mfrac></mrow></math>, then the probability that the robot both detects an obstacle and registers “close” is:</p>
+<table id="S1.Ex8" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex8.m1" class="ltx_Math" alttext="\begin{split}p(Z=\text{detected},\,X=\text{close})&amp;=p(Z=\text{detected}\mid X=%
+\text{close})\,p(X=\text{close})\\
+&amp;=\tfrac{5}{18}.\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mrow><mi>Z</mi><mo>=</mo><mtext>detected</mtext></mrow><mo rspace="0.337em">,</mo><mrow><mi>X</mi><mo>=</mo><mtext>close</mtext></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mi></mi><mo>=</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>Z</mi><mo>=</mo><mrow><mtext>detected</mtext><mo>∣</mo><mi>X</mi></mrow><mo>=</mo><mtext>close</mtext></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>X</mi><mo>=</mo><mtext>close</mtext></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></mtd></mtr><mtr><mtd></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mstyle displaystyle="false"><mfrac><mn>5</mn><mn>18</mn></mfrac></mstyle></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="S1.SS2.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Conditional independence.</h4>
+
+<div id="S1.SS2.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">Finally, independence can also hold <em class="ltx_emph ltx_font_italic">given</em> the outcome of another variable.
+This concept is known as <em class="ltx_emph ltx_font_italic">conditional independence</em> and plays a central role in probabilistic modeling.</p>
+</div>
+<div id="S1.Thmtheorem6" class="ltx_theorem ltx_theorem_definition">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Definition 11.6</span></span><span class="ltx_text ltx_font_bold"> </span>(Conditional independence)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmtheorem6.p1" class="ltx_para">
+<p class="ltx_p">Two random variables <math id="S1.Thmtheorem6.p1.m1" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> and <math id="S1.Thmtheorem6.p1.m2" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math> are said to be <em class="ltx_emph ltx_font_italic">conditionally independent</em> given a third variable <math id="S1.Thmtheorem6.p1.m3" class="ltx_Math" alttext="Z" display="inline"><mi>Z</mi></math> if:</p>
+<table id="S1.E3" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E3.m1" class="ltx_Math" alttext="p(x,y\mid z)=p(x\mid z)\,p(y\mid z)," display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mrow><mi>y</mi><mo>∣</mo><mi>z</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>∣</mo><mi>z</mi></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>y</mi><mo>∣</mo><mi>z</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(11.3)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">for all values of <math id="S1.Thmtheorem6.p1.m4" class="ltx_Math" alttext="x" display="inline"><mi>x</mi></math>, <math id="S1.Thmtheorem6.p1.m5" class="ltx_Math" alttext="y" display="inline"><mi>y</mi></math>, and <math id="S1.Thmtheorem6.p1.m6" class="ltx_Math" alttext="z" display="inline"><mi>z</mi></math>.
+Equivalently:</p>
+<table id="S1.E4" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E4.m1" class="ltx_Math" alttext="p(x\mid y,z)=p(x\mid z)." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>∣</mo><mrow><mi>y</mi><mo>,</mo><mi>z</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>∣</mo><mi>z</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(11.4)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">We denote conditional independence as:</p>
+<table id="S1.Ex9" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex9.m1" class="ltx_Math" alttext="X\perp Y\mid Z." display="block"><mrow><mrow><mi>X</mi><mo>⟂</mo><mrow><mi>Y</mi><mo>∣</mo><mi>Z</mi></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+</div>
+<div id="S1.SS2.SSS0.Px3.p2" class="ltx_para">
+<p class="ltx_p">Intuitively, conditional independence means that once the value of <math id="S1.SS2.SSS0.Px3.p2.m1" class="ltx_Math" alttext="Z" display="inline"><mi>Z</mi></math> is known, learning the value of <math id="S1.SS2.SSS0.Px3.p2.m2" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math> provides no additional information about <math id="S1.SS2.SSS0.Px3.p2.m3" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math>.
+However, if <math id="S1.SS2.SSS0.Px3.p2.m4" class="ltx_Math" alttext="Z" display="inline"><mi>Z</mi></math> is not known, the variables <math id="S1.SS2.SSS0.Px3.p2.m5" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> and <math id="S1.SS2.SSS0.Px3.p2.m6" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math> may still appear correlated.
+In other words, the variable <math id="S1.SS2.SSS0.Px3.p2.m7" class="ltx_Math" alttext="Z" display="inline"><mi>Z</mi></math> explains the dependence between <math id="S1.SS2.SSS0.Px3.p2.m8" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> and <math id="S1.SS2.SSS0.Px3.p2.m9" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math>.</p>
+</div>
+<div id="S1.Thmexample4" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 11.1.4</span></span><span class="ltx_text ltx_font_bold"> </span>(Conditional independence in robotics)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmexample4.p1" class="ltx_para">
+<p class="ltx_p">A mobile robot equipped with two wheel encoders produces measurements of traveled distance: one from the left wheel (<math id="S1.Thmexample4.p1.m1" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math>) and one from the right wheel (<math id="S1.Thmexample4.p1.m2" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math>).
+At first glance, these two measurements may seem correlated, since the robot’s motion affects both.
+However, if we condition on the underlying hidden variable <math id="S1.Thmexample4.p1.m3" class="ltx_Math" alttext="Z" display="inline"><mi>Z</mi></math> = “true distance traveled,” the two encoder readings are independent:</p>
+<table id="S1.Ex10" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex10.m1" class="ltx_Math" alttext="p(x,y\mid z)=p(x\mid z)\,p(y\mid z)." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mrow><mi>y</mi><mo>∣</mo><mi>z</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>∣</mo><mi>z</mi></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>y</mi><mo>∣</mo><mi>z</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">That is, once the actual distance traveled is known, the left and right encoder readings do not provide additional information about each other.
+This is a typical use of conditional independence in probabilistic sensor models.</p>
+</div>
+</div>
+</section>
+</section>
+<section id="S1.SS3" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">11.1.3 </span>Law of Total Probability</h3>
+
+<div id="S1.SS3.p1" class="ltx_para">
+<p class="ltx_p">The <em class="ltx_emph ltx_font_italic">law of total probability</em> links marginal, joint, and conditional probabilities.
+It provides a systematic way to compute the probability of one random variable by accounting for all possible outcomes of another.</p>
+</div>
+<div id="S1.Thmtheorem7" class="ltx_theorem ltx_theorem_definition">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Definition 11.7</span></span><span class="ltx_text ltx_font_bold"> </span>(Law of total probability)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmtheorem7.p1" class="ltx_para">
+<p class="ltx_p">For discrete random variables <math id="S1.Thmtheorem7.p1.m1" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> and <math id="S1.Thmtheorem7.p1.m2" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math>:</p>
+<table id="S1.Ex11" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex11.m1" class="ltx_Math" alttext="p(x)=\sum_{y}p(x,y)=\sum_{y}p(x\mid y)\,p(y)." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.111em">=</mo><mrow><munder><mo movablelimits="false">∑</mo><mi>y</mi></munder><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo rspace="0.111em">=</mo><mrow><munder><mo movablelimits="false">∑</mo><mi>y</mi></munder><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>∣</mo><mi>y</mi></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">For continuous random variables:</p>
+<table id="S1.Ex12" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex12.m1" class="ltx_Math" alttext="p(x)=\int p(x,y)\,dy=\int p(x\mid y)\,p(y)\,dy." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.111em">=</mo><mrow><mo>∫</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><mi>y</mi></mrow></mrow></mrow><mo rspace="0.111em">=</mo><mrow><mo>∫</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>∣</mo><mi>y</mi></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><mi>y</mi></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+</div>
+<div id="S1.SS3.p2" class="ltx_para ltx_noindent">
+<p class="ltx_p">Intuitively, the law of total probability states that to find the probability of <math id="S1.SS3.p2.m1" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> taking value <math id="S1.SS3.p2.m2" class="ltx_Math" alttext="x" display="inline"><mi>x</mi></math>, we can sum (or integrate) over all possible values of <math id="S1.SS3.p2.m3" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math>, weighting the conditional probability of <math id="S1.SS3.p2.m4" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> given each value of <math id="S1.SS3.p2.m5" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math> by the probability of that value of <math id="S1.SS3.p2.m6" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math> itself.
+This process is known as <em class="ltx_emph ltx_font_italic">marginalization</em>, and <math id="S1.SS3.p2.m7" class="ltx_Math" alttext="p(x)" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow></math> is called the <em class="ltx_emph ltx_font_italic">marginal probability</em> of <math id="S1.SS3.p2.m8" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math>.</p>
+</div>
+<div id="S1.Thmexample5" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 11.1.5</span></span><span class="ltx_text ltx_font_bold"> </span>(Robot localization via marginalization)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmexample5.p1" class="ltx_para">
+<p class="ltx_p">Suppose a robot’s position <math id="S1.Thmexample5.p1.m1" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> depends on which hallway <math id="S1.Thmexample5.p1.m2" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math> it is currently in.
+We can compute the probability of being at a particular location <math id="S1.Thmexample5.p1.m3" class="ltx_Math" alttext="x" display="inline"><mi>x</mi></math> by considering every possible hallway <math id="S1.Thmexample5.p1.m4" class="ltx_Math" alttext="y" display="inline"><mi>y</mi></math>:</p>
+<table id="S1.Ex13" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex13.m1" class="ltx_Math" alttext="p(x)=\sum_{y}p(x\mid y)\,p(y)." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.111em">=</mo><mrow><munder><mo movablelimits="false">∑</mo><mi>y</mi></munder><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>∣</mo><mi>y</mi></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">In practice, this means we marginalize over the possible hallways, combining both the likelihood of being in each hallway and the probability of observing <math id="S1.Thmexample5.p1.m5" class="ltx_Math" alttext="x" display="inline"><mi>x</mi></math> given that hallway.</p>
+</div>
+</div>
+</section>
+<section id="S1.SS4" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">11.1.4 </span>Bayes’ Rule</h3>
+
+<div id="S1.SS4.p1" class="ltx_para">
+<p class="ltx_p">The joint probability, <math id="S1.SS4.p1.m1" class="ltx_Math" alttext="p(x,y)" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow></math>, between two random variables, <math id="S1.SS4.p1.m2" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> and <math id="S1.SS4.p1.m3" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math>, is related to the conditional probabilities, <math id="S1.SS4.p1.m4" class="ltx_Math" alttext="p(x\mid y)" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>∣</mo><mi>y</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></math> and <math id="S1.SS4.p1.m5" class="ltx_Math" alttext="p(y\mid x)" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>y</mi><mo>∣</mo><mi>x</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></math>, from the definition of a conditional probability in Equation&#160;<a href="#S1.E2" title="In Definition 11.5 (Conditional probability). ‣ Conditional probability. ‣ 11.1.2 Joint Distributions, Independence, and Conditioning ‣ 11.1 Preliminary Concepts in Probability" class="ltx_ref"><span class="ltx_text ltx_ref_tag">11.2</span></a>.
+Since we can express the joint probability using either conditional probability, we have:</p>
+<table id="S1.Ex14" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex14.m1" class="ltx_Math" alttext="p(x,y)=p(x\mid y)p(y)=p(y\mid x)p(x)." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>∣</mo><mi>y</mi></mrow><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>y</mi><mo>∣</mo><mi>x</mi></mrow><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">This relationship is commonly referred to as <em class="ltx_emph ltx_font_italic">Bayes’ rule</em><span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS4.p1.p1" class="ltx_para">
+<span class="ltx_p">Sometimes also referred to as <em class="ltx_emph ltx_font_italic">Bayes’ theorem</em>.</span>
+</span></span></span></span></span>.</p>
+</div>
+<div id="S1.Thmtheorem8" class="ltx_theorem ltx_theorem_definition">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Definition 11.8</span></span><span class="ltx_text ltx_font_bold"> </span>(Bayes’ rule)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmtheorem8.p1" class="ltx_para">
+<p class="ltx_p">For discrete random variables, <math id="S1.Thmtheorem8.p1.m1" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> and <math id="S1.Thmtheorem8.p1.m2" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math>, Bayes’ rule states that:</p>
+<table id="S1.E5" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E5.m1" class="ltx_Math" alttext="p(x\mid y)=\frac{p(y\mid x)p(x)}{p(y)}." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>∣</mo><mi>y</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mfrac><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>y</mi><mo>∣</mo><mi>x</mi></mrow><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow></mfrac></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(11.5)</span></td>
+</tr></tbody>
+</table>
+</div>
+</div>
+<div id="S1.SS4.p2" class="ltx_para">
+<p class="ltx_p">Bayes’ rule is useful because it provides a relationship between the “inverse” conditional probabilities, <math id="S1.SS4.p2.m1" class="ltx_Math" alttext="p(x\mid y)" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>∣</mo><mi>y</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></math> and <math id="S1.SS4.p2.m2" class="ltx_Math" alttext="p(y\mid x)" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>y</mi><mo>∣</mo><mi>x</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></math>.
+This is particularly important for <em class="ltx_emph ltx_font_italic">probabilistic inference</em> problems where we need to infer the value of one random variable from another.
+For example, suppose we have a good initial guess of the probability distribution<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS4.p2.p1" class="ltx_para">
+<span class="ltx_p">When we have an estimate of the probability distribution <math id="S1.SS4.p2.p1.m1" class="ltx_Math" alttext="p(x)" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow></math> before any new information is used to update it, we will refer to it as the <em class="ltx_emph ltx_font_italic">prior</em> probability.</span>
+</span></span></span></span></span>, <math id="S1.SS4.p2.m3" class="ltx_Math" alttext="p(x)" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow></math>, for a random variable, <math id="S1.SS4.p2.m4" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math>.
+Given new information about the outcome of a second random variable, <math id="S1.SS4.p2.m5" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math>, that is related to <math id="S1.SS4.p2.m6" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math>, we can use Bayes’ rule to update our belief about the probability distribution of <math id="S1.SS4.p2.m7" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> by computing <math id="S1.SS4.p2.m8" class="ltx_Math" alttext="p(x\mid y)" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>∣</mo><mi>y</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></math><span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS4.p2.p2" class="ltx_para">
+<span class="ltx_p">This new distribution, which we obtained by updating the prior distribution <math id="S1.SS4.p2.p2.m1" class="ltx_Math" alttext="p(x)" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow></math> with the new information about <math id="S1.SS4.p2.p2.m2" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math>, is commonly referred to as the <em class="ltx_emph ltx_font_italic">posterior</em> probability.</span>
+</span></span></span></span></span>.
+Bayes’ rule also extends to cases with additional random variables.
+For example, with three random variables, <math id="S1.SS4.p2.m9" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math>, <math id="S1.SS4.p2.m10" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math>, and <math id="S1.SS4.p2.m11" class="ltx_Math" alttext="Z" display="inline"><mi>Z</mi></math>, Bayes’ rule is:</p>
+<table id="S1.Ex15" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex15.m1" class="ltx_Math" alttext="p(x\mid y,z)=\frac{p(y\mid x,z)p(x\mid z)}{p(y\mid z)}." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>∣</mo><mrow><mi>y</mi><mo>,</mo><mi>z</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mfrac><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>y</mi><mo>∣</mo><mrow><mi>x</mi><mo>,</mo><mi>z</mi></mrow></mrow><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>x</mi><mo>∣</mo><mi>z</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>y</mi><mo>∣</mo><mi>z</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></mfrac></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S1.Thmexample6" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 11.1.6</span></span><span class="ltx_text ltx_font_bold"> </span>(Bayes’ rule)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmexample6.p1" class="ltx_para">
+<p class="ltx_p">Consider a scenario where a robot is trying to figure out if it is in room A or room B inside of a building.
+The robot has an initial guess that the probability it is in room A is <math id="S1.Thmexample6.p1.m1" class="ltx_Math" alttext="p(A)=\frac{3}{4}" display="inline"><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>A</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mfrac><mn>3</mn><mn>4</mn></mfrac></mrow></math>, and the robot has a camera that can be used to improve the estimate.
+Suppose that a single image, <math id="S1.Thmexample6.p1.m2" class="ltx_Math" alttext="I" display="inline"><mi>I</mi></math>, is captured and the features extracted from the image are compared to the known room features which gives the conditional probabilities:</p>
+<table id="S1.Ex16" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex16.m1" class="ltx_Math" alttext="p(I\mid A)=\frac{3}{4},\quad p(I\mid B)=\frac{1}{2}." display="block"><mrow><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>I</mi><mo>∣</mo><mi>A</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mfrac><mn>3</mn><mn>4</mn></mfrac></mrow><mo rspace="1.167em">,</mo><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>I</mi><mo>∣</mo><mi>B</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mfrac><mn>1</mn><mn>2</mn></mfrac></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">We can use Bayes’ rule to compute the posterior probability:</p>
+<table id="S1.Ex17" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex17.m1" class="ltx_Math" alttext="p(A\mid I)=\frac{p(I\mid A)p(A)}{p(I)}," display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>A</mi><mo>∣</mo><mi>I</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mfrac><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>I</mi><mo>∣</mo><mi>A</mi></mrow><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>A</mi><mo stretchy="false">)</mo></mrow></mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>I</mi><mo stretchy="false">)</mo></mrow></mrow></mfrac></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where we use the law of total probability to compute:</p>
+<table id="S1.Ex18" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex18.m1" class="ltx_Math" alttext="p(I)=p(I,A)+p(I,B)=p(I\mid A)p(A)+p(I\mid B)p(B)," display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>I</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>I</mi><mo>,</mo><mi>A</mi><mo stretchy="false">)</mo></mrow></mrow><mo>+</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>I</mi><mo>,</mo><mi>B</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>=</mo><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>I</mi><mo>∣</mo><mi>A</mi></mrow><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>A</mi><mo stretchy="false">)</mo></mrow></mrow><mo>+</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>I</mi><mo>∣</mo><mi>B</mi></mrow><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>B</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">and using <math id="S1.Thmexample6.p1.m3" class="ltx_Math" alttext="p(B)=1-p(A)" display="inline"><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>B</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mn>1</mn><mo>−</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>A</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow></math>.</p>
+</div>
+</div>
+</section>
+<section id="S1.SS5" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">11.1.5 </span>Expectation, Variance, and Covariance</h3>
+
+<div id="S1.SS5.p1" class="ltx_para">
+<p class="ltx_p">Probability distributions describe uncertainty in full detail by assigning probabilities to every possible outcome of a random variable.
+In practice, however, we often summarize a distribution using more compact statistics.
+Some of the most common statistics used to summarize a distribution include the <em class="ltx_emph ltx_font_italic">expected value</em>, <em class="ltx_emph ltx_font_italic">variance</em>, and <em class="ltx_emph ltx_font_italic">covariance</em>.</p>
+</div>
+<section id="S1.SS5.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Expectation.</h4>
+
+<div id="S1.SS5.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">The expectation of a random variable is a measure of the central tendency of its distribution.</p>
+</div>
+<div id="S1.Thmtheorem9" class="ltx_theorem ltx_theorem_definition">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Definition 11.9</span></span><span class="ltx_text ltx_font_bold"> </span>(Expectation)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmtheorem9.p1" class="ltx_para">
+<p class="ltx_p">The <em class="ltx_emph ltx_font_italic">expectation</em><span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.Thmtheorem9.p1.p1" class="ltx_para">
+<span class="ltx_p">Also referred to as the <em class="ltx_emph ltx_font_italic">mean</em> or the <em class="ltx_emph ltx_font_italic">first moment</em> of a distribution.</span>
+</span></span></span></span></span> of a random variable <math id="S1.Thmtheorem9.p1.m1" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> is denoted by <math id="S1.Thmtheorem9.p1.m2" class="ltx_Math" alttext="\mathbb{E}\left[X\right]" display="inline"><mrow><mi>𝔼</mi><mo>⁢</mo><mrow><mo>[</mo><mi>X</mi><mo>]</mo></mrow></mrow></math>.
+For discrete random variables:</p>
+<table id="S1.Ex19" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex19.m1" class="ltx_Math" alttext="\mathbb{E}\left[X\right]=\sum_{x}x\,p(x)," display="block"><mrow><mrow><mrow><mi>𝔼</mi><mo>⁢</mo><mrow><mo>[</mo><mi>X</mi><mo>]</mo></mrow></mrow><mo rspace="0.111em">=</mo><mrow><munder><mo movablelimits="false">∑</mo><mi>x</mi></munder><mrow><mi>x</mi><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where the sum is over all outcomes of <math id="S1.Thmtheorem9.p1.m3" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math>.
+For continuous random variables:</p>
+<table id="S1.Ex20" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex20.m1" class="ltx_Math" alttext="\mathbb{E}\left[X\right]=\int x\,p(x)\,dx." display="block"><mrow><mrow><mrow><mi>𝔼</mi><mo>⁢</mo><mrow><mo>[</mo><mi>X</mi><mo>]</mo></mrow></mrow><mo rspace="0.111em">=</mo><mrow><mo>∫</mo><mrow><mi>x</mi><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><mi>x</mi></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+</div>
+<div id="S1.SS5.SSS0.Px1.p2" class="ltx_para ltx_noindent">
+<p class="ltx_p">The expected value can be interpreted as the average outcome obtained if the random variable were sampled repeatedly an infinite number of times.</p>
+</div>
+<div id="S1.SS5.SSS0.Px1.p3" class="ltx_para">
+<p class="ltx_p">The expectation has several useful properties.
+One particularly important property is <em class="ltx_emph ltx_font_italic">linearity</em>, which states that the expectation of a linear transformation of a random variable is equal to the linear transformation of the expectation of the random variable.
+Formally, for any random variable <math id="S1.SS5.SSS0.Px1.p3.m1" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> and constants <math id="S1.SS5.SSS0.Px1.p3.m2" class="ltx_Math" alttext="a,b\in\mathbb{R}" display="inline"><mrow><mrow><mi>a</mi><mo>,</mo><mi>b</mi></mrow><mo>∈</mo><mi>ℝ</mi></mrow></math>, we have:</p>
+<table id="S1.Ex21" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex21.m1" class="ltx_Math" alttext="\mathbb{E}\left[aX+b\right]=a\mathbb{E}\left[X\right]+b." display="block"><mrow><mrow><mrow><mi>𝔼</mi><mo>⁢</mo><mrow><mo>[</mo><mrow><mrow><mi>a</mi><mo>⁢</mo><mi>X</mi></mrow><mo>+</mo><mi>b</mi></mrow><mo>]</mo></mrow></mrow><mo>=</mo><mrow><mrow><mi>a</mi><mo>⁢</mo><mi>𝔼</mi><mo>⁢</mo><mrow><mo>[</mo><mi>X</mi><mo>]</mo></mrow></mrow><mo>+</mo><mi>b</mi></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">This property holds regardless of the distribution of <math id="S1.SS5.SSS0.Px1.p3.m3" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math>.</p>
+</div>
+<div id="S1.SS5.SSS0.Px1.p4" class="ltx_para">
+<p class="ltx_p">For vector-valued random variables <math id="S1.SS5.SSS0.Px1.p4.m1" class="ltx_Math" alttext="\bm{X}=[X_{1},\ldots,X_{n}]^{\top}" display="inline"><mrow><mi>𝑿</mi><mo>=</mo><msup><mrow><mo stretchy="false">[</mo><msub><mi>X</mi><mn>1</mn></msub><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msub><mi>X</mi><mi>n</mi></msub><mo stretchy="false">]</mo></mrow><mo>⊤</mo></msup></mrow></math>, the expectation is defined component-wise:</p>
+<table id="S1.Ex22" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex22.m1" class="ltx_Math" alttext="\mathbb{E}\left[\bm{X}\right]=\begin{bmatrix}\mathbb{E}\left[X_{1}\right]\\
+\vdots\\
+\mathbb{E}\left[X_{n}\right]\end{bmatrix}." display="block"><mrow><mrow><mrow><mi>𝔼</mi><mo>⁢</mo><mrow><mo>[</mo><mi>𝑿</mi><mo>]</mo></mrow></mrow><mo>=</mo><mrow><mo>[</mo><mtable displaystyle="true" rowspacing="0pt"><mtr><mtd><mrow><mi>𝔼</mi><mo>⁢</mo><mrow><mo>[</mo><msub><mi>X</mi><mn>1</mn></msub><mo>]</mo></mrow></mrow></mtd></mtr><mtr><mtd><mi mathvariant="normal">⋮</mi></mtd></mtr><mtr><mtd><mrow><mi>𝔼</mi><mo>⁢</mo><mrow><mo>[</mo><msub><mi>X</mi><mi>n</mi></msub><mo>]</mo></mrow></mrow></mtd></mtr></mtable><mo>]</mo></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+</section>
+<section id="S1.SS5.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Variance.</h4>
+
+<div id="S1.SS5.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">While the expected value describes the center of a distribution, it does not capture how uncertain the variable is.
+This uncertainty is measured by the <em class="ltx_emph ltx_font_italic">variance</em>.</p>
+</div>
+<div id="S1.Thmtheorem10" class="ltx_theorem ltx_theorem_definition">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Definition 11.10</span></span><span class="ltx_text ltx_font_bold"> </span>(Variance)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmtheorem10.p1" class="ltx_para">
+<p class="ltx_p">The <em class="ltx_emph ltx_font_italic">variance</em> of a random variable <math id="S1.Thmtheorem10.p1.m1" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> is defined as:</p>
+<table id="S1.Ex23" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex23.m1" class="ltx_Math" alttext="\text{Var}(X)=\mathbb{E}\left[(X-\mathbb{E}\left[X\right])^{2}\right]." display="block"><mrow><mrow><mrow><mtext>Var</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>𝔼</mi><mo>⁢</mo><mrow><mo>[</mo><msup><mrow><mo stretchy="false">(</mo><mrow><mi>X</mi><mo>−</mo><mrow><mi>𝔼</mi><mo>⁢</mo><mrow><mo>[</mo><mi>X</mi><mo>]</mo></mrow></mrow></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup><mo>]</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+</div>
+<div id="S1.SS5.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">The variance measures the average squared deviation of the variable from its mean.
+A large variance indicates that the variable can take values far from the mean, while a small variance indicates that the variable is tightly concentrated around the mean.
+The square root of the variance is called the <em class="ltx_emph ltx_font_italic">standard deviation</em>, often denoted by <math id="S1.SS5.SSS0.Px2.p2.m1" class="ltx_Math" alttext="\sigma" display="inline"><mi>σ</mi></math>.</p>
+</div>
+</section>
+<section id="S1.SS5.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Covariance.</h4>
+
+<div id="S1.SS5.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">When dealing with multiple random variables, it is often important to understand how their uncertainties are related.
+This relationship is captured by the <em class="ltx_emph ltx_font_italic">covariance</em>.</p>
+</div>
+<div id="S1.Thmtheorem11" class="ltx_theorem ltx_theorem_definition">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Definition 11.11</span></span><span class="ltx_text ltx_font_bold"> </span>(Covariance)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmtheorem11.p1" class="ltx_para">
+<p class="ltx_p">The <em class="ltx_emph ltx_font_italic">covariance</em> between two random variables <math id="S1.Thmtheorem11.p1.m1" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> and <math id="S1.Thmtheorem11.p1.m2" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math> is denoted <math id="S1.Thmtheorem11.p1.m3" class="ltx_Math" alttext="\text{cov}(X,Y)" display="inline"><mrow><mtext>cov</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>X</mi><mo>,</mo><mi>Y</mi><mo stretchy="false">)</mo></mrow></mrow></math> and defined as:</p>
+<table id="S1.Ex24" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex24.m1" class="ltx_Math" alttext="\begin{split}\text{cov}(X,Y)&amp;=\mathbb{E}\left[(X-\mathbb{E}\left[X\right])(Y-%
+\mathbb{E}\left[Y\right])^{\top}\right]\\
+&amp;=\mathbb{E}\left[XY^{\top}\right]-\mathbb{E}\left[X\right]\,\mathbb{E}\left[Y%
+\right]^{\top}.\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mtext>cov</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>X</mi><mo>,</mo><mi>Y</mi><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mi></mi><mo>=</mo><mrow><mi>𝔼</mi><mo>⁢</mo><mrow><mo>[</mo><mrow><mrow><mo stretchy="false">(</mo><mrow><mi>X</mi><mo>−</mo><mrow><mi>𝔼</mi><mo>⁢</mo><mrow><mo>[</mo><mi>X</mi><mo>]</mo></mrow></mrow></mrow><mo stretchy="false">)</mo></mrow><mo>⁢</mo><msup><mrow><mo stretchy="false">(</mo><mrow><mi>Y</mi><mo>−</mo><mrow><mi>𝔼</mi><mo>⁢</mo><mrow><mo>[</mo><mi>Y</mi><mo>]</mo></mrow></mrow></mrow><mo stretchy="false">)</mo></mrow><mo>⊤</mo></msup></mrow><mo>]</mo></mrow></mrow></mrow></mtd></mtr><mtr><mtd></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mrow><mrow><mi>𝔼</mi><mo>⁢</mo><mrow><mo>[</mo><mrow><mi>X</mi><mo>⁢</mo><msup><mi>Y</mi><mo>⊤</mo></msup></mrow><mo>]</mo></mrow></mrow><mo>−</mo><mrow><mi>𝔼</mi><mo>⁢</mo><mrow><mo>[</mo><mi>X</mi><mo>]</mo></mrow><mo lspace="0.170em">⁢</mo><mi>𝔼</mi><mo>⁢</mo><msup><mrow><mo>[</mo><mi>Y</mi><mo>]</mo></mrow><mo>⊤</mo></msup></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+</div>
+<div id="S1.SS5.SSS0.Px3.p2" class="ltx_para">
+<p class="ltx_p">Intuitively, the covariance describes how two random variables vary together.
+If the covariance is positive, the variables tend to increase or decrease together.
+If it is negative, one variable tends to increase when the other decreases.
+If the covariance is zero, the variables are uncorrelated.</p>
+</div>
+<div id="S1.Thmexample7" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 11.1.7</span></span><span class="ltx_text ltx_font_bold"> </span>(Robot motion uncertainty)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmexample7.p1" class="ltx_para">
+<p class="ltx_p">Suppose <math id="S1.Thmexample7.p1.m1" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> represents the forward displacement of a robot and <math id="S1.Thmexample7.p1.m2" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math> represents its lateral displacement during a single motion step.
+If wheel slip increases as the robot moves farther forward, then larger values of <math id="S1.Thmexample7.p1.m3" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> tend to be associated with larger sideways deviations, producing a positive covariance between <math id="S1.Thmexample7.p1.m4" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> and <math id="S1.Thmexample7.p1.m5" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math>.</p>
+</div>
+<div id="S1.Thmexample7.p2" class="ltx_para">
+<p class="ltx_p">Conversely, if the robot’s mechanical design or control system tends to stabilize lateral motion during forward travel, the covariance between <math id="S1.Thmexample7.p2.m1" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> and <math id="S1.Thmexample7.p2.m2" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math> may be negative.
+If forward and lateral displacements arise from unrelated sources, the covariance will be close to zero.</p>
+</div>
+</div>
+</section>
+</section>
+</section>
+<section id="S2" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">11.2 </span>Markov Models</h2>
+
+<div id="S2.p1" class="ltx_para">
+<p class="ltx_p">In <a class="ltx_ref" href="/book/modeling-robot-dynamics/">Chapter 1</a>, we modeled robot motion using kinematics and dynamics, obtaining a set of first-order differential equations (see <span class="ltx_ref">the referenced equation</span>) that deterministically describe how the state <math id="S2.p1.m1" class="ltx_Math" alttext="\bm{x}" display="inline"><mi>𝒙</mi></math> evolves in time given the current state and control input <math id="S2.p1.m2" class="ltx_Math" alttext="\bm{u}" display="inline"><mi>𝒖</mi></math>.
+In this section, we generalize this view to a <em class="ltx_emph ltx_font_italic">probabilistic</em> setting by introducing <em class="ltx_emph ltx_font_italic">Markov models</em>, which describe how the state evolves under uncertainty.
+Markov models are fundamental to robotics, appearing in localization, mapping, planning, and decision-making under uncertainty problems.</p>
+</div>
+<section id="S2.SS0.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">State, controls, and measurements.</h4>
+
+<div id="S2.SS0.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">As in <a class="ltx_ref" href="/book/modeling-robot-dynamics/">Chapter 1</a>, the state <math id="S2.SS0.SSS0.Px1.p1.m1" class="ltx_Math" alttext="\bm{x}\in\mathbb{R}^{n}" display="inline"><mrow><mi>𝒙</mi><mo>∈</mo><msup><mi>ℝ</mi><mi>n</mi></msup></mrow></math> collects all variables relevant to the task at hand.
+In motion planning and control, this typically includes the robot’s physical state (pose, velocity, etc.), while in localization or higher-level planning it may also include environment variables such as landmark positions or object features.
+We work in discrete time, writing <math id="S2.SS0.SSS0.Px1.p1.m2" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math> for the state at time <math id="S2.SS0.SSS0.Px1.p1.m3" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math>.
+We also use the shorthand <math id="S2.SS0.SSS0.Px1.p1.m4" class="ltx_Math" alttext="\bm{x}_{t_{1}:t_{n}}\coloneqq\bm{x}_{t_{1}},\bm{x}_{t_{2}},\ldots,\bm{x}_{t_{n}}" display="inline"><mrow><msub><mi>𝒙</mi><mrow><msub><mi>t</mi><mn>1</mn></msub><mo lspace="0.278em" rspace="0.278em">:</mo><msub><mi>t</mi><mi>n</mi></msub></mrow></msub><mo>≔</mo><mrow><msub><mi>𝒙</mi><msub><mi>t</mi><mn>1</mn></msub></msub><mo>,</mo><msub><mi>𝒙</mi><msub><mi>t</mi><mn>2</mn></msub></msub><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msub><mi>𝒙</mi><msub><mi>t</mi><mi>n</mi></msub></msub></mrow></mrow></math> for sequences of states, with analogous notation for control inputs <math id="S2.SS0.SSS0.Px1.p1.m5" class="ltx_Math" alttext="\bm{u}_{t_{1}:t_{n}}" display="inline"><msub><mi>𝒖</mi><mrow><msub><mi>t</mi><mn>1</mn></msub><mo lspace="0.278em" rspace="0.278em">:</mo><msub><mi>t</mi><mi>n</mi></msub></mrow></msub></math> and measurements <math id="S2.SS0.SSS0.Px1.p1.m6" class="ltx_Math" alttext="\bm{z}_{t_{1}:t_{n}}" display="inline"><msub><mi>𝒛</mi><mrow><msub><mi>t</mi><mn>1</mn></msub><mo lspace="0.278em" rspace="0.278em">:</mo><msub><mi>t</mi><mi>n</mi></msub></mrow></msub></math>.<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.SS0.SSS0.Px1.p1.p1" class="ltx_para">
+<span class="ltx_p">Measurements can come from any of the sensors introduced earlier, such as cameras, lidar, or inertial units.</span>
+</span></span></span></span></span></p>
+</div>
+<div id="S2.SS0.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">Unlike deterministic dynamics, Markov models specify probability distributions over possible states and observations.
+In full generality, the state evolution is modeled as:</p>
+<table id="S2.E6" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.E6.m1" class="ltx_Math" alttext="p(\bm{x}_{t}\mid\bm{x}_{0:t-1},\bm{z}_{1:t-1},\bm{u}_{1:t})," display="block"><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mn>0</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(11.6)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">which captures the distribution of the current state <math id="S2.SS0.SSS0.Px1.p2.m1" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math> conditioned on the entire history of past states, controls, and measurements.
+Following the convention used throughout this chapter, the robot first executes the control <math id="S2.SS0.SSS0.Px1.p2.m2" class="ltx_Math" alttext="\bm{u}_{t}" display="inline"><msub><mi>𝒖</mi><mi>t</mi></msub></math>, then receives the measurement <math id="S2.SS0.SSS0.Px1.p2.m3" class="ltx_Math" alttext="\bm{z}_{t}" display="inline"><msub><mi>𝒛</mi><mi>t</mi></msub></math> based on the resulting state <math id="S2.SS0.SSS0.Px1.p2.m4" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math>.
+The corresponding probabilistic measurement model is:</p>
+<table id="S2.E7" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.E7.m1" class="ltx_Math" alttext="p(\bm{z}_{t}\mid\bm{x}_{0:t},\bm{z}_{1:t-1},\bm{u}_{1:t})." display="block"><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mn>0</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub><mo>,</mo><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(11.7)</span></td>
+</tr></tbody>
+</table>
+</div>
+</section>
+<section id="S2.SS0.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">The Markov property.</h4>
+
+<div id="S2.SS0.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">In many applications, we define the state <math id="S2.SS0.SSS0.Px2.p1.m1" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math> to be <em class="ltx_emph ltx_font_italic">complete</em>, meaning it contains all the information necessary to predict future states.
+Formally, this assumption implies that past states and measurements provide no additional predictive power beyond <math id="S2.SS0.SSS0.Px2.p1.m2" class="ltx_Math" alttext="\bm{x}_{t-1}" display="inline"><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math> and <math id="S2.SS0.SSS0.Px2.p1.m3" class="ltx_Math" alttext="\bm{u}_{t}" display="inline"><msub><mi>𝒖</mi><mi>t</mi></msub></math>.
+This is known as the <em class="ltx_emph ltx_font_italic">Markov property</em>, under which the models simplify to:</p>
+<table id="S2.E8" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.E8.m1" class="ltx_Math" alttext="p(\bm{x}_{t}\mid\bm{x}_{t-1},\bm{u}_{t})," display="block"><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(11.8)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">for the state transition, and:</p>
+<table id="S2.E9" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.E9.m1" class="ltx_Math" alttext="p(\bm{z}_{t}\mid\bm{x}_{t})," display="block"><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><msub><mi>𝒙</mi><mi>t</mi></msub></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(11.9)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">for the measurement model.</p>
+</div>
+</section>
+<section id="S2.SS0.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Markov models in robotics.</h4>
+
+<div id="S2.SS0.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">A Markov model thus consists of a state transition distribution (Equation&#160;<a href="#S2.E8" title="In The Markov property. ‣ 11.2 Markov Models" class="ltx_ref"><span class="ltx_text ltx_ref_tag">11.8</span></a>) and a measurement distribution (Equation&#160;<a href="#S2.E9" title="In The Markov property. ‣ 11.2 Markov Models" class="ltx_ref"><span class="ltx_text ltx_ref_tag">11.9</span></a>).
+Intuitively, the transition model captures process uncertainty (e.g., wheel slip when applying a control), while the measurement model captures sensor noise (e.g., rangefinder variability).
+Together, these components form the foundation of probabilistic state estimation (Figure&#160;<a href="#S2.F2" title="Figure 11.2 ‣ Markov models in robotics. ‣ 11.2 Markov Models" class="ltx_ref"><span class="ltx_text ltx_ref_tag">11.2</span></a>).</p>
+</div>
+<figure id="S2.F2" class="ltx_figure">
+<p class="ltx_p ltx_align_center"><img class="ltx_graphics ltx_centering" src="/book-assets/localization-filtering/_tikz__localization-filtering-1.svg" alt="diagram"></p>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 11.2</span>: </span><span class="ltx_text" style="font-size:90%;">Graphical representation of a Markov model.
+At each time step, the control <math id="S2.F2.m4" class="ltx_Math" alttext="\bm{u}_{t}" display="inline"><msub><mi>𝒖</mi><mi>t</mi></msub></math> influences the new state <math id="S2.F2.m5" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math>, and the resulting state generates a measurement <math id="S2.F2.m6" class="ltx_Math" alttext="\bm{z}_{t}" display="inline"><msub><mi>𝒛</mi><mi>t</mi></msub></math>.</span></figcaption>
+</figure>
+<div id="S2.SS0.SSS0.Px3.p2" class="ltx_para">
+<p class="ltx_p">The probabilistic model described above belongs to a broader family of models that assume the system state evolves according to the Markov property.
+Several closely related formulations exist, depending on whether control inputs and observability are considered.</p>
+</div>
+<div id="S2.SS0.SSS0.Px3.p3" class="ltx_para">
+<p class="ltx_p">In robotics, the state of the system is typically not directly observable.
+Instead, sensors provide indirect and noisy measurements that depend on the underlying state.
+Models with this structure are often referred to as <em class="ltx_emph ltx_font_italic">partially observable Markov models</em>.</p>
+</div>
+<div id="S2.SS0.SSS0.Px3.p4" class="ltx_para">
+<p class="ltx_p">If control inputs are not present, the model reduces to a <em class="ltx_emph ltx_font_italic">hidden Markov model (HMM)</em>.
+In this case, the state evolves according to a Markov process, and observations provide partial information about that state.
+The term “hidden” reflects the fact that the true state <math id="S2.SS0.SSS0.Px3.p4.m1" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math> cannot be observed directly and must instead be inferred from the sequence of measurements.</p>
+</div>
+</section>
+</section>
+<section id="S3" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">11.3 </span>Bayes Filter</h2>
+
+<div id="S3.p1" class="ltx_para">
+<p class="ltx_p">Robot localization is a classic instance of a filtering problem<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S3.p1.p1" class="ltx_para">
+<span class="ltx_p">Localization is one instance of the more general filtering problem referred to as <em class="ltx_emph ltx_font_italic">state estimation</em>.</span>
+</span></span></span></span></span> where our goal is to compute a probability distribution over the current state <math id="S3.p1.m1" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math> given the history of control inputs <math id="S3.p1.m2" class="ltx_Math" alttext="\bm{u}_{1:t}" display="inline"><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></math>, and measurements <math id="S3.p1.m3" class="ltx_Math" alttext="\bm{z}_{1:t}" display="inline"><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></math>.
+One of the canonical approaches to this filtering problem is known as the <em class="ltx_emph ltx_font_italic">Bayes filter</em> or <em class="ltx_emph ltx_font_italic">recursive Bayesian estimation</em>.
+The Bayes filter leverages a Markov model to recursively update a belief distribution, which is a probability distribution over <math id="S3.p1.m4" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math>.
+Mathematically, we denote the belief distribution as <math id="S3.p1.m5" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t})" display="inline"><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math> and define it as:</p>
+<table id="S3.E10" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.E10.m1" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t})\coloneqq p(\bm{x}_{t}\mid\bm{z}_{1:t},\bm{u}_{1:t})." display="block"><mrow><mrow><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>≔</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(11.10)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">In other words, the belief <math id="S3.p1.m6" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t})" display="inline"><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math> is a posterior probability distribution over the state conditioned on the available history information.
+We also define a distribution called the <em class="ltx_emph ltx_font_italic">prediction</em> distribution as:</p>
+<table id="S3.E11" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.E11.m1" class="ltx_Math" alttext="\overline{\text{bel}}(\bm{x}_{t})\coloneqq p(\bm{x}_{t}\mid\bm{z}_{1:t-1},\bm{%
+u}_{1:t})," display="block"><mrow><mrow><mrow><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>≔</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(11.11)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">which does not include the most recent measurement <math id="S3.p1.m7" class="ltx_Math" alttext="\bm{z}_{t}" display="inline"><msub><mi>𝒛</mi><mi>t</mi></msub></math>.
+We call the process of using the new measurement <math id="S3.p1.m8" class="ltx_Math" alttext="\bm{z}_{t}" display="inline"><msub><mi>𝒛</mi><mi>t</mi></msub></math> to compute the belief <math id="S3.p1.m9" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t})" display="inline"><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math> from the predicted belief <math id="S3.p1.m10" class="ltx_Math" alttext="\overline{\text{bel}}(\bm{x}_{t})" display="inline"><mrow><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math> a <em class="ltx_emph ltx_font_italic">correction</em> or <em class="ltx_emph ltx_font_italic">measurement update</em>.
+The Bayes filter consists of a prediction step for computing <math id="S3.p1.m11" class="ltx_Math" alttext="\overline{\text{bel}}(\bm{x}_{t})" display="inline"><mrow><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math> from the prior belief followed by a correction step for computing <math id="S3.p1.m12" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t})" display="inline"><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math> given the new measurement <math id="S3.p1.m13" class="ltx_Math" alttext="\bm{z}_{t}" display="inline"><msub><mi>𝒛</mi><mi>t</mi></msub></math>.</p>
+</div>
+<section id="S3.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">11.3.1 </span>Algorithm</h3>
+
+<div id="S3.SS1.p1" class="ltx_para">
+<p class="ltx_p">The recursive structure of the Bayes filter is summarized in Algorithm&#160;<a href="#algorithm1" title="In 11.3.1 Algorithm ‣ 11.3 Bayes Filter" class="ltx_ref"><span class="ltx_text ltx_ref_tag">1</span></a>.
+At each time step, the filter maintains a belief distribution <em class="ltx_emph ltx_font_italic">belief</em> <math id="S3.SS1.p1.m1" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t})" display="inline"><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math> over the system state.
+The inputs to the filter are the previous belief<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S3.SS1.p1.p1" class="ltx_para">
+<span class="ltx_p">In practice, we initialize the prior distribution <math id="S3.SS1.p1.p1.m1" class="ltx_Math" alttext="\text{bel}(\bm{x}_{0})" display="inline"><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mn>0</mn></msub><mo stretchy="false">)</mo></mrow></mrow></math> using either a best guess of the initial state or a uniform distribution when no prior information is available.</span>
+</span></span></span></span></span>, the current control input <math id="S3.SS1.p1.m2" class="ltx_Math" alttext="\bm{u}_{t}" display="inline"><msub><mi>𝒖</mi><mi>t</mi></msub></math>, and the latest sensor measurement <math id="S3.SS1.p1.m3" class="ltx_Math" alttext="\bm{z}_{t}" display="inline"><msub><mi>𝒛</mi><mi>t</mi></msub></math>.</p>
+</div>
+<div id="S3.SS1.p2" class="ltx_para">
+<p class="ltx_p">The algorithm proceeds in two stages.
+First, a <em class="ltx_emph ltx_font_italic">prediction</em> step computes the distribution <math id="S3.SS1.p2.m1" class="ltx_Math" alttext="\overline{\text{bel}}(\bm{x}_{t})" display="inline"><mrow><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math> over possible states after applying the control input.
+This step propagates uncertainty forward using the state transition model from Equation&#160;<a href="#S2.E8" title="In The Markov property. ‣ 11.2 Markov Models" class="ltx_ref"><span class="ltx_text ltx_ref_tag">11.8</span></a>.
+Second, a <em class="ltx_emph ltx_font_italic">correction</em> step incorporates the new measurement using the measurement model from Equation&#160;<a href="#S2.E9" title="In The Markov property. ‣ 11.2 Markov Models" class="ltx_ref"><span class="ltx_text ltx_ref_tag">11.9</span></a>, adjusting the predicted belief to better match the observed data.</p>
+</div>
+<div id="S3.SS1.p3" class="ltx_para">
+<p class="ltx_p">Intuitively, the prediction step estimates where the robot might be after executing the control, while the correction step refines this estimate using information from the sensors.</p>
+</div>
+<figure id="algorithm1" class="ltx_float ltx_algorithm">
+<div class="ltx_listing ltx_lst_numbers_left ltx_listing">
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Data:</span> <math id="algorithm1.m1" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t-1}),\bm{u}_{t},\bm{z}_{t}" display="inline"><mrow><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="false">)</mo></mrow></mrow><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒛</mi><mi>t</mi></msub></mrow></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Result:</span> <math id="algorithm1.m2" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t})" display="inline"><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">foreach</span> <em class="ltx_emph ltx_font_italic"><math id="algorithm1.m3" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝐱</mi><mi>t</mi></msub></math></em> <span class="ltx_text ltx_font_bold">do</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <span class="ltx_text ltx_font_typewriter">// </span><span class="ltx_text ltx_font_typewriter">Prediction (motion update) </span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm1.m4" class="ltx_Math" alttext="\overline{\text{bel}}(\bm{x}_{t})=\int p(\bm{x}_{t}\mid\bm{x}_{t-1},\bm{u}_{t}%)\,\text{bel}(\bm{x}_{t-1})\,d\bm{x}_{t-1}" display="inline"><mrow><mrow><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.111em">=</mo><mrow><mo>∫</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub></mrow></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow></mrow></mrow></mrow></math> </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <span class="ltx_text ltx_font_typewriter">// </span><span class="ltx_text ltx_font_typewriter">Correction (measurement update) </span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm1.m5" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t})=\eta\,p(\bm{z}_{t}\mid\bm{x}_{t})\,\overline{\text{bel}%}(\bm{x}_{t})" display="inline"><mrow><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>η</mi><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><msub><mi>𝒙</mi><mi>t</mi></msub></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">return</span> <math id="algorithm1.m6" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t})" display="inline"><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math></div>
+</div>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_float"><span class="ltx_text ltx_font_bold">Algorithm 1</span> </span>Bayes Filter</figcaption>
+</figure>
+<div id="S3.SS1.p4" class="ltx_para">
+<p class="ltx_p">In Algorithm&#160;<a href="#algorithm1" title="In 11.3.1 Algorithm ‣ 11.3 Bayes Filter" class="ltx_ref"><span class="ltx_text ltx_ref_tag">1</span></a>, <math id="S3.SS1.p4.m1" class="ltx_Math" alttext="\eta" display="inline"><mi>η</mi></math> is a normalization constant ensuring <math id="S3.SS1.p4.m2" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t})" display="inline"><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math> integrates (or sums) to one.<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S3.SS1.p4.p1" class="ltx_para">
+<span class="ltx_p">In practice, <math id="S3.SS1.p4.p1.m1" class="ltx_Math" alttext="\eta=1/p(\bm{z}_{t}\mid\bm{z}_{1:t-1},\bm{u}_{1:t})" display="inline"><mrow><mi>η</mi><mo>=</mo><mrow><mrow><mn>1</mn><mo>/</mo><mi>p</mi></mrow><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></math>, which follows directly from Bayes’ rule.</span>
+</span></span></span></span></span>
+Conceptually, the Bayes filter performs a repeated <em class="ltx_emph ltx_font_italic">predict–correct</em> cycle, where the motion model spreads the belief forward to account for process uncertainty, while the measurement model reshapes the belief according to how consistent each state is with the observed sensor measurement.</p>
+</div>
+</section>
+<section id="S3.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">11.3.2 </span>Derivation</h3>
+
+<div id="S3.SS2.p1" class="ltx_para">
+<p class="ltx_p">We now derive the Bayes filter recursion from the definition of the belief distribution introduced in Section&#160;<a href="#S3" title="11.3 Bayes Filter" class="ltx_ref"><span class="ltx_text ltx_ref_tag">11.3</span></a>.
+Applying Bayes’ rule to Equation&#160;<a href="#S3.E10" title="In 11.3 Bayes Filter" class="ltx_ref"><span class="ltx_text ltx_ref_tag">11.10</span></a> yields:</p>
+<table id="S3.E12" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.E12.m1" class="ltx_Math" alttext="\begin{split}\text{bel}(\bm{x}_{t})&amp;=p(\bm{x}_{t}\mid\bm{z}_{1:t},\bm{u}_{1:t}%
+)\\
+&amp;=\eta\,p(\bm{z}_{t}\mid\bm{x}_{t},\bm{z}_{1:t-1},\bm{u}_{1:t})\,p(\bm{x}_{t}%
+\mid\bm{z}_{1:t-1},\bm{u}_{1:t}),\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mi></mi><mo>=</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></mtd></mtr><mtr><mtd></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mrow><mi>η</mi><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(11.12)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S3.SS2.p1.m1" class="ltx_Math" alttext="\eta" display="inline"><mi>η</mi></math> is a normalization constant:</p>
+<table id="S3.Ex25" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex25.m1" class="ltx_Math" alttext="\eta=\frac{1}{p(\bm{z}_{t}\mid\bm{z}_{1:t-1},\bm{u}_{1:t})}." display="block"><mrow><mrow><mi>η</mi><mo>=</mo><mfrac><mn>1</mn><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mfrac></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<section id="S3.SS2.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Measurement update.</h4>
+
+<div id="S3.SS2.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">Using the conditional independence assumptions of the Markov model (Figure&#160;<a href="#S2.F2" title="Figure 11.2 ‣ Markov models in robotics. ‣ 11.2 Markov Models" class="ltx_ref"><span class="ltx_text ltx_ref_tag">11.2</span></a>), the current measurement depends only on the current state.
+Therefore:</p>
+<table id="S3.Ex26" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex26.m1" class="ltx_Math" alttext="p(\bm{z}_{t}\mid\bm{x}_{t},\bm{z}_{1:t-1},\bm{u}_{1:t})=p(\bm{z}_{t}\mid\bm{x}%
+_{t})." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><msub><mi>𝒙</mi><mi>t</mi></msub></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Substituting this simplification into Equation&#160;<a href="#S3.E12" title="In 11.3.2 Derivation ‣ 11.3 Bayes Filter" class="ltx_ref"><span class="ltx_text ltx_ref_tag">11.12</span></a> gives:</p>
+<table id="S3.Ex27" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex27.m1" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t})=\eta\,p(\bm{z}_{t}\mid\bm{x}_{t})\,p(\bm{x}_{t}\mid\bm{%
+z}_{1:t-1},\bm{u}_{1:t})." display="block"><mrow><mrow><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>η</mi><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><msub><mi>𝒙</mi><mi>t</mi></msub></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Recall the definition of the prediction belief from Equation&#160;<a href="#S3.E11" title="In 11.3 Bayes Filter" class="ltx_ref"><span class="ltx_text ltx_ref_tag">11.11</span></a>:</p>
+<table id="S3.Ex28" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex28.m1" class="ltx_Math" alttext="\overline{\text{bel}}(\bm{x}_{t})\coloneqq p(\bm{x}_{t}\mid\bm{z}_{1:t-1},\bm{%
+u}_{1:t})," display="block"><mrow><mrow><mrow><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>≔</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">we obtain:</p>
+<table id="S3.Ex29" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex29.m1" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t})=\eta\,p(\bm{z}_{t}\mid\bm{x}_{t})\,\overline{\text{bel}%
+}(\bm{x}_{t})," display="block"><mrow><mrow><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>η</mi><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><msub><mi>𝒙</mi><mi>t</mi></msub></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">which corresponds to the <em class="ltx_emph ltx_font_italic">measurement update</em> step of the Bayes filter.</p>
+</div>
+</section>
+<section id="S3.SS2.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Prediction update.</h4>
+
+<div id="S3.SS2.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">Next we derive an expression for the prediction belief <math id="S3.SS2.SSS0.Px2.p1.m1" class="ltx_Math" alttext="\overline{\text{bel}}(\bm{x}_{t})" display="inline"><mrow><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math>.
+Starting from its definition in Equation&#160;<a href="#S3.E11" title="In 11.3 Bayes Filter" class="ltx_ref"><span class="ltx_text ltx_ref_tag">11.11</span></a>, we apply the law of total probability to marginalize over the previous state <math id="S3.SS2.SSS0.Px2.p1.m2" class="ltx_Math" alttext="\bm{x}_{t-1}" display="inline"><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math>:</p>
+<table id="S3.Ex30" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex30.m1" class="ltx_Math" alttext="\begin{split}\overline{\text{bel}}(\bm{x}_{t})&amp;=\int p(\bm{x}_{t},\bm{x}_{t-1}%
+\mid\bm{z}_{1:t-1},\bm{u}_{1:t})d\bm{x}_{t-1}\\
+&amp;=\int p(\bm{x}_{t}\mid\bm{x}_{t-1},\bm{z}_{1:t-1},\bm{u}_{1:t})p(\bm{x}_{t-1}%
+\mid\bm{z}_{1:t-1},\bm{u}_{1:t})d\bm{x}_{t-1}.\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mi></mi><mo rspace="0.111em">=</mo><mrow><mo>∫</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>∣</mo><mrow><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow></mrow></mrow></mrow></mtd></mtr><mtr><mtd></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo rspace="0.111em">=</mo><mrow><mo>∫</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>∣</mo><mrow><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S3.SS2.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">Using the Markov assumption again, the next state depends only on the previous state and the current control input:</p>
+<table id="S3.Ex31" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex31.m1" class="ltx_Math" alttext="p(\bm{x}_{t}\mid\bm{x}_{t-1},\bm{z}_{1:t-1},\bm{u}_{1:t})=p(\bm{x}_{t}\mid\bm{%
+x}_{t-1},\bm{u}_{t})." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S3.SS2.SSS0.Px2.p3" class="ltx_para">
+<p class="ltx_p">Furthermore, the control input <math id="S3.SS2.SSS0.Px2.p3.m1" class="ltx_Math" alttext="\bm{u}_{t}" display="inline"><msub><mi>𝒖</mi><mi>t</mi></msub></math> does not influence the previous state <math id="S3.SS2.SSS0.Px2.p3.m2" class="ltx_Math" alttext="\bm{x}_{t-1}" display="inline"><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math>, so:</p>
+<table id="S3.Ex32" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex32.m1" class="ltx_Math" alttext="p(\bm{x}_{t-1}\mid\bm{z}_{1:t-1},\bm{u}_{1:t})=p(\bm{x}_{t-1}\mid\bm{z}_{1:t-1%
+},\bm{u}_{1:t-1})." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>∣</mo><mrow><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>∣</mo><mrow><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Recognizing that, by definition:</p>
+<table id="S3.Ex33" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex33.m1" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t-1})=p(\bm{x}_{t-1}\mid\bm{z}_{1:t-1},\bm{u}_{1:t-1})," display="block"><mrow><mrow><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>∣</mo><mrow><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">we obtain the prediction step:</p>
+<table id="S3.Ex34" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex34.m1" class="ltx_Math" alttext="\overline{\text{bel}}(\bm{x}_{t})=\int p(\bm{x}_{t}\mid\bm{x}_{t-1},\bm{u}_{t}%
+)\,\text{bel}(\bm{x}_{t-1})\,d\bm{x}_{t-1}." display="block"><mrow><mrow><mrow><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.111em">=</mo><mrow><mo>∫</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub></mrow></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+</section>
+</section>
+<section id="S3.SS3" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">11.3.3 </span>Discrete Bayes Filter</h3>
+
+<div id="S3.SS3.p1" class="ltx_para">
+<p class="ltx_p">When the state space is finite, the belief distribution can be represented as a probability mass function over a discrete set of states <math id="S3.SS3.p1.m1" class="ltx_Math" alttext="\{x_{k}\}" display="inline"><mrow><mo stretchy="false">{</mo><msub><mi>x</mi><mi>k</mi></msub><mo stretchy="false">}</mo></mrow></math>.
+In this case, the belief at time <math id="S3.SS3.p1.m2" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math> is described by a collection of probabilities <math id="S3.SS3.p1.m3" class="ltx_Math" alttext="\{p_{k,t}\}" display="inline"><mrow><mo stretchy="false">{</mo><msub><mi>p</mi><mrow><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><mo stretchy="false">}</mo></mrow></math>, where <math id="S3.SS3.p1.m4" class="ltx_Math" alttext="p_{k,t}" display="inline"><msub><mi>p</mi><mrow><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub></math> denotes the probability that the system is in state <math id="S3.SS3.p1.m5" class="ltx_Math" alttext="x_{k}" display="inline"><msub><mi>x</mi><mi>k</mi></msub></math> at time <math id="S3.SS3.p1.m6" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math>.
+The Bayes filter recursion can then be written in discrete form by replacing the integrals in Algorithm&#160;<a href="#algorithm1" title="In 11.3.1 Algorithm ‣ 11.3 Bayes Filter" class="ltx_ref"><span class="ltx_text ltx_ref_tag">1</span></a> with summations over the possible states.
+The resulting algorithm, shown in Algorithm&#160;<a href="#algorithm2" title="In 11.3.3 Discrete Bayes Filter ‣ 11.3 Bayes Filter" class="ltx_ref"><span class="ltx_text ltx_ref_tag">2</span></a>, follows the same two-step procedure as the continuous Bayes filter, with a prediction step using the transition model, followed by a correction step using the measurement model.</p>
+</div>
+<figure id="algorithm2" class="ltx_float ltx_algorithm">
+<div class="ltx_listing ltx_lst_numbers_left ltx_listing">
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Data:</span> <math id="algorithm2.m1" class="ltx_Math" alttext="\{p_{k,t-1}\},\bm{u}_{t},\bm{z}_{t}" display="inline"><mrow><mrow><mo stretchy="false">{</mo><msub><mi>p</mi><mrow><mi>k</mi><mo>,</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo stretchy="false">}</mo></mrow><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒛</mi><mi>t</mi></msub></mrow></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Result:</span> <math id="algorithm2.m2" class="ltx_Math" alttext="\{p_{k,t}\}" display="inline"><mrow><mo stretchy="false">{</mo><msub><mi>p</mi><mrow><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><mo stretchy="false">}</mo></mrow></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">foreach</span> <em class="ltx_emph ltx_font_italic"><math id="algorithm2.m3" class="ltx_Math" alttext="k" display="inline"><mi>k</mi></math></em> <span class="ltx_text ltx_font_bold">do</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm2.m4" class="ltx_Math" alttext="\overline{p}_{k,t}=\sum_{i}p(\bm{x}_{t}\mid\bm{x}_{i},\bm{u}_{t})\,p_{i,t-1}" display="inline"><mrow><msub><mover accent="true"><mi>p</mi><mo>¯</mo></mover><mrow><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><mo rspace="0.111em">=</mo><mrow><msub><mo>∑</mo><mi>i</mi></msub><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>i</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub></mrow></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><msub><mi>p</mi><mrow><mi>i</mi><mo>,</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub></mrow></mrow></mrow></math></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm2.m5" class="ltx_Math" alttext="p_{k,t}=\eta\,p(\bm{z}_{t}\mid\bm{x}_{k})\,\overline{p}_{k,t}" display="inline"><mrow><msub><mi>p</mi><mrow><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><mo>=</mo><mrow><mi>η</mi><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><msub><mi>𝒙</mi><mi>k</mi></msub></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><msub><mover accent="true"><mi>p</mi><mo>¯</mo></mover><mrow><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub></mrow></mrow></math></div>
+<div class="ltx_listingline">&#160;</div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">return</span> <math id="algorithm2.m6" class="ltx_Math" alttext="\{p_{k,t}\}" display="inline"><mrow><mo stretchy="false">{</mo><msub><mi>p</mi><mrow><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub><mo stretchy="false">}</mo></mrow></math></div>
+</div>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_float"><span class="ltx_text ltx_font_bold">Algorithm 2</span> </span>Discrete Bayes Filter</figcaption>
+</figure>
+<div id="S3.SS3.p2" class="ltx_para">
+<p class="ltx_p">Here <math id="S3.SS3.p2.m1" class="ltx_Math" alttext="\overline{p}_{k,t}" display="inline"><msub><mover accent="true"><mi>p</mi><mo>¯</mo></mover><mrow><mi>k</mi><mo>,</mo><mi>t</mi></mrow></msub></math> denotes the predicted probability of state <math id="S3.SS3.p2.m2" class="ltx_Math" alttext="x_{k}" display="inline"><msub><mi>x</mi><mi>k</mi></msub></math> before incorporating the measurement, and <math id="S3.SS3.p2.m3" class="ltx_Math" alttext="\eta" display="inline"><mi>η</mi></math> is a normalization constant ensuring that the probabilities sum to one.</p>
+</div>
+</section>
+<section id="S3.SS4" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">11.3.4 </span>Practical Considerations</h3>
+
+<div id="S3.SS4.p1" class="ltx_para">
+<p class="ltx_p">The Bayes filter provides a general and principled framework for probabilistic state estimation.
+However, applying it directly is often computationally challenging in realistic robotics problems.</p>
+</div>
+<div id="S3.SS4.p2" class="ltx_para">
+<p class="ltx_p">In <em class="ltx_emph ltx_font_italic">continuous state spaces</em>, the prediction step requires evaluating integrals over the entire state space.
+Computing these integrals exactly is often intractable, resulting in the need for approximations or numerical methods to estimate the belief distribution.
+In <em class="ltx_emph ltx_font_italic">discrete state spaces</em>, the recursion can be computed exactly, but the required summations scale with the number of possible states.
+As the dimensionality of the state increases, the number of discrete states grows rapidly, making exact inference computationally expensive.</p>
+</div>
+<div id="S3.SS4.p3" class="ltx_para">
+<p class="ltx_p">Despite these challenges, the Bayes filter serves as the conceptual foundation for many practical state estimation algorithms.
+Widely used filters such as the Kalman filter, extended Kalman filter (EKF), unscented Kalman filter (UKF), and particle filter can all be viewed as specific implementations of the Bayes filter that exploit additional assumptions or approximations to make the computation tractable.</p>
+</div>
+<div id="S3.Thmexample1" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 11.3.1</span></span><span class="ltx_text ltx_font_bold"> </span>(Robot in a hallway)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S3.Thmexample1.p1" class="ltx_para">
+<p class="ltx_p">Consider a robot moving along a straight hallway represented by a one-dimensional line.
+The hidden state <math id="S3.Thmexample1.p1.m1" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math> is the robot’s position along this line.
+At each time step <math id="S3.Thmexample1.p1.m2" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math> the robot receives a control input <math id="S3.Thmexample1.p1.m3" class="ltx_Math" alttext="\bm{u}_{t}" display="inline"><msub><mi>𝒖</mi><mi>t</mi></msub></math> representing a commanded forward displacement and a measurement <math id="S3.Thmexample1.p1.m4" class="ltx_Math" alttext="\bm{z}_{t}" display="inline"><msub><mi>𝒛</mi><mi>t</mi></msub></math> representing the noisy distance to the nearest door in front of the robot, obtained from a range sensor.</p>
+</div>
+</div>
+<section id="S3.SS4.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Prediction.</h4>
+
+<div id="S3.SS4.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">Suppose the robot starts at position <math id="S3.SS4.SSS0.Px1.p1.m1" class="ltx_Math" alttext="\bm{x}_{t-1}=2" display="inline"><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>=</mo><mn>2</mn></mrow></math> m with a belief concentrated around that location and issues a command <math id="S3.SS4.SSS0.Px1.p1.m2" class="ltx_Math" alttext="\bm{u}_{t}=+0.5" display="inline"><mrow><msub><mi>𝒖</mi><mi>t</mi></msub><mo>=</mo><mrow><mo>+</mo><mn>0.5</mn></mrow></mrow></math> m forward.
+Due to wheel slip and actuator noise, the true displacement may vary, which we model as:</p>
+<table id="S3.Ex35" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex35.m1" class="ltx_Math" alttext="\Delta x\sim\mathcal{N}(u_{t},\,0.1^{2})." display="block"><mrow><mrow><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>x</mi></mrow><mo>∼</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒩</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>u</mi><mi>t</mi></msub><mo>,</mo><msup><mn> 0.1</mn><mn>2</mn></msup><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">The prediction step therefore spreads the belief forward, producing belief <math id="S3.SS4.SSS0.Px1.p1.m3" class="ltx_Math" alttext="\overline{\text{bel}}(\bm{x}_{t})" display="inline"><mrow><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math> centered at <math id="S3.SS4.SSS0.Px1.p1.m4" class="ltx_Math" alttext="2.5" display="inline"><mn>2.5</mn></math> m but with larger variance than the previous belief.</p>
+</div>
+</section>
+<section id="S3.SS4.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Correction.</h4>
+
+<div id="S3.SS4.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">At the same step, the robot’s range sensor reports <math id="S3.SS4.SSS0.Px2.p1.m1" class="ltx_Math" alttext="\bm{z}_{t}=2.4" display="inline"><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>=</mo><mn>2.4</mn></mrow></math> m to the next door.
+The sensor is noisy and modeled by:</p>
+<table id="S3.Ex36" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex36.m1" class="ltx_Math" alttext="p(\bm{z}_{t}\mid\bm{x}_{t})=\mathcal{N}(\bm{z}_{t};\text{true distance}(\bm{x}%
+_{t}),\,0.05^{2})." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><msub><mi>𝒙</mi><mi>t</mi></msub></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒩</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒛</mi><mi>t</mi></msub><mo>;</mo><mrow><mtext>true distance</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>,</mo><msup><mn> 0.05</mn><mn>2</mn></msup><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">If the predicted belief assigns significant probability to states near <math id="S3.SS4.SSS0.Px2.p1.m2" class="ltx_Math" alttext="\bm{x}_{t}\approx 2.5" display="inline"><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>≈</mo><mn>2.5</mn></mrow></math> m and the hallway map indicates that the next door lies roughly <math id="S3.SS4.SSS0.Px2.p1.m3" class="ltx_Math" alttext="2.4" display="inline"><mn>2.4</mn></math> m ahead from that position, the measurement is consistent with the prediction.
+The correction step therefore increases the probability of these states and sharpens the belief distribution around them.
+States that would predict very different measurements are downweighted.</p>
+</div>
+</section>
+<section id="S3.SS4.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Recursive operation.</h4>
+
+<div id="S3.SS4.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">Over time, the filter alternates prediction and correction.
+The prediction step tends to broaden the belief because motion introduces uncertainty, while the correction step can concentrate the belief when informative measurements are received.
+In hallways with repeating structures, several positions may initially produce similar sensor readings, causing the belief to remain multimodal.
+As the robot gathers additional observations, the Bayes filter resolves this ambiguity and the belief collapses around the robot’s true location.</p>
+</div>
+<div id="S3.SS4.SSS0.Px3.p2" class="ltx_para">
+<p class="ltx_p">In the repository <span class="ltx_text ltx_font_typewriter">github.com/StanfordASL/pora-exercises</span>, the notebook <span class="ltx_text ltx_font_typewriter">ch11/discrete_bayes.ipynb</span> provides a concrete implementation of the discrete Bayes filter for this hallway example.
+Running the notebook illustrates how the belief distribution evolves over time as the robot moves and collects measurements.</p>
+</div>
+</section>
+</section>
+</section>
+<section id="S4" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">11.4 </span>Summary</h2>
+
+<div id="S4.p1" class="ltx_para">
+<p class="ltx_p">In this chapter, we introduced the probabilistic foundations underlying robot localization and state estimation.
+We began by motivating why localization is essential for autonomy: robots must infer their pose from noisy and partial sensor data rather than directly observing it.
+To reason systematically about this uncertainty, we reviewed key concepts in probability theory, including random variables, probability distributions, conditional independence, and Bayes’ rule.
+These concepts provide the mathematical framework for representing and updating uncertainty in robotic systems.</p>
+</div>
+<div id="S4.p2" class="ltx_para">
+<p class="ltx_p">Building on these foundations, we introduced Markov models as probabilistic representations of robot motion and sensing.
+These models define how the robot’s state evolves over time and how measurements relate to that state, forming the basis for probabilistic inference in dynamic systems.
+Finally, we derived the Bayes filter, a recursive algorithm for estimating a belief distribution over the robot’s state as it moves and collects new measurements.
+The Bayes filter provides the conceptual foundation for many practical estimation algorithms.
+Widely used methods such as the Kalman filter, extended Kalman filter, unscented Kalman filter, and particle filter can all be understood as specific implementations of this general framework.
+In the following chapters, we build on these ideas to develop practical algorithms for localization, mapping, and simultaneous localization and mapping.</p>
+</div>
+<section id="S4.SS0.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">To learn more.</h4>
+
+<div id="S4.SS0.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">For a comprehensive introduction to probabilistic robotics, including localization and filtering, readers are referred to the seminal text by <span class="ltx_cite">Thrun et al. (2005)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">1</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">1.</span> Thrun, S., Burgard, W., Fox, D. <em>Probabilistic Robotics</em>. MIT Press, 2005.</span></span></span>, which provides an intuitive and rigorous treatment of the Bayes filter and its extensions.
+Additional foundational perspectives on probabilistic reasoning and estimation in robotics can be found in <span class="ltx_cite">Siegwart et al. (2011)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">2</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">2.</span> Siegwart, R., Nourbakhsh, I. R., Scaramuzza, D. <em>Introduction to Autonomous Mobile Robots</em>. MIT Press, 2011.</span></span></span> and <span class="ltx_cite">Maybeck (1982)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">3</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">3.</span> Maybeck, Peter S. <em>Stochastic models, estimation, and control</em>. Academic press, 1982.</span></span></span>.
+For readers interested in a more theoretical background in stochastic systems and control, <span class="ltx_cite">Gelb et al. (1974)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">4</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">4.</span> Gelb, Arthur et al. <em>Applied optimal estimation</em>. MIT press, 1974.</span></span></span> offers a classical reference on estimation theory.
+Finally, <span class="ltx_cite">SLAM Handbook. From Localization and Mapping to Spatial Intelligence</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">5</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">5.</span> <em>SLAM Handbook. From Localization and Mapping to Spatial Intelligence</em>. Cambridge University Press, 2026.</span></span></span> presents a modern, unified treatment of localization, filtering, and mapping under a common probabilistic framework.</p>
+</div>
+</section>
+</section>
+<section id="S5" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">11.5 </span>Exercises</h2>
+
+<div id="S5.p1" class="ltx_para">
+<p class="ltx_p">The starter code for the exercises provided below is available online through GitHub.
+To get started, download the code by running in a terminal window:</p>
+</div>
+<div id="S5.p2" class="ltx_para ltx_noindent">
+<div class="ltx_listing ltx_lst_language_bash ltx_lstlisting ltx_listing">
+<div class="ltx_listing_data"><a href="data:text/plain;base64,ICAgIGdpdCBjbG9uZSBodHRwczovL2dpdGh1Yi5jb20vU3RhbmZvcmRBU0wvcG9yYS1leGVyY2lzZXMuZ2l0" download="">⬇</a></div>
+<div id="lstnumberx1" class="ltx_listingline"><span class="ltx_text ltx_lst_space ltx_font_typewriter">    </span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">git</span><span class="ltx_text ltx_lst_space ltx_font_typewriter"> </span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">clone</span><span class="ltx_text ltx_lst_space ltx_font_typewriter"> </span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">https</span><span class="ltx_text ltx_font_typewriter">://</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">github</span><span class="ltx_text ltx_font_typewriter">.</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">com</span><span class="ltx_text ltx_font_typewriter">/</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">StanfordASL</span><span class="ltx_text ltx_font_typewriter">/</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">pora</span><span class="ltx_text ltx_font_typewriter">-</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">exercises</span><span class="ltx_text ltx_font_typewriter">.</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">git</span></div>
+</div>
+</div>
+<div id="S5.p3" class="ltx_para">
+<p class="ltx_p">We denote Problems requiring hand-written solutions and coding in Python with <img src="/book-assets/localization-filtering/figs__write.png" id="S5.p3.g1" class="ltx_graphics ltx_img_square" width="26" height="28" alt="[Uncaptioned image]"> and <img src="/book-assets/localization-filtering/figs__code.png" id="S5.p3.g2" class="ltx_graphics ltx_img_square" width="25" height="25" alt="[Uncaptioned image]">, respectively.</p>
+</div>
+</section>
+<section id="Sx1" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<img src="/book-assets/localization-filtering/figs__write.png" id="Sx1.g1" class="ltx_graphics ltx_img_square" width="26" height="28" alt="[Uncaptioned image]"> Problem 1: Airport Security</h2>
+
+<div id="Sx1.p1" class="ltx_para">
+<p class="ltx_p">Suppose that travelers passing through an airport carry prohibited items <math id="Sx1.p1.m1" class="ltx_Math" alttext="1\%" display="inline"><mrow><mn>1</mn><mo>%</mo></mrow></math> of the time.
+Each passenger passes through a simple detector that has a true positive detection rate of <math id="Sx1.p1.m2" class="ltx_Math" alttext="92\%" display="inline"><mrow><mn>92</mn><mo>%</mo></mrow></math> and false positive detection rate of <math id="Sx1.p1.m3" class="ltx_Math" alttext="8\%" display="inline"><mrow><mn>8</mn><mo>%</mo></mrow></math>.
+Passengers that trigger the detector alarm are sent to a more accurate secondary screening that has a true positive detection rate of <math id="Sx1.p1.m4" class="ltx_Math" alttext="98\%" display="inline"><mrow><mn>98</mn><mo>%</mo></mrow></math> and a false positive detection rate of <math id="Sx1.p1.m5" class="ltx_Math" alttext="10\%" display="inline"><mrow><mn>10</mn><mo>%</mo></mrow></math>.</p>
+<ol id="Sx1.I1" class="ltx_enumerate">
+<li id="Sx1.I1.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">1.</span> 
+<div id="Sx1.I1.i1.p1" class="ltx_para">
+<p class="ltx_p">Given that a randomly selected passenger was flagged by the second screening, what is the probability a passenger was carrying a prohibited item?</p>
+</div>
+</li>
+<li id="Sx1.I1.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">2.</span> 
+<div id="Sx1.I1.i2.p1" class="ltx_para">
+<p class="ltx_p">How does the probability change in this case if <em class="ltx_emph ltx_font_italic">all</em> passengers were to get the more accurate secondary screening and the first simple detector was not used?</p>
+</div>
+</li>
+</ol>
+</div>
+</section>
+<section id="Sx2" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<img src="/book-assets/localization-filtering/figs__write.png" id="Sx2.g1" class="ltx_graphics ltx_img_square" width="26" height="28" alt="[Uncaptioned image]"> Problem 2: Cookie Machine</h2>
+
+<div id="Sx2.p1" class="ltx_para">
+<p class="ltx_p">You operate a cookie-making machine that when activated will produce a random number of cookies in the range <math id="Sx2.p1.m1" class="ltx_Math" alttext="[1,\dots,N]" display="inline"><mrow><mo stretchy="false">[</mo><mn>1</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mi>N</mi><mo stretchy="false">]</mo></mrow></math>, with each quantity equally likely with probability <math id="Sx2.p1.m2" class="ltx_Math" alttext="\frac{1}{N}" display="inline"><mfrac><mn>1</mn><mi>N</mi></mfrac></math>.
+Each cookie costs <math id="Sx2.p1.m3" class="ltx_Math" alttext="\$1" display="inline"><mrow><mo rspace="0.167em">$</mo><mn>1</mn></mrow></math> to produce.</p>
+<ol id="Sx2.I2" class="ltx_enumerate">
+<li id="Sx2.I2.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">1.</span> 
+<div id="Sx2.I2.i1.p1" class="ltx_para">
+<p class="ltx_p">Each of your customers will pay a fixed price to activate the machine.
+What is the minimum fixed price you should charge each customer to ensure that you don’t lose money in the long run?
+In other words, what is the expected cost of each customer activation?</p>
+</div>
+</li>
+</ol>
+<p class="ltx_p">Suppose the machine manufacturer produces machines with <math id="Sx2.p1.m4" class="ltx_Math" alttext="N=6" display="inline"><mrow><mi>N</mi><mo>=</mo><mn>6</mn></mrow></math> and <math id="Sx2.p1.m5" class="ltx_Math" alttext="N=10" display="inline"><mrow><mi>N</mi><mo>=</mo><mn>10</mn></mrow></math>, and unfortunately they don’t know which one they sent you, but the chance you received either machine is equally likely.
+However, they did record that in a test run of your machine it produced <math id="Sx2.p1.m6" class="ltx_Math" alttext="5" display="inline"><mn>5</mn></math> cookies.</p>
+<ol id="Sx2.I3" class="ltx_enumerate">
+<li id="Sx2.I3.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">2.</span> 
+<div id="Sx2.I3.i2.p1" class="ltx_para">
+<p class="ltx_p">What is the probability that you received a machine configured with <math id="Sx2.I3.i2.p1.m1" class="ltx_Math" alttext="N=6" display="inline"><mrow><mi>N</mi><mo>=</mo><mn>6</mn></mrow></math>?</p>
+</div>
+</li>
+<li id="Sx2.I3.i3" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">3.</span> 
+<div id="Sx2.I3.i3.p1" class="ltx_para">
+<p class="ltx_p">What is the expected number of cookies that will be produced the first time you operate the machine?</p>
+</div>
+</li>
+</ol>
+</div>
+</section>

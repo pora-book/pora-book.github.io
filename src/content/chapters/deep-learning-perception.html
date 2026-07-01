@@ -1,0 +1,808 @@
+
+<div id="p1" class="ltx_para">
+<p class="ltx_p">Modern computer vision has shifted from hand-crafted features to end-to-end learning with deep neural networks. Rather than manually designing feature extractors like SIFT or HOG descriptors, contemporary approaches learn hierarchical representations directly from data, achieving strong performance across diverse visual tasks. This transformation has been particularly impactful for robotics, where robust visual perception is essential for autonomous operation in complex, unstructured environments.
+Consider a mobile robot navigating indoors: it must process RGB images to recognize objects while interpreting 3D LiDAR point clouds to understand spatial layout and plan collision-free paths. An autonomous vehicle must fuse information from multiple cameras and LiDAR scanners, processing both 2D image grids and irregular 3D point clouds in real-time. These scenarios require neural network architectures that effectively process different data modalities. <span class="ltx_text ltx_font_italic">Convolutional Neural Networks (CNNs)</span> leverage spatial locality for processing camera images. <span class="ltx_text ltx_font_italic">Transformers</span> use self-attention to capture long-range dependencies and enable transfer learning. For 3D data, <span class="ltx_text ltx_font_italic">point-based networks</span> like PointNet process unordered point clouds directly, while <span class="ltx_text ltx_font_italic">voxel-based architectures</span> discretize 3D space into regular grids. Each architecture provides learned feature representations essential for downstream robotic tasks.</p>
+</div>
+<div id="p2" class="ltx_para">
+<p class="ltx_p">In this chapter, we explore fundamental neural network architectures for robotic perception. We begin with CNNs in Section <a href="#S1" title="9.1 Convolutional Neural Networks" class="ltx_ref"><span class="ltx_text ltx_ref_tag">9.1</span></a> and Transformers in Section <a href="#S2" title="9.2 Transformers" class="ltx_ref"><span class="ltx_text ltx_ref_tag">9.2</span></a> for image processing, then discuss point-based approaches in Section <a href="#S3" title="9.3 Point Cloud Processing and Point-Based Networks" class="ltx_ref"><span class="ltx_text ltx_ref_tag">9.3</span></a> and voxel-based approaches in Section <a href="#S4" title="9.4 Voxel-Based 3D Processing" class="ltx_ref"><span class="ltx_text ltx_ref_tag">9.4</span></a> for 3D sensor data.
+These architectural foundations serve as building blocks for the detection, segmentation, and scene understanding methods in subsequent chapters.</p>
+</div>
+<section id="S1" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">9.1 </span>Convolutional Neural Networks</h2>
+
+<div id="S1.p1" class="ltx_para">
+<p class="ltx_p">Convolutional neural networks (CNNs) are a type of deep learning architecture that is very common in the fields of computer vision and image processing.
+The architecture of a CNN contains a special structure that leverages convolution filters similar to those we discussed in <a class="ltx_ref" href="/book/classical-perception/">Chapter 8</a>.
+However, in the context of machine learning, the convolution filters embedded in the structure of a CNN are optimized for the desired task and do not require human specification, giving higher performance and reducing the amount of required manual engineering.
+CNN architectures comprise several main components: convolutional layers, nonlinear activations, pooling layers, and fully-connected layers.
+In the following sections, we discuss these components in more detail.</p>
+</div>
+<section id="S1.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">9.1.1 </span>Convolution Layers</h3>
+
+<figure id="S1.F1" class="ltx_figure"><img style="width:40%;height:auto" src="/book-assets/deep-learning-perception/figs__ch12_figs__convolution.png" id="S1.F1.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 9.1</span>: </span><span class="ltx_text" style="font-size:90%;">A convolution filter being applied to a 3-channel RGB image.</span></figcaption>
+</figure>
+<div id="S1.SS1.p1" class="ltx_para">
+<p class="ltx_p">One of the main structural concepts that is unique to the architecture of a CNN is the use of convolution layers.
+Convolution layers exploit the underlying <em class="ltx_emph ltx_font_italic">spatial locality</em> structure in images by using sliding, learned filters which are often much smaller than the image itself.
+Mathematically, these filters perform operations in a manner similar to other linear filters used in image processing, such as Gaussian smoothing filters. For a 2D convolution operation, we can express the computation at each output location as:</p>
+<table id="S1.E1" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E1.m1" class="ltx_Math" alttext="Y_{i,j}=\sum_{u=0}^{m-1}\sum_{v=0}^{n-1}X_{i+u,j+v}\cdot W_{u,v}+b," display="block"><mrow><mrow><msub><mi>Y</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mo rspace="0.111em">=</mo><mrow><mrow><munderover><mo movablelimits="false" rspace="0em">∑</mo><mrow><mi>u</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>m</mi><mo>−</mo><mn>1</mn></mrow></munderover><mrow><munderover><mo movablelimits="false">∑</mo><mrow><mi>v</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>n</mi><mo>−</mo><mn>1</mn></mrow></munderover><mrow><msub><mi>X</mi><mrow><mrow><mi>i</mi><mo>+</mo><mi>u</mi></mrow><mo>,</mo><mrow><mi>j</mi><mo>+</mo><mi>v</mi></mrow></mrow></msub><mo lspace="0.222em" rspace="0.222em">⋅</mo><msub><mi>W</mi><mrow><mi>u</mi><mo>,</mo><mi>v</mi></mrow></msub></mrow></mrow></mrow><mo>+</mo><mi>b</mi></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(9.1)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S1.SS1.p1.m1" class="ltx_Math" alttext="(i,j)" display="inline"><mrow><mo stretchy="false">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo stretchy="false">)</mo></mrow></math> represents the spatial position in the output feature map, <math id="S1.SS1.p1.m2" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> is the input image, <math id="S1.SS1.p1.m3" class="ltx_Math" alttext="W" display="inline"><mi>W</mi></math> is the filter with dimensions <math id="S1.SS1.p1.m4" class="ltx_Math" alttext="m\times n" display="inline"><mrow><mi>m</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>n</mi></mrow></math>, and <math id="S1.SS1.p1.m5" class="ltx_Math" alttext="b" display="inline"><mi>b</mi></math> is the bias term. This operation slides the filter across the input, computing a weighted sum at each position.
+For multi-channel inputs like RGB images with <math id="S1.SS1.p1.m6" class="ltx_Math" alttext="C" display="inline"><mi>C</mi></math> channels, the convolution extends to:</p>
+<table id="S1.Ex1" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex1.m1" class="ltx_Math" alttext="Y_{i,j}=\sum_{c=0}^{C-1}\sum_{u=0}^{m-1}\sum_{v=0}^{n-1}X_{i+u,j+v,c}\cdot W_{%
+u,v,c}+b," display="block"><mrow><mrow><msub><mi>Y</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mo rspace="0.111em">=</mo><mrow><mrow><munderover><mo movablelimits="false" rspace="0em">∑</mo><mrow><mi>c</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>C</mi><mo>−</mo><mn>1</mn></mrow></munderover><mrow><munderover><mo movablelimits="false" rspace="0em">∑</mo><mrow><mi>u</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>m</mi><mo>−</mo><mn>1</mn></mrow></munderover><mrow><munderover><mo movablelimits="false">∑</mo><mrow><mi>v</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>n</mi><mo>−</mo><mn>1</mn></mrow></munderover><mrow><msub><mi>X</mi><mrow><mrow><mi>i</mi><mo>+</mo><mi>u</mi></mrow><mo>,</mo><mrow><mi>j</mi><mo>+</mo><mi>v</mi></mrow><mo>,</mo><mi>c</mi></mrow></msub><mo lspace="0.222em" rspace="0.222em">⋅</mo><msub><mi>W</mi><mrow><mi>u</mi><mo>,</mo><mi>v</mi><mo>,</mo><mi>c</mi></mrow></msub></mrow></mrow></mrow></mrow><mo>+</mo><mi>b</mi></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where the filter now has dimension <math id="S1.SS1.p1.m7" class="ltx_Math" alttext="m\times n\times C" display="inline"><mrow><mi>m</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>n</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>C</mi></mrow></math> and aggregates information across all input channels to produce a single output value at each spatial location.
+For example, in Figure <a href="#S1.F1" title="Figure 9.1 ‣ 9.1.1 Convolution Layers ‣ 9.1 Convolutional Neural Networks" class="ltx_ref"><span class="ltx_text ltx_ref_tag">9.1</span></a>, we show how a filter is applied over an image with three color channels (red, green, and blue), so <math id="S1.SS1.p1.m8" class="ltx_Math" alttext="C=3" display="inline"><mrow><mi>C</mi><mo>=</mo><mn>3</mn></mrow></math>.
+In this case, the filter has dimension <math id="S1.SS1.p1.m9" class="ltx_Math" alttext="m\times n\times 3" display="inline"><mrow><mi>m</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>n</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mn>3</mn></mrow></math>, which is vectorized to a weight vector, <math id="S1.SS1.p1.m10" class="ltx_Math" alttext="w" display="inline"><mi>w</mi></math>, with <math id="S1.SS1.p1.m11" class="ltx_Math" alttext="3mn" display="inline"><mrow><mn>3</mn><mo>⁢</mo><mi>m</mi><mo>⁢</mo><mi>n</mi></mrow></math> elements.
+The <em class="ltx_emph ltx_font_italic">stride</em> of the filter describes how many positions it shifts by when sliding over the input.
+The output of the filter is then passed through a nonlinear activation<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS1.p1.p1" class="ltx_para">
+<span class="ltx_p">Typically a ReLU function.</span>
+</span></span></span></span></span>.</p>
+</div>
+<div id="S1.SS1.p2" class="ltx_para">
+<p class="ltx_p">Once we have applied the filter to the entire image, the collection of outputs from the nonlinear activation function creates a new filtered image, which we typically refer to as an <em class="ltx_emph ltx_font_italic">activation map</em>, as shown in Figure <a href="#S1.F2" title="Figure 9.2 ‣ 9.1.1 Convolution Layers ‣ 9.1 Convolutional Neural Networks" class="ltx_ref"><span class="ltx_text ltx_ref_tag">9.2</span></a>.</p>
+</div>
+<figure id="S1.F2" class="ltx_figure"><img style="width:50%;height:auto" src="/book-assets/deep-learning-perception/figs__ch12_figs__convolution2.png" id="S1.F2.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 9.2</span>: </span><span class="ltx_text" style="font-size:90%;">The outputs of a convolution filter and activation function applied across an image make up a new image, called an <em class="ltx_emph ltx_font_italic">activation</em> map.</span></figcaption>
+</figure>
+<div id="S1.SS1.p3" class="ltx_para">
+<p class="ltx_p">In practice, a number of different filters are usually learned in each convolution layer, which produces a corresponding number of activation maps as the output<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS1.p3.p1" class="ltx_para">
+<span class="ltx_p">Besides the number of filters applied to the input, the width and height of the filter, the amount of padding on the input, and the stride of the filter are other hyperparameters.</span>
+</span></span></span></span></span>.
+This is crucial such that each filter can focus on learning one specific relevant feature.
+We show examples of different filters that might be learned in different convolution layers of a CNN in Figure&#160;<a href="#S1.F3" title="Figure 9.3 ‣ 9.1.1 Convolution Layers ‣ 9.1 Convolutional Neural Networks" class="ltx_ref"><span class="ltx_text ltx_ref_tag">9.3</span></a><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">5</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">5.</span> Zeiler, M. D., Fergus, R. “Visualizing and Understanding Convolutional Networks.” In <em>European Conference on Computer Vision (ECCV)</em>, 818–833. Springer, 2014.</span></span></span>.
+Notice that the low-level features which are learned in earlier convolution layers look a lot like edge detectors, which are more basic and fundamental features, while later convolution layers have filters that look more like actual objects.</p>
+</div>
+<figure id="S1.F3" class="ltx_figure"><img style="width:65%;height:auto" src="/book-assets/deep-learning-perception/figs__ch12_figs__features.png" id="S1.F3.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 9.3</span>: </span><span class="ltx_text" style="font-size:90%;">Low-level, mid-level, and high-level feature visualizations in a convolutional neural network from Zeiler and Fergus (2014).</span></figcaption>
+</figure>
+<div id="S1.SS1.p4" class="ltx_para">
+<p class="ltx_p">In general, using convolution layers to exploit the spatial locality of images provides several benefits.
+First, <em class="ltx_emph ltx_font_italic">parameter sharing</em> applies the same filter parameters at all spatial locations, keeping the total number of learned parameters much smaller than fully-connected layers would require.
+Second, <em class="ltx_emph ltx_font_italic">sparse interactions</em> from having filters smaller than the image enable better detection of small, meaningful features and improve computational efficiency through fewer operations.
+Third, convolutional layers are <em class="ltx_emph ltx_font_italic">equivariant to translation</em>, meaning that convolving a shifted image produces the same result as shifting the convolution output of the original image<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS1.p4.p1" class="ltx_para">
+<span class="ltx_p">However, convolution is not equivariant to changes in scale or rotation.</span>
+</span></span></span></span></span>, allowing feature detection regardless of position.
+Finally, convolutional layers can naturally handle images of varying sizes when needed.</p>
+</div>
+</section>
+<section id="S1.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">9.1.2 </span>Important CNN Components</h3>
+
+<div id="S1.SS2.p1" class="ltx_para">
+<p class="ltx_p">In addition to convolution layers, there are several other important components that make up the architecture of a CNN.</p>
+</div>
+<section id="S1.SS2.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Pooling layers.</h4>
+
+<div id="S1.SS2.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">Pooling is the second major structural component in CNNs.
+Pooling layers typically come after convolution layers and their nonlinear activation functions.
+The primary function of a pooling layer is to replace the output of the convolution layer’s activation map at particular locations with a <em class="ltx_emph ltx_font_italic">summary statistic</em> from other spatially local outputs.
+This helps make the network more robust against small translations in the input, helps improve computational efficiency by reducing the size of the input<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS2.SSS0.Px1.p1.p1" class="ltx_para">
+<span class="ltx_p">This occurs because it lowers the resolution.</span>
+</span></span></span></span></span>, and is useful in enabling the input images to vary in size<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS2.SSS0.Px1.p1.p2" class="ltx_para">
+<span class="ltx_p">The size of the pooling can be modified to keep the size of the pooling layer output constant.</span>
+</span></span></span></span></span>.
+The most common type of pooling is <em class="ltx_emph ltx_font_italic">max pooling</em>, but other types also exist, such as <em class="ltx_emph ltx_font_italic">mean pooling</em>. A typical max-pooling operation is shown in Figure <a href="#S1.F4" title="Figure 9.4 ‣ Pooling layers. ‣ 9.1.2 Important CNN Components ‣ 9.1 Convolutional Neural Networks" class="ltx_ref"><span class="ltx_text ltx_ref_tag">9.4</span></a>.</p>
+</div>
+<figure id="S1.F4" class="ltx_figure"><img style="width:90%;height:auto" src="/book-assets/deep-learning-perception/figs__ch12_figs__maxpool.png" id="S1.F4.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 9.4</span>: </span><span class="ltx_text" style="font-size:90%;">Max pooling example with <math id="S1.F4.m3" class="ltx_Math" alttext="2\times 2" display="inline"><mrow><mn>2</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>2</mn></mrow></math> filter and stride of <math id="S1.F4.m4" class="ltx_Math" alttext="2" display="inline"><mn>2</mn></math>.</span></figcaption>
+</figure>
+<div id="S1.SS2.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">Computationally, both max and mean pooling layers operate with the same filtering idea as in the convolution layers.
+Specifically, a filter of width, <math id="S1.SS2.SSS0.Px1.p2.m1" class="ltx_Math" alttext="m" display="inline"><mi>m</mi></math>, and height, <math id="S1.SS2.SSS0.Px1.p2.m2" class="ltx_Math" alttext="n" display="inline"><mi>n</mi></math>, slides around the layer’s input with a particular stride.
+The difference between the two comes from the mathematical operation performed by the filter, which as their names suggest are either a maximum element or the mean over the filter.
+If the output of the convolution layer has <math id="S1.SS2.SSS0.Px1.p2.m3" class="ltx_Math" alttext="N" display="inline"><mi>N</mi></math> activation maps, the output of the pooling layer will also have <math id="S1.SS2.SSS0.Px1.p2.m4" class="ltx_Math" alttext="N" display="inline"><mi>N</mi></math> images, since the pooling filter is only applied across the spatial dimensions.</p>
+</div>
+</section>
+<section id="S1.SS2.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Fully connected layers.</h4>
+
+<div id="S1.SS2.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">Downstream of the convolution and pooling layers are fully connected layers.
+These layers make up what is essentially just a standard neural network, which is appended to the end of the network.
+The function of these layers is to take the output of the convolution and pooling layers, which we can think of as a highly condensed representation of the image, and perform a classification or regression.
+Generally, the total number of fully connected layers at the end of the CNN will only make up a fraction of the total number of layers.</p>
+</div>
+</section>
+<section id="S1.SS2.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">CNN performance.</h4>
+
+<div id="S1.SS2.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">We can say that a CNN learns how to process images <em class="ltx_emph ltx_font_italic">end-to-end</em> because it essentially learns how to perform two steps simultaneously: feature extraction and classification or regression<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS2.SSS0.Px3.p1.p1" class="ltx_para">
+<span class="ltx_p">In other words, it learns the entire process from image input to the desired output.</span>
+</span></span></span></span></span>.
+In contrast, classical approaches to image processing use hand-engineered feature extractors.
+Since 2012, the performance of end-to-end learning approaches to image processing have dominated and continue to improve<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS2.SSS0.Px3.p1.p2" class="ltx_para">
+<span class="ltx_p">In some specific applications, hand-engineered features may still be better.
+For example, we might use engineering insight to identify a structure to the problem that a CNN could not easily learn.</span>
+</span></span></span></span></span>.
+This continuous improvement has generally been realized with the use of deeper networks with more parameters, and also by combining CNN architectures with other techniques such as Transformers.</p>
+</div>
+</section>
+</section>
+<section id="S1.SS3" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">9.1.3 </span>Notable CNN Architectures</h3>
+
+<div id="S1.SS3.p1" class="ltx_para">
+<p class="ltx_p">Several landmark CNN architectures have significantly advanced computer vision and demonstrated the power of deep learning.</p>
+</div>
+<section id="S1.SS3.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">AlexNet (2012).</h4>
+
+<div id="S1.SS3.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">AlexNet was the first deep CNN to achieve breakthrough performance on ImageNet, popularizing the use of ReLU activations and dropout regularization. It demonstrated that deeper networks could dramatically outperform traditional hand-engineered methods, marking a turning point in computer vision.</p>
+</div>
+</section>
+<section id="S1.SS3.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">ResNet (2015).</h4>
+
+<div id="S1.SS3.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">ResNet introduced residual connections that allow information to skip layers, enabling the training of much deeper networks—up to 152 layers—without suffering from vanishing gradients. ResNet showed that network depth itself could be a key factor in improving performance, establishing residual connections as a fundamental architectural component.</p>
+</div>
+</section>
+<section id="S1.SS3.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">YOLO (You Only Look Once).</h4>
+
+<div id="S1.SS3.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">YOLO pioneered real-time object detection by treating detection as a single regression problem rather than a multi-stage classification task. YOLO demonstrated how CNN architectures can be adapted for various computer vision tasks beyond image classification, proving that speed and accuracy need not be mutually exclusive.</p>
+</div>
+<div id="S1.SS3.SSS0.Px3.p2" class="ltx_para">
+<p class="ltx_p">These architectures have not only achieved state-of-the-art results in their respective domains but have also influenced countless subsequent designs and established important principles for CNN development.</p>
+</div>
+</section>
+</section>
+</section>
+<section id="S2" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">9.2 </span>Transformers</h2>
+
+<div id="S2.p1" class="ltx_para">
+<p class="ltx_p">Transformers are deep learning architectures that have been widely applied across various domains, including natural language processing, computer vision, robotics, and more. Compared to CNNs, Transformers enforce fewer structural constraints on the input data. As long as we can organize the input into a set or sequence of tokens, it can be processed by a Transformer-based model. Since the internal structure of the Transformer is purely learned from data rather than hand-engineered, it requires less domain-specific knowledge, which makes it easier to generalize across different data modalities. Transformers are also computationally efficient and scalable due to their ability to be parallelized, allowing for extremely large models with hundreds of billions of parameters to be trained.</p>
+</div>
+<section id="S2.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">9.2.1 </span>Transformer Architecture Fundamentals</h3>
+
+<div id="S2.SS1.p1" class="ltx_para">
+<p class="ltx_p">The core innovation of the Transformer architecture is the self-attention mechanism, which allows the model to learn relationships between different elements in the input sequence or set. Unlike CNNs that have built-in spatial inductive biases through convolution operations, Transformers learn all spatial and semantic relationships directly from data. This flexibility comes at a cost: Transformers typically require larger datasets to achieve similar performance as architectures with stronger inductive biases, but they can also achieve superior performance when sufficient data is available.</p>
+</div>
+<section id="S2.SS1.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Tokens and embeddings.</h4>
+
+<div id="S2.SS1.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">Transformers take inputs in the form of a set or sequence of tokens. A <em class="ltx_emph ltx_font_italic">token</em> is a numeric representation of the raw input data, expressed as a vector. The process of converting raw inputs into tokens is called <em class="ltx_emph ltx_font_italic">tokenization</em>, and the specific method depends on the data modality. For language tasks, a token might represent a word, subword, or character, generated through a learned dictionary lookup. For computer vision tasks, a token typically represents a <em class="ltx_emph ltx_font_italic">patch</em>—a square subset of the input image. For example, we can convert an image patch of size <math id="S2.SS1.SSS0.Px1.p1.m1" class="ltx_Math" alttext="P\times P" display="inline"><mrow><mi>P</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>P</mi></mrow></math> with <math id="S2.SS1.SSS0.Px1.p1.m2" class="ltx_Math" alttext="C" display="inline"><mi>C</mi></math> color channels into a token vector of size <math id="S2.SS1.SSS0.Px1.p1.m3" class="ltx_Math" alttext="CP^{2}" display="inline"><mrow><mi>C</mi><mo>⁢</mo><msup><mi>P</mi><mn>2</mn></msup></mrow></math> by flattening the patch into a one-dimensional vector.</p>
+</div>
+<div id="S2.SS1.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">We then transform each token into a token <em class="ltx_emph ltx_font_italic">embedding</em> vector, which is a high-dimensional latent space representation. The embedding process is typically a learned linear operation that maps tokens into a space where semantically or structurally similar tokens have similar representations. We also add a <em class="ltx_emph ltx_font_italic">positional embedding</em> to each token embedding to encode information about the token’s position in the sequence or spatial location. This positional information is crucial because the self-attention mechanism itself is permutation-invariant and does not inherently encode order or position. For example, if a sentence places <em class="ltx_emph ltx_font_italic">dog</em> before <em class="ltx_emph ltx_font_italic">cat</em>, the model needs that ordering to capture the sentence’s correct meaning. Similarly, in vision tasks, knowing which patch came from the top-left versus bottom-right of an image provides essential spatial context<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.SS1.SSS0.Px1.p2.p1" class="ltx_para">
+<span class="ltx_p">Positional embeddings can be learned parameters or fixed sinusoidal functions. Learned embeddings are more flexible but require more data, while fixed embeddings can generalize to sequence lengths not seen during training.</span>
+</span></span></span></span></span>.</p>
+</div>
+<div id="S2.SS1.SSS0.Px1.p3" class="ltx_para">
+<p class="ltx_p">Once we have transformed the raw input into embedding vectors, we aggregate them as rows of an input matrix, <math id="S2.SS1.SSS0.Px1.p3.m1" class="ltx_Math" alttext="X^{0}\in\mathbb{R}^{N\times D}" display="inline"><mrow><msup><mi>X</mi><mn>0</mn></msup><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>N</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>D</mi></mrow></msup></mrow></math>, where <math id="S2.SS1.SSS0.Px1.p3.m2" class="ltx_Math" alttext="N" display="inline"><mi>N</mi></math> is the <em class="ltx_emph ltx_font_italic">context size</em><span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.SS1.SSS0.Px1.p3.p1" class="ltx_para">
+<span class="ltx_p">In general, larger context sizes will give better performance because we can capture more unique information. However, this comes at the cost of increased computational requirements, which scale quadratically with context size due to the attention mechanism.</span>
+</span></span></span></span></span> and <math id="S2.SS1.SSS0.Px1.p3.m3" class="ltx_Math" alttext="D" display="inline"><mi>D</mi></math> is the dimensionality of the embedding space.</p>
+</div>
+</section>
+<section id="S2.SS1.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Self-attention mechanism.</h4>
+
+<div id="S2.SS1.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">The self-attention mechanism is the key component that allows Transformers to learn relationships between all elements in the input. Each embedding vector in <math id="S2.SS1.SSS0.Px2.p1.m1" class="ltx_Math" alttext="X^{0}" display="inline"><msup><mi>X</mi><mn>0</mn></msup></math> initially represents only a single token and does not contain contextual information from other tokens. For example, when the phrase <em class="ltx_emph ltx_font_italic">toy car</em> appears in a sentence, the embedding vector for <em class="ltx_emph ltx_font_italic">car</em> does not yet encode the modifier <em class="ltx_emph ltx_font_italic">toy</em>. The goal of self-attention is to allow the model to modify each embedding vector based on its relevance to all other tokens in the sequence.</p>
+</div>
+<div id="S2.SS1.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">Mathematically, <em class="ltx_emph ltx_font_italic">scaled dot-product</em> self-attention is defined as:</p>
+<table id="S2.E2" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.E2.m1" class="ltx_Math" alttext="O=\mathrm{Attention}(Q,K,V)=\mathrm{softmax}\left(\frac{QK^{\top}}{\sqrt{d_{k}%
+}}\right)V," display="block"><mrow><mrow><mi>O</mi><mo>=</mo><mrow><mi>Attention</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>Q</mi><mo>,</mo><mi>K</mi><mo>,</mo><mi>V</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>softmax</mi><mo>⁢</mo><mrow><mo>(</mo><mfrac><mrow><mi>Q</mi><mo>⁢</mo><msup><mi>K</mi><mo>⊤</mo></msup></mrow><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></mfrac><mo>)</mo></mrow><mo>⁢</mo><mi>V</mi></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(9.2)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S2.SS1.SSS0.Px2.p2.m1" class="ltx_Math" alttext="Q\in\mathbb{R}^{m\times d_{k}}" display="inline"><mrow><mi>Q</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>m</mi><mo lspace="0.222em" rspace="0.222em">×</mo><msub><mi>d</mi><mi>k</mi></msub></mrow></msup></mrow></math> is the <em class="ltx_emph ltx_font_italic">query</em> matrix, <math id="S2.SS1.SSS0.Px2.p2.m2" class="ltx_Math" alttext="K\in\mathbb{R}^{n\times d_{k}}" display="inline"><mrow><mi>K</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>n</mi><mo lspace="0.222em" rspace="0.222em">×</mo><msub><mi>d</mi><mi>k</mi></msub></mrow></msup></mrow></math> is the <em class="ltx_emph ltx_font_italic">key</em> matrix, <math id="S2.SS1.SSS0.Px2.p2.m3" class="ltx_Math" alttext="V\in\mathbb{R}^{n\times d_{v}}" display="inline"><mrow><mi>V</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>n</mi><mo lspace="0.222em" rspace="0.222em">×</mo><msub><mi>d</mi><mi>v</mi></msub></mrow></msup></mrow></math> is the <em class="ltx_emph ltx_font_italic">value</em> matrix, and <math id="S2.SS1.SSS0.Px2.p2.m4" class="ltx_Math" alttext="O\in\mathbb{R}^{m\times d_{v}}" display="inline"><mrow><mi>O</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>m</mi><mo lspace="0.222em" rspace="0.222em">×</mo><msub><mi>d</mi><mi>v</mi></msub></mrow></msup></mrow></math> is the <em class="ltx_emph ltx_font_italic">output</em> matrix. The intuition behind this formulation is that the term <math id="S2.SS1.SSS0.Px2.p2.m5" class="ltx_Math" alttext="QK^{\top}" display="inline"><mrow><mi>Q</mi><mo>⁢</mo><msup><mi>K</mi><mo>⊤</mo></msup></mrow></math> computes the dot product between all pairs of queries and keys, where a larger dot product indicates that a particular pair are similar or relevant to each other. We then apply the softmax function to each row of the resulting matrix to normalize the rows so that their elements sum to one<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.SS1.SSS0.Px2.p2.p1" class="ltx_para">
+<span class="ltx_p">The division by <math id="S2.SS1.SSS0.Px2.p2.p1.m1" class="ltx_Math" alttext="\sqrt{d_{k}}" display="inline"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math>, where <math id="S2.SS1.SSS0.Px2.p2.p1.m2" class="ltx_Math" alttext="d_{k}" display="inline"><msub><mi>d</mi><mi>k</mi></msub></math> is the dimensionality of the keys and queries, helps stabilize gradients during training by preventing the dot products from becoming too large.</span>
+</span></span></span></span></span>. Finally, multiplication by the value matrix <math id="S2.SS1.SSS0.Px2.p2.m6" class="ltx_Math" alttext="V" display="inline"><mi>V</mi></math> produces an output where each row is a weighted sum of all value vectors, with weights determined by the normalized attention scores.</p>
+</div>
+<div id="S2.SS1.SSS0.Px2.p3" class="ltx_para">
+<p class="ltx_p">In the Transformer architecture, we typically define these matrices as <math id="S2.SS1.SSS0.Px2.p3.m1" class="ltx_Math" alttext="Q=XW_{Q}" display="inline"><mrow><mi>Q</mi><mo>=</mo><mrow><mi>X</mi><mo>⁢</mo><msub><mi>W</mi><mi>Q</mi></msub></mrow></mrow></math>, <math id="S2.SS1.SSS0.Px2.p3.m2" class="ltx_Math" alttext="K=XW_{K}" display="inline"><mrow><mi>K</mi><mo>=</mo><mrow><mi>X</mi><mo>⁢</mo><msub><mi>W</mi><mi>K</mi></msub></mrow></mrow></math>, and <math id="S2.SS1.SSS0.Px2.p3.m3" class="ltx_Math" alttext="V=XW_{V}" display="inline"><mrow><mi>V</mi><mo>=</mo><mrow><mi>X</mi><mo>⁢</mo><msub><mi>W</mi><mi>V</mi></msub></mrow></mrow></math>, where <math id="S2.SS1.SSS0.Px2.p3.m4" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> is the input matrix with each row corresponding to one embedding vector, and <math id="S2.SS1.SSS0.Px2.p3.m5" class="ltx_Math" alttext="W_{Q}" display="inline"><msub><mi>W</mi><mi>Q</mi></msub></math>, <math id="S2.SS1.SSS0.Px2.p3.m6" class="ltx_Math" alttext="W_{K}" display="inline"><msub><mi>W</mi><mi>K</mi></msub></math>, and <math id="S2.SS1.SSS0.Px2.p3.m7" class="ltx_Math" alttext="W_{V}" display="inline"><msub><mi>W</mi><mi>V</mi></msub></math> are matrices of learnable parameters. While we present the mathematical form using matrix notation for implementation clarity, it is often easier to reason about the transformation of a single embedding vector. Returning to our toy car example, the attention mechanism would modify the <em class="ltx_emph ltx_font_italic">car</em> embedding vector into a new vector that captures relevant information from other words in the sentence. The value matrix <math id="S2.SS1.SSS0.Px2.p3.m8" class="ltx_Math" alttext="V" display="inline"><mi>V</mi></math> provides potential modifications corresponding to each word, and the attention scores determine which modifications to apply. In this case, the relevance weighting would likely show a strong match between <em class="ltx_emph ltx_font_italic">car</em> and <em class="ltx_emph ltx_font_italic">toy</em>, resulting in an updated embedding that represents <em class="ltx_emph ltx_font_italic">toy car</em> rather than a generic car.</p>
+</div>
+<div id="S2.SS1.SSS0.Px2.p4" class="ltx_para">
+<p class="ltx_p">A single attention mechanism is limited in the types of relationships it can capture, constrained by the finite parameter matrices <math id="S2.SS1.SSS0.Px2.p4.m1" class="ltx_Math" alttext="W_{Q}" display="inline"><msub><mi>W</mi><mi>Q</mi></msub></math>, <math id="S2.SS1.SSS0.Px2.p4.m2" class="ltx_Math" alttext="W_{K}" display="inline"><msub><mi>W</mi><mi>K</mi></msub></math>, and <math id="S2.SS1.SSS0.Px2.p4.m3" class="ltx_Math" alttext="W_{V}" display="inline"><msub><mi>W</mi><mi>V</mi></msub></math>. To increase the model’s expressive capacity, Transformers use <em class="ltx_emph ltx_font_italic">multi-head attention</em>, which runs multiple attention mechanisms in parallel, each with unique parameter matrices <math id="S2.SS1.SSS0.Px2.p4.m4" class="ltx_Math" alttext="W_{Q}^{i}" display="inline"><msubsup><mi>W</mi><mi>Q</mi><mi>i</mi></msubsup></math>, <math id="S2.SS1.SSS0.Px2.p4.m5" class="ltx_Math" alttext="W_{K}^{i}" display="inline"><msubsup><mi>W</mi><mi>K</mi><mi>i</mi></msubsup></math>, and <math id="S2.SS1.SSS0.Px2.p4.m6" class="ltx_Math" alttext="W_{V}^{i}" display="inline"><msubsup><mi>W</mi><mi>V</mi><mi>i</mi></msubsup></math> for <math id="S2.SS1.SSS0.Px2.p4.m7" class="ltx_Math" alttext="i=1,\ldots,h" display="inline"><mrow><mi>i</mi><mo>=</mo><mrow><mn>1</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mi>h</mi></mrow></mrow></math>, where <math id="S2.SS1.SSS0.Px2.p4.m8" class="ltx_Math" alttext="h" display="inline"><mi>h</mi></math> is the number of attention heads. The outputs from all heads are concatenated and multiplied by another learned matrix <math id="S2.SS1.SSS0.Px2.p4.m9" class="ltx_Math" alttext="W_{O}" display="inline"><msub><mi>W</mi><mi>O</mi></msub></math> to produce the final output. This allows the model to attend to different types of relationships simultaneously—for example, one head might learn syntactic relationships while another learns semantic relationships.</p>
+</div>
+</section>
+<section id="S2.SS1.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Transformer layer components.</h4>
+
+<div id="S2.SS1.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">Each Transformer layer consists of two main components arranged sequentially: a multi-head self-attention layer followed by a feed-forward network, with both components wrapped in residual connections and layer normalization operations, as shown in Figure <a href="#S2.F5" title="Figure 9.5 ‣ Transformer layer components. ‣ 9.2.1 Transformer Architecture Fundamentals ‣ 9.2 Transformers" class="ltx_ref"><span class="ltx_text ltx_ref_tag">9.5</span></a>.</p>
+</div>
+<figure id="S2.F5" class="ltx_figure"><img style="width:50%;height:auto" src="/book-assets/deep-learning-perception/figs__ch12_figs__transformer_layer.png" id="S2.F5.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 9.5</span>: </span><span class="ltx_text" style="font-size:90%;">A single Transformer layer showing the multi-head attention block and feed-forward network, each with residual connections and layer normalization from <span class="ltx_text ltx_font_italic">the Illustrated Transformer</span> (2018).</span></figcaption>
+</figure>
+<div id="S2.SS1.SSS0.Px3.p2" class="ltx_para">
+<p class="ltx_p">After the multi-head self-attention layer processes the input, we add the attention output back to the input in what is called a <em class="ltx_emph ltx_font_italic">residual connection</em>:</p>
+<table id="S2.Ex2" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex2.m1" class="ltx_Math" alttext="\bar{X}=X+\mathrm{MultiHeadAttention}(X)." display="block"><mrow><mrow><mover accent="true"><mi>X</mi><mo>¯</mo></mover><mo>=</mo><mrow><mi>X</mi><mo>+</mo><mrow><mi>MultiHeadAttention</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">This residual connection allows gradients to flow more easily during training and helps the network learn identity mappings when beneficial. We then apply layer normalization to stabilize training:</p>
+<table id="S2.Ex3" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex3.m1" class="ltx_Math" alttext="\tilde{X}=\mathrm{LayerNorm}(\bar{X})." display="block"><mrow><mrow><mover accent="true"><mi>X</mi><mo>~</mo></mover><mo>=</mo><mrow><mi>LayerNorm</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mover accent="true"><mi>X</mi><mo>¯</mo></mover><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S2.SS1.SSS0.Px3.p3" class="ltx_para">
+<p class="ltx_p">Next, we pass the normalized output through a position-wise feed-forward network, typically implemented as a <em class="ltx_emph ltx_font_italic">multi-layer perceptron</em> (MLP). This MLP consists of two linear transformations with a non-linear activation function<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.SS1.SSS0.Px3.p3.p1" class="ltx_para">
+<span class="ltx_p">The ReLU or GELU activation functions are commonly used.</span>
+</span></span></span></span></span> in between:</p>
+<table id="S2.Ex4" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex4.m1" class="ltx_Math" alttext="\mathrm{FFN}(x)=W_{2}\cdot\mathrm{ReLU}(W_{1}x+b_{1})+b_{2}," display="block"><mrow><mrow><mrow><mi>FFN</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mrow><mrow><msub><mi>W</mi><mn>2</mn></msub><mo lspace="0.222em" rspace="0.222em">⋅</mo><mi>ReLU</mi></mrow><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mrow><msub><mi>W</mi><mn>1</mn></msub><mo>⁢</mo><mi>x</mi></mrow><mo>+</mo><msub><mi>b</mi><mn>1</mn></msub></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>+</mo><msub><mi>b</mi><mn>2</mn></msub></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where the MLP is applied independently to each position (each row of the input matrix). The feed-forward network typically expands the dimensionality in the first layer and then projects back to the original dimension in the second layer, allowing the network to learn complex non-linear transformations of the attention outputs. This component is followed by another residual connection and layer normalization:</p>
+<table id="S2.Ex5" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex5.m1" class="ltx_Math" alttext="X^{\prime}=\mathrm{LayerNorm}(\tilde{X}+\mathrm{FFN}(\tilde{X}))." display="block"><mrow><mrow><msup><mi>X</mi><mo>′</mo></msup><mo>=</mo><mrow><mi>LayerNorm</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mover accent="true"><mi>X</mi><mo>~</mo></mover><mo>+</mo><mrow><mi>FFN</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mover accent="true"><mi>X</mi><mo>~</mo></mover><mo stretchy="false">)</mo></mrow></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S2.SS1.SSS0.Px3.p4" class="ltx_para">
+<p class="ltx_p">A complete Transformer architecture consists of multiple such layers stacked in sequence, where the output of one layer becomes the input to the next. The depth of the network (number of stacked layers) is a key hyperparameter that significantly impacts model capacity and performance<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.SS1.SSS0.Px3.p4.p1" class="ltx_para">
+<span class="ltx_p">Modern Transformers can have dozens or even hundreds of layers. For example, GPT-3 has 96 layers, while some vision models use 32 or more layers.</span>
+</span></span></span></span></span>. Note that the dimensions of the inputs and outputs of each Transformer layer are typically the same (<math id="S2.SS1.SSS0.Px3.p4.m1" class="ltx_Math" alttext="N\times D" display="inline"><mrow><mi>N</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>D</mi></mrow></math>), allowing for flexible stacking of arbitrary depth.</p>
+</div>
+</section>
+<section id="S2.SS1.SSS0.Px4" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Final linear and unembedding layer.</h4>
+
+<div id="S2.SS1.SSS0.Px4.p1" class="ltx_para">
+<p class="ltx_p">After passing through all Transformer layers, we must convert the final embedding representations back into a format suitable for the specific task. The <em class="ltx_emph ltx_font_italic">unembedding layer</em> transforms the learned embedding vectors into task-specific outputs. For classification tasks, we typically take a single embedding vector—either a special classification token or an aggregated representation of all tokens—and pass it through a linear layer followed by a softmax function:</p>
+<table id="S2.Ex6" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex6.m1" class="ltx_Math" alttext="o=\mathrm{softmax}(xW+b)," display="block"><mrow><mrow><mi>o</mi><mo>=</mo><mrow><mi>softmax</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mrow><mi>x</mi><mo>⁢</mo><mi>W</mi></mrow><mo>+</mo><mi>b</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S2.SS1.SSS0.Px4.p1.m1" class="ltx_Math" alttext="x" display="inline"><mi>x</mi></math> is the selected embedding vector, and <math id="S2.SS1.SSS0.Px4.p1.m2" class="ltx_Math" alttext="W" display="inline"><mi>W</mi></math> and <math id="S2.SS1.SSS0.Px4.p1.m3" class="ltx_Math" alttext="b" display="inline"><mi>b</mi></math> are learned parameters. The output <math id="S2.SS1.SSS0.Px4.p1.m4" class="ltx_Math" alttext="o" display="inline"><mi>o</mi></math> is a probability distribution over the possible classes, where the vector size matches the number of classes and all elements sum to one.</p>
+</div>
+<div id="S2.SS1.SSS0.Px4.p2" class="ltx_para">
+<p class="ltx_p">For other tasks, the unembedding layer may take different forms. In sequence-to-sequence tasks like machine translation, we apply a linear transformation to each position’s embedding to predict the next token in the output sequence. In dense prediction tasks like image segmentation, we may upsample the embeddings back to the original input resolution and apply per-position classification. The specific design of the final layers depends entirely on the task requirements, while the core Transformer layers remain largely the same across different applications.</p>
+</div>
+</section>
+</section>
+<section id="S2.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">9.2.2 </span>Vision Transformers (ViTs)</h3>
+
+<div id="S2.SS2.p1" class="ltx_para">
+<p class="ltx_p">Vision Transformers<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">6</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">6.</span> Dosovitskiy, A., Beyer, L., Kolesnikov, A., Weissenborn, D., Zhai, X., Unterthiner, T., Dehghani, M., Minderer, M., Heigold, G., Gelly, S., Uszkoreit, J., Houlsby, N. “An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale.” In <em>International Conference on Learning Representations</em>, 2021.</span></span></span> represent the most important Transformer architecture for robotics practitioners, serving as the foundation for modern perception pipelines in embodied AI systems. Unlike earlier vision models that required careful hand-engineering of features and architectural components, ViTs enable end-to-end learning from raw images to task-specific outputs. They have become ubiquitous in robotic applications, from object recognition and scene understanding in autonomous navigation systems to visual representations for manipulation policies and multi-modal reasoning in household robots. The ability to pre-train ViTs on large-scale image datasets and then fine-tune them for specific robotic tasks with limited data has made them particularly valuable for real-world deployments where collecting task-specific training data is expensive or impractical.</p>
+</div>
+<section id="S2.SS2.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Architecture adaptation for images.</h4>
+
+<div id="S2.SS2.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">Vision Transformers adapt the general Transformer architecture to process images by treating image patches as tokens. Given an input image of size <math id="S2.SS2.SSS0.Px1.p1.m1" class="ltx_Math" alttext="H\times W" display="inline"><mrow><mi>H</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>W</mi></mrow></math> with <math id="S2.SS2.SSS0.Px1.p1.m2" class="ltx_Math" alttext="C" display="inline"><mi>C</mi></math> color channels, ViT divides the image into a grid of non-overlapping patches of size <math id="S2.SS2.SSS0.Px1.p1.m3" class="ltx_Math" alttext="P\times P" display="inline"><mrow><mi>P</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>P</mi></mrow></math>, resulting in <math id="S2.SS2.SSS0.Px1.p1.m4" class="ltx_Math" alttext="N=\frac{HW}{P^{2}}" display="inline"><mrow><mi>N</mi><mo>=</mo><mfrac><mrow><mi>H</mi><mo>⁢</mo><mi>W</mi></mrow><msup><mi>P</mi><mn>2</mn></msup></mfrac></mrow></math> patches. Each patch is flattened into a vector of dimension <math id="S2.SS2.SSS0.Px1.p1.m5" class="ltx_Math" alttext="C\cdot P^{2}" display="inline"><mrow><mi>C</mi><mo lspace="0.222em" rspace="0.222em">⋅</mo><msup><mi>P</mi><mn>2</mn></msup></mrow></math> and then linearly projected to the embedding dimension <math id="S2.SS2.SSS0.Px1.p1.m6" class="ltx_Math" alttext="D" display="inline"><mi>D</mi></math> through a learned embedding matrix. Common choices for patch size include <math id="S2.SS2.SSS0.Px1.p1.m7" class="ltx_Math" alttext="P=16" display="inline"><mrow><mi>P</mi><mo>=</mo><mn>16</mn></mrow></math> or <math id="S2.SS2.SSS0.Px1.p1.m8" class="ltx_Math" alttext="P=32" display="inline"><mrow><mi>P</mi><mo>=</mo><mn>32</mn></mrow></math>, which balance the trade-off between computational cost (smaller patches create more tokens) and the ability to capture fine-grained details<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.SS2.SSS0.Px1.p1.p1" class="ltx_para">
+<span class="ltx_p">For a standard <math id="S2.SS2.SSS0.Px1.p1.p1.m1" class="ltx_Math" alttext="224\times 224" display="inline"><mrow><mn>224</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>224</mn></mrow></math> image with <math id="S2.SS2.SSS0.Px1.p1.p1.m2" class="ltx_Math" alttext="P=16" display="inline"><mrow><mi>P</mi><mo>=</mo><mn>16</mn></mrow></math>, this creates <math id="S2.SS2.SSS0.Px1.p1.p1.m3" class="ltx_Math" alttext="14\times 14=196" display="inline"><mrow><mrow><mn>14</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>14</mn></mrow><mo>=</mo><mn>196</mn></mrow></math> patch tokens.</span>
+</span></span></span></span></span>.</p>
+</div>
+<div id="S2.SS2.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">In addition to the patch embeddings, ViT introduces a special learnable <em class="ltx_emph ltx_font_italic">class token</em>, denoted <math id="S2.SS2.SSS0.Px1.p2.m1" class="ltx_Math" alttext="x_{\text{cls}}" display="inline"><msub><mi>x</mi><mtext>cls</mtext></msub></math>, which is prepended to the sequence of patch embeddings. This class token has no correspondence to any image patch but serves as a global representation that the network can use to aggregate information from all patches for classification tasks. The class token’s embedding after passing through all Transformer layers is used as the input to the final classification head.
+Vision Transformers use learnable 2D positional embeddings that encode each patch’s spatial location in the original image grid. Unlike 1D positional embeddings used in language models, these embeddings must capture 2D spatial structure. The standard approach uses a separate learned embedding for each position in the patch grid, which is added to the corresponding patch embedding. Alternative approaches include using sinusoidal positional encodings extended to 2D or learning relative positional biases. The complete input to the first Transformer layer is thus:</p>
+<table id="S2.Ex7" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex7.m1" class="ltx_Math" alttext="X^{0}=[x_{\text{cls}},x_{1}^{p}+e_{1}^{\text{pos}},x_{2}^{p}+e_{2}^{\text{pos}%
+},\ldots,x_{N}^{p}+e_{N}^{\text{pos}}]," display="block"><mrow><mrow><msup><mi>X</mi><mn>0</mn></msup><mo>=</mo><mrow><mo stretchy="false">[</mo><msub><mi>x</mi><mtext>cls</mtext></msub><mo>,</mo><mrow><msubsup><mi>x</mi><mn>1</mn><mi>p</mi></msubsup><mo>+</mo><msubsup><mi>e</mi><mn>1</mn><mtext>pos</mtext></msubsup></mrow><mo>,</mo><mrow><msubsup><mi>x</mi><mn>2</mn><mi>p</mi></msubsup><mo>+</mo><msubsup><mi>e</mi><mn>2</mn><mtext>pos</mtext></msubsup></mrow><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><msubsup><mi>x</mi><mi>N</mi><mi>p</mi></msubsup><mo>+</mo><msubsup><mi>e</mi><mi>N</mi><mtext>pos</mtext></msubsup></mrow><mo stretchy="false">]</mo></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S2.SS2.SSS0.Px1.p2.m2" class="ltx_Math" alttext="x_{i}^{p}" display="inline"><msubsup><mi>x</mi><mi>i</mi><mi>p</mi></msubsup></math> are the linearly embedded patches and <math id="S2.SS2.SSS0.Px1.p2.m3" class="ltx_Math" alttext="e_{i}^{\text{pos}}" display="inline"><msubsup><mi>e</mi><mi>i</mi><mtext>pos</mtext></msubsup></math> are the positional embeddings.</p>
+</div>
+</section>
+<section id="S2.SS2.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Training considerations.</h4>
+
+<div id="S2.SS2.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">A key characteristic of Vision Transformers is their data requirements compared to CNNs. Because ViTs lack the built-in inductive biases of convolution operations—such as translation equivariance and local connectivity—they require substantially larger training datasets to achieve comparable performance with similar model sizes. When trained on smaller datasets like ImageNet-1K (1.3 million images), ViTs typically underperform similarly-sized CNNs. However, when pre-trained on larger datasets such as ImageNet-21K (14 million images) or even larger proprietary datasets, ViTs can match or exceed CNN performance, and their performance continues to improve with dataset scale in ways that CNNs do not.</p>
+</div>
+<div id="S2.SS2.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">This observation has led to a standard training paradigm for ViTs: pre-training on large-scale datasets followed by fine-tuning on smaller, task-specific datasets. Pre-training can be done with supervised learning on labeled image datasets or through self-supervised methods that learn representations from unlabeled images. Self-supervised pre-training methods such as masked image modeling—where random patches are masked and the model learns to predict them—have proven particularly effective for ViTs and enable training on massive unlabeled image corpora. After pre-training, the model can be fine-tuned on downstream tasks with relatively small amounts of labeled data, often requiring only the final classification layers to be retrained while the Transformer layers remain largely fixed or are fine-tuned with small learning rates.</p>
+</div>
+<div id="S2.SS2.SSS0.Px2.p3" class="ltx_para">
+<p class="ltx_p">For robotics applications, this pre-training and fine-tuning paradigm is especially valuable. Robotic systems often operate in specialized environments with limited task-specific data, but can leverage visual representations learned from generic internet-scale image datasets. A ViT pre-trained on diverse visual data captures general-purpose features like edge detection, object recognition, and spatial relationships that transfer effectively to robotic tasks like grasping, navigation, and scene understanding.</p>
+</div>
+</section>
+<section id="S2.SS2.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Practical considerations.</h4>
+
+<div id="S2.SS2.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">The choice between Vision Transformers and CNNs for robotic applications involves several practical trade-offs. ViTs excel when large pre-trained models are available and when the task benefits from modeling long-range dependencies across the entire image. Their flexibility in handling variable input sizes and their ability to scale to very large model sizes make them attractive for applications where computational resources are available and high accuracy is critical. However, CNNs remain competitive or superior in scenarios with limited data, real-time constraints on resource-constrained hardware, or tasks where strong spatial inductive biases are beneficial.</p>
+</div>
+<div id="S2.SS2.SSS0.Px3.p2" class="ltx_para">
+<p class="ltx_p">Computationally, ViTs have quadratic complexity with respect to the number of patches due to the self-attention mechanism, making them more expensive than CNNs for high-resolution images. Recent variants like Swin Transformer address this by using local attention windows and hierarchical structures, combining some of the efficiency benefits of CNNs with the flexibility of Transformers. For robotics practitioners, the decision often comes down to whether pre-trained models are available for the specific visual domain, the computational budget of the deployment platform, and whether the task requires the global reasoning capabilities that attention mechanisms provide. In many modern robotic systems, hybrid approaches that combine CNN backbones for efficient feature extraction with Transformer layers for high-level reasoning have proven effective, leveraging the complementary strengths of both architectures.</p>
+</div>
+</section>
+</section>
+</section>
+<section id="S3" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">9.3 </span>Point Cloud Processing and Point-Based Networks</h2>
+
+<div id="S3.p1" class="ltx_para">
+<p class="ltx_p">Robotic systems operating in 3D environments frequently rely on LiDAR sensors, depth cameras, and other sensing modalities that produce point cloud data. Point clouds represent 3D data as collections of points in space, where each point is defined by its position <math id="S3.p1.m1" class="ltx_Math" alttext="\mathbf{p}" display="inline"><mi>𝐩</mi></math> and may include additional attributes such as color, intensity, or surface normals<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S3.p1.p1" class="ltx_para">
+<span class="ltx_p">Common representations include Cartesian coordinates <math id="S3.p1.p1.m1" class="ltx_Math" alttext="(x,y,z)" display="inline"><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo>,</mo><mi>z</mi><mo stretchy="false">)</mo></mrow></math>, spherical coordinates <math id="S3.p1.p1.m2" class="ltx_Math" alttext="(r,\theta,\phi)" display="inline"><mrow><mo stretchy="false">(</mo><mi>r</mi><mo>,</mo><mi>θ</mi><mo>,</mo><mi>ϕ</mi><mo stretchy="false">)</mo></mrow></math>, or cylindrical coordinates <math id="S3.p1.p1.m3" class="ltx_Math" alttext="(r,\theta,z)" display="inline"><mrow><mo stretchy="false">(</mo><mi>r</mi><mo>,</mo><mi>θ</mi><mo>,</mo><mi>z</mi><mo stretchy="false">)</mo></mrow></math> depending on the sensor type.</span>
+</span></span></span></span></span>. In autonomous driving, LiDAR sensors capture millions of points per second to create detailed 3D maps enabling real-time obstacle detection and navigation. Unlike images with regular 2D grid structure, point clouds possess unique characteristics requiring specialized neural network architectures.</p>
+</div>
+<section id="S3.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">9.3.1 </span>Point Cloud Characteristics</h3>
+
+<div id="S3.SS1.p1" class="ltx_para">
+<p class="ltx_p">Point clouds differ fundamentally from images in three key ways that shape neural network design.
+Point clouds are <em class="ltx_emph ltx_font_italic">unordered sets</em> with no inherent sequential or spatial ordering. A point cloud with <math id="S3.SS1.p1.m1" class="ltx_Math" alttext="N" display="inline"><mi>N</mi></math> points can be represented as <math id="S3.SS1.p1.m2" class="ltx_Math" alttext="\{\mathbf{p}_{1},\mathbf{p}_{2},\ldots,\mathbf{p}_{N}\}" display="inline"><mrow><mo stretchy="false">{</mo><msub><mi>𝐩</mi><mn>1</mn></msub><mo>,</mo><msub><mi>𝐩</mi><mn>2</mn></msub><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msub><mi>𝐩</mi><mi>N</mi></msub><mo stretchy="false">}</mo></mrow></math> where each point <math id="S3.SS1.p1.m3" class="ltx_Math" alttext="\mathbf{p}_{i}\in\mathbb{R}^{d}" display="inline"><mrow><msub><mi>𝐩</mi><mi>i</mi></msub><mo>∈</mo><msup><mi>ℝ</mi><mi>d</mi></msup></mrow></math> (typically <math id="S3.SS1.p1.m4" class="ltx_Math" alttext="d=3" display="inline"><mrow><mi>d</mi><mo>=</mo><mn>3</mn></mrow></math>). Crucially, any permutation of these points represents the same geometric object, requiring neural networks to be <em class="ltx_emph ltx_font_italic">permutation invariant</em>.</p>
+</div>
+<figure id="S3.F6" class="ltx_figure"><img style="width:75%;height:auto" src="/book-assets/deep-learning-perception/figs__ch12_figs__lidar_pointcloud.png" id="S3.F6.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 9.6</span>: </span><span class="ltx_text" style="font-size:90%;">LiDAR point cloud data from an autonomous vehicle showing cars and road infrastructure.</span></figcaption>
+</figure>
+<div id="S3.SS1.p2" class="ltx_para">
+<p class="ltx_p">Point clouds exhibit <em class="ltx_emph ltx_font_italic">variable cardinality</em>, containing vastly different numbers of points across samples. While images have fixed resolution (e.g., <math id="S3.SS1.p2.m1" class="ltx_Math" alttext="224\times 224" display="inline"><mrow><mn>224</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>224</mn></mrow></math> pixels), point clouds might contain anywhere from 1,000 to 100,000 points depending on scanning resolution, sensor distance, and object complexity, posing challenges for batch processing and network design. Figure <a href="#S3.F6" title="Figure 9.6 ‣ 9.3.1 Point Cloud Characteristics ‣ 9.3 Point Cloud Processing and Point-Based Networks" class="ltx_ref"><span class="ltx_text ltx_ref_tag">9.6</span></a> and Figure <a href="#S3.F7" title="Figure 9.7 ‣ 9.3.1 Point Cloud Characteristics ‣ 9.3 Point Cloud Processing and Point-Based Networks" class="ltx_ref"><span class="ltx_text ltx_ref_tag">9.7</span></a> illustrate this variability.</p>
+</div>
+<figure id="S3.F7" class="ltx_figure"><img style="width:75%;height:auto" src="/book-assets/deep-learning-perception/figs__ch12_figs__variable_cardinality.png" id="S3.F7.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 9.7</span>: </span><span class="ltx_text" style="font-size:90%;">Point clouds of different objects showing variable cardinality: a simple table (fewer points), a detailed chair (more points), and a toy building facade (most points).</span></figcaption>
+</figure>
+<div id="S3.SS1.p3" class="ltx_para">
+<p class="ltx_p">Point clouds are also <em class="ltx_emph ltx_font_italic">sparse and irregular</em>, with points distributed non-uniformly throughout 3D space at varying local densities determined by scanning angle, distance, and surface properties. Most 3D space contains no points, and local neighborhood structure around each point varies significantly, contrasting sharply with the dense, regular grid of image pixels.</p>
+</div>
+</section>
+<section id="S3.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">9.3.2 </span>PointNet Architecture</h3>
+
+<div id="S3.SS2.p1" class="ltx_para">
+<p class="ltx_p">PointNet<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">7</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">7.</span> Qi, Charles R, Su, Hao, Mo, Kaichun, Guibas, Leonidas J. “Pointnet: Deep learning on point sets for 3d classification and segmentation.” In <em>Proceedings of the IEEE conference on computer vision and pattern recognition</em>, 652–660, 2017.</span></span></span> approaches point cloud processing through several key architectural innovations that ensure permutation invariance while extracting meaningful geometric features. The architecture consists of point-wise feature extraction, symmetric aggregation functions, and spatial transformation components that work together to process unordered point sets effectively.</p>
+</div>
+<figure id="S3.F8" class="ltx_figure"><img style="width:85%;height:auto" src="/book-assets/deep-learning-perception/figs__ch12_figs__pointnet_architecture.png" id="S3.F8.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 9.8</span>: </span><span class="ltx_text" style="font-size:90%;">PointNet architecture showing point-wise MLPs, transformation networks (T-Net), and symmetric aggregation for classification and segmentation tasks, from Qi et al. (2017).</span></figcaption>
+</figure>
+<section id="S3.SS2.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Point-wise multi-layer perceptrons.</h4>
+
+<div id="S3.SS2.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">PointNet applies multi-layer perceptrons (MLPs) independently to each point in the cloud. Given <math id="S3.SS2.SSS0.Px1.p1.m1" class="ltx_Math" alttext="N" display="inline"><mi>N</mi></math> points where each point <math id="S3.SS2.SSS0.Px1.p1.m2" class="ltx_Math" alttext="p_{i}\in\mathbb{R}^{3}" display="inline"><mrow><msub><mi>p</mi><mi>i</mi></msub><mo>∈</mo><msup><mi>ℝ</mi><mn>3</mn></msup></mrow></math> represents spatial coordinates, PointNet computes:</p>
+<table id="S3.Ex8" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex8.m1" class="ltx_Math" alttext="h_{i}=\text{MLP}(p_{i})," display="block"><mrow><mrow><msub><mi>h</mi><mi>i</mi></msub><mo>=</mo><mrow><mtext>MLP</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S3.SS2.SSS0.Px1.p1.m3" class="ltx_Math" alttext="h_{i}\in\mathbb{R}^{k}" display="inline"><mrow><msub><mi>h</mi><mi>i</mi></msub><mo>∈</mo><msup><mi>ℝ</mi><mi>k</mi></msup></mrow></math> is the learned feature representation. This point-wise processing maintains permutation invariance because the same transformation applies to each point regardless of input order. The MLP consists of fully connected layers with ReLU activations, progressively increasing dimensionality from 3D coordinates to higher-dimensional spaces (e.g., 64, 128, 1024 dimensions). The MLP parameters are shared across all points, similar to parameter sharing in CNN filters, but without spatial locality constraints. The overall architecture is shown in Figure <a href="#S3.F8" title="Figure 9.8 ‣ 9.3.2 PointNet Architecture ‣ 9.3 Point Cloud Processing and Point-Based Networks" class="ltx_ref"><span class="ltx_text ltx_ref_tag">9.8</span></a>.</p>
+</div>
+</section>
+<section id="S3.SS2.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Symmetric aggregation functions.</h4>
+
+<div id="S3.SS2.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">After extracting point-wise features, PointNet must aggregate these features into a single global representation while preserving permutation invariance. This is achieved through symmetric functions that produce the same output regardless of input ordering. The most commonly used symmetric function in PointNet is the element-wise maximum:</p>
+<table id="S3.Ex9" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex9.m1" class="ltx_math_unparsed" alttext="g=\underset{[}{\text{maximize}}\quad i=1,\ldots,N]h_{i}," display="block"><mrow><mi>g</mi><mo>=</mo><munder accentunder="true"><mtext>maximize</mtext><mo fence="false">[</mo></munder><mspace width="1em"></mspace><mi>i</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mi>N</mi><mo stretchy="false">]</mo><mi>h</mi><msub><mi></mi><mi>i</mi></msub><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where the max operation is applied element-wise across all feature vectors <math id="S3.SS2.SSS0.Px2.p1.m1" class="ltx_Math" alttext="h_{i}" display="inline"><msub><mi>h</mi><mi>i</mi></msub></math>.
+This is provably permutation invariant because for any permutation <math id="S3.SS2.SSS0.Px2.p1.m2" class="ltx_Math" alttext="\sigma" display="inline"><mi>σ</mi></math>:</p>
+<table id="S3.Ex10" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex10.m1" class="ltx_Math" alttext="\max_{i}h_{\sigma(i)}=\max_{i}h_{i}." display="block"><mrow><mrow><mrow><munder><mi>max</mi><mi>i</mi></munder><mo lspace="0.167em">⁡</mo><msub><mi>h</mi><mrow><mi>σ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></mrow></msub></mrow><mo>=</mo><mrow><munder><mi>max</mi><mi>i</mi></munder><mo lspace="0.167em">⁡</mo><msub><mi>h</mi><mi>i</mi></msub></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">While alternative symmetric functions like summation or mean could be used, max pooling has the advantage of being selective, allowing the network to focus on the most discriminative features across all points. However, this global aggregation approach means that PointNet captures only global features and may miss important local geometric structures, which motivates the hierarchical extensions in PointNet++, which we will discuss later in this section.</p>
+</div>
+</section>
+<section id="S3.SS2.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Transformation networks (T-Nets).</h4>
+
+<div id="S3.SS2.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">To achieve invariance to geometric transformations such as rotation and translation, PointNet incorporates transformation networks (T-Net) that learn to align point clouds to a canonical orientation. The T-Net is itself a mini-PointNet that predicts a transformation matrix <math id="S3.SS2.SSS0.Px3.p1.m1" class="ltx_Math" alttext="T\in\mathbb{R}^{k\times k}" display="inline"><mrow><mi>T</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mi>k</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>k</mi></mrow></msup></mrow></math>:</p>
+<table id="S3.Ex11" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex11.m1" class="ltx_Math" alttext="T=\text{T-Net}(\{p_{1},p_{2},\ldots,p_{N}\})." display="block"><mrow><mrow><mi>T</mi><mo>=</mo><mrow><mtext>T-Net</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mo stretchy="false">{</mo><msub><mi>p</mi><mn>1</mn></msub><mo>,</mo><msub><mi>p</mi><mn>2</mn></msub><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msub><mi>p</mi><mi>N</mi></msub><mo stretchy="false">}</mo></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">This transformation matrix is then applied to either the input coordinates (input transform) or intermediate features (feature transform). For the input transform, <math id="S3.SS2.SSS0.Px3.p1.m2" class="ltx_Math" alttext="T\in\mathbb{R}^{3\times 3}" display="inline"><mrow><mi>T</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mn>3</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>3</mn></mrow></msup></mrow></math> aligns the spatial coordinates, while for the feature transform, <math id="S3.SS2.SSS0.Px3.p1.m3" class="ltx_Math" alttext="T\in\mathbb{R}^{64\times 64}" display="inline"><mrow><mi>T</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mn>64</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>64</mn></mrow></msup></mrow></math> normalizes the feature space. To ensure the stability of optimization, a regularization term is added to the loss function that encourages the transformation matrix to be close to orthogonal:</p>
+<table id="S3.Ex12" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex12.m1" class="ltx_Math" alttext="L_{\text{reg}}=||I-TT^{T}||_{F}^{2}," display="block"><mrow><mrow><msub><mi>L</mi><mtext>reg</mtext></msub><mo>=</mo><msubsup><mrow><mo stretchy="false">‖</mo><mrow><mi>I</mi><mo>−</mo><mrow><mi>T</mi><mo>⁢</mo><msup><mi>T</mi><mi>T</mi></msup></mrow></mrow><mo stretchy="false">‖</mo></mrow><mi>F</mi><mn>2</mn></msubsup></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S3.SS2.SSS0.Px3.p1.m4" class="ltx_math_unparsed" alttext="||\cdot||_{F}" display="inline"><mrow><mo fence="false" rspace="0.167em" stretchy="false">|</mo><mo fence="false" stretchy="false">|</mo><mo lspace="0em" rspace="0em">⋅</mo><mo fence="false" rspace="0.167em" stretchy="false">|</mo><msub><mo fence="false" stretchy="false">|</mo><mi>F</mi></msub></mrow></math> denotes the Frobenius norm. This regularization prevents the transformation from becoming degenerate and helps maintain the geometric properties of the point cloud.</p>
+</div>
+</section>
+</section>
+<section id="S3.SS3" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">9.3.3 </span>Notable Point-Based Architectures</h3>
+
+<div id="S3.SS3.p1" class="ltx_para">
+<p class="ltx_p">Several landmark point-based architectures have extended PointNet’s core ideas to address its limitations and improve performance on complex 3D understanding tasks.</p>
+</div>
+<section id="S3.SS3.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">PointNet++.</h4>
+
+<div id="S3.SS3.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">While PointNet effectively captures global features, it struggles to learn local geometric patterns due to its reliance on global max pooling. PointNet++<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">8</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">8.</span> Qi, Charles Ruizhongtai, Yi, Li, Su, Hao, Guibas, Leonidas J. “Pointnet++: Deep hierarchical feature learning on point sets in a metric space.” <em>Advances in neural information processing systems</em> 30, 2017.</span></span></span> addresses this limitation by introducing a hierarchical architecture that learns features at multiple scales, similar to how CNNs build hierarchical representations through multiple convolutional layers.
+PointNet++ introduces set abstraction layers that recursively apply PointNet to local regions. Given a point cloud with <math id="S3.SS3.SSS0.Px1.p1.m1" class="ltx_Math" alttext="N" display="inline"><mi>N</mi></math> points, each set abstraction layer samples <math id="S3.SS3.SSS0.Px1.p1.m2" class="ltx_Math" alttext="N^{\prime}" display="inline"><msup><mi>N</mi><mo>′</mo></msup></math> representative points (where <math id="S3.SS3.SSS0.Px1.p1.m3" class="ltx_Math" alttext="N^{\prime}&lt;N" display="inline"><mrow><msup><mi>N</mi><mo>′</mo></msup><mo>&lt;</mo><mi>N</mi></mrow></math>), groups nearby points around each representative point, and applies a PointNet to extract local features. This process creates a hierarchical pyramid of features, where early layers capture fine-grained local details and later layers capture broader geometric patterns.</p>
+</div>
+<div id="S3.SS3.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">Set abstraction in PointNet++ consists of three key operations: sampling, grouping, and feature extraction. <em class="ltx_emph ltx_font_italic">Sampling</em> uses farthest point sampling (FPS) to select representative points that provide good coverage of the entire point cloud. Given a set of points, FPS iteratively selects the point that is farthest from all previously selected points, ensuring diverse spatial coverage. <em class="ltx_emph ltx_font_italic">Grouping</em> then defines local regions around each selected point using either ball query (all points within radius <math id="S3.SS3.SSS0.Px1.p2.m1" class="ltx_Math" alttext="r" display="inline"><mi>r</mi></math>) or <math id="S3.SS3.SSS0.Px1.p2.m2" class="ltx_Math" alttext="k" display="inline"><mi>k</mi></math>-nearest neighbors. This creates local point sets of varying sizes that capture the local geometry around each representative point. <em class="ltx_emph ltx_font_italic">Feature extraction</em> applies PointNet to each local region to learn features that capture local geometric patterns while maintaining permutation invariance within each region.
+For tasks requiring point-wise predictions like semantic segmentation, PointNet++ includes feature propagation layers that upsample features from coarser to finer resolutions. These layers use inverse distance weighted interpolation to propagate features from subsampled points back to the original point cloud:</p>
+<table id="S3.Ex13" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex13.m1" class="ltx_Math" alttext="f^{(j)}(x)=\frac{\sum_{i=1}^{k}w_{i}(x)f_{i}^{(j-1)}}{\sum_{i=1}^{k}w_{i}(x)},%
+\quad w_{i}(x)=\frac{1}{d(x,x_{i})^{p}}," display="block"><mrow><mrow><mrow><mrow><msup><mi>f</mi><mrow><mo stretchy="false">(</mo><mi>j</mi><mo stretchy="false">)</mo></mrow></msup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mfrac><mrow><msubsup><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>k</mi></msubsup><mrow><msub><mi>w</mi><mi>i</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow><mo>⁢</mo><msubsup><mi>f</mi><mi>i</mi><mrow><mo stretchy="false">(</mo><mrow><mi>j</mi><mo>−</mo><mn>1</mn></mrow><mo stretchy="false">)</mo></mrow></msubsup></mrow></mrow><mrow><msubsup><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>k</mi></msubsup><mrow><msub><mi>w</mi><mi>i</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></mfrac></mrow><mo rspace="1.167em">,</mo><mrow><mrow><msub><mi>w</mi><mi>i</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mfrac><mn>1</mn><mrow><mi>d</mi><mo>⁢</mo><msup><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow><mi>p</mi></msup></mrow></mfrac></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S3.SS3.SSS0.Px1.p2.m3" class="ltx_Math" alttext="f^{(j)}" display="inline"><msup><mi>f</mi><mrow><mo stretchy="false">(</mo><mi>j</mi><mo stretchy="false">)</mo></mrow></msup></math> represents features at layer <math id="S3.SS3.SSS0.Px1.p2.m4" class="ltx_Math" alttext="j" display="inline"><mi>j</mi></math>, <math id="S3.SS3.SSS0.Px1.p2.m5" class="ltx_Math" alttext="d(x,x_{i})" display="inline"><mrow><mi>d</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math> is the distance between points, and <math id="S3.SS3.SSS0.Px1.p2.m6" class="ltx_Math" alttext="p" display="inline"><mi>p</mi></math> is typically set to 2. Skip connections between corresponding abstraction and propagation layers help preserve fine-grained details, similar to U-Net architectures in image segmentation.</p>
+</div>
+</section>
+<section id="S3.SS3.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Dynamic graph CNN (DGCNN).</h4>
+
+<div id="S3.SS3.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">An alternative approach to processing point clouds treats them as graph structures, where points serve as nodes and edges are defined based on spatial proximity or learned relationships. Dynamic Graph Convolutional Neural Networks (DGCNN)<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">9</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">9.</span> Wang, Yue, Sun, Yongbin, Liu, Ziwei, Sarma, Sanjay E, Bronstein, Michael M, Solomon, Justin M. “Dynamic graph cnn for learning on point clouds.” <em>ACM Transactions on Graphics (tog)</em> 38(5), 1–12, 2019.</span></span></span> exemplify this approach by constructing graphs dynamically in feature space rather than just coordinate space. DGCNN applies edge convolution operations that aggregate information from neighboring points:</p>
+<table id="S3.Ex14" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex14.m1" class="ltx_math_unparsed" alttext="x_{i}^{\prime}=\underset{[}{\text{maximize}}\quad j:(i,j)\in\mathcal{E}]h_{%
+\theta}(x_{i},x_{j}-x_{i})," display="block"><mrow><msubsup><mi>x</mi><mi>i</mi><mo>′</mo></msubsup><mo>=</mo><munder accentunder="true"><mtext>maximize</mtext><mo fence="false">[</mo></munder><mspace width="1em"></mspace><mi>j</mi><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mo stretchy="false">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo stretchy="false">)</mo></mrow><mo>∈</mo><mi class="ltx_font_mathcaligraphic">ℰ</mi><mo stretchy="false">]</mo><mi>h</mi><msub><mi></mi><mi>θ</mi></msub><mo stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>x</mi><mi>j</mi></msub><mo>−</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="false">)</mo><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S3.SS3.SSS0.Px2.p1.m1" class="ltx_Math" alttext="x_{i}" display="inline"><msub><mi>x</mi><mi>i</mi></msub></math> and <math id="S3.SS3.SSS0.Px2.p1.m2" class="ltx_Math" alttext="x_{j}" display="inline"><msub><mi>x</mi><mi>j</mi></msub></math> are feature vectors of connected points, <math id="S3.SS3.SSS0.Px2.p1.m3" class="ltx_Math" alttext="h_{\theta}" display="inline"><msub><mi>h</mi><mi>θ</mi></msub></math> is a learnable function (typically an MLP), and the edge set <math id="S3.SS3.SSS0.Px2.p1.m4" class="ltx_Math" alttext="\mathcal{E}" display="inline"><mi class="ltx_font_mathcaligraphic">ℰ</mi></math> is dynamically updated based on feature similarity after each layer. This dynamic graph construction allows the network to capture both geometric and semantic relationships that evolve as features are learned. The edge convolution operation differs from standard graph convolutions by explicitly modeling the edge information <math id="S3.SS3.SSS0.Px2.p1.m5" class="ltx_Math" alttext="(x_{j}-x_{i})" display="inline"><mrow><mo stretchy="false">(</mo><mrow><msub><mi>x</mi><mi>j</mi></msub><mo>−</mo><msub><mi>x</mi><mi>i</mi></msub></mrow><mo stretchy="false">)</mo></mrow></math>, which captures the relative geometric relationships between neighboring points.
+This approach has shown success in tasks like point cloud classification and part segmentation.</p>
+</div>
+</section>
+</section>
+<section id="S3.SS4" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">9.3.4 </span>Applications and Limitations</h3>
+
+<div id="S3.SS4.p1" class="ltx_para">
+<p class="ltx_p">After processing through these point-based architectures—PointNet’s point-wise MLPs and symmetric aggregation, PointNet++’s hierarchical set abstraction layers, or DGCNN’s dynamic graph convolutions—the networks produce rich point-wise feature representations that encode both local geometric patterns and global shape information. These learned features serve as inputs for downstream tasks including 3D object detection, semantic segmentation of points into categories like road, building, or vegetation, and instance segmentation for identifying individual objects. We will explore training methods for these detection and segmentation tasks in subsequent chapters.</p>
+</div>
+<div id="S3.SS4.p2" class="ltx_para">
+<p class="ltx_p">Despite their effectiveness, point-based methods face computational challenges when processing large-scale point clouds. Real-world applications like autonomous driving can generate point clouds with millions of points per frame, making the <math id="S3.SS4.p2.m1" class="ltx_Math" alttext="O(N^{2})" display="inline"><mrow><mi>O</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msup><mi>N</mi><mn>2</mn></msup><mo stretchy="false">)</mo></mrow></mrow></math> complexity of neighborhood search in DGCNN or the recursive sampling in PointNet++ computationally prohibitive. Memory requirements also scale poorly, as each point must be processed individually, leading to irregular memory access patterns that are inefficient on modern GPU architectures. In the following section, we discuss voxel-based and pillar-based approaches that leverage regular grid structures for efficient 3D convolutions. By discretizing 3D space into regular voxels or vertical pillars, these methods can apply standard convolutional operations while maintaining spatial locality and enabling efficient parallel processing. This structured representation trades some geometric precision for computational efficiency and scalability, making it particularly suitable for real-time applications in autonomous driving and robotics where processing speed is critical.</p>
+</div>
+</section>
+</section>
+<section id="S4" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">9.4 </span>Voxel-Based 3D Processing</h2>
+
+<div id="S4.p1" class="ltx_para">
+<p class="ltx_p">In the previous section, we discussed that the computational limitations of point-based methods have motivated the development of grid-based approaches that discretize 3D space into regular structures, enabling the application of efficient convolutional operations. Rather than processing individual points with irregular neighborhoods, voxel-based and pillar-based methods transform point clouds into structured representations where standard CNNs can be applied. This paradigm shift trades some geometric precision for substantial computational advantages, making real-time processing of large-scale point clouds feasible for applications like autonomous driving. By leveraging the regularity of grid structures, these methods can utilize optimized convolution implementations and parallel processing capabilities of modern hardware.</p>
+</div>
+<section id="S4.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">9.4.1 </span>Grid-Based Representations</h3>
+
+<div id="S4.SS1.p1" class="ltx_para">
+<p class="ltx_p">Grid-based methods transform irregular point clouds into structured representations by discretizing 3D space into regular units. Two primary approaches have emerged: voxel-based representations that divide space into cubic voxels, and pillar-based<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S4.SS1.p1.p1" class="ltx_para">
+<span class="ltx_p">Frequently used in autonomous vehicle or navigation domain, where the scene can be viewed as a 2D “map” instead of a true 3D scene, for computational efficiency.</span>
+</span></span></span></span></span> representations that use vertical columns extending through the entire height of the scene.</p>
+</div>
+<figure id="S4.F9" class="ltx_figure"><img style="width:65%;height:auto" src="/book-assets/deep-learning-perception/figs__ch12_figs__voxelization.png" id="S4.F9.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 9.9</span>: </span><span class="ltx_text" style="font-size:90%;">Comparison of point cloud representations: original point cloud (dots) overlaid on the voxel-based discretization into 3D cubic cells from Kang et al. (2018).</span></figcaption>
+</figure>
+<div id="S4.SS1.p2" class="ltx_para">
+<p class="ltx_p">The <em class="ltx_emph ltx_font_italic">voxel-based representation</em> (Figure&#160;<a href="#S4.F9" title="Figure 9.9 ‣ 9.4.1 Grid-Based Representations ‣ 9.4 Voxel-Based 3D Processing" class="ltx_ref"><span class="ltx_text ltx_ref_tag">9.9</span></a>) creates a full 3D regular grid structure of size <math id="S4.SS1.p2.m1" class="ltx_Math" alttext="L\times W\times H" display="inline"><mrow><mi>L</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>W</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>H</mi></mrow></math> by partitioning space into cubic cells of size <math id="S4.SS1.p2.m2" class="ltx_Math" alttext="v_{l}\times v_{w}\times v_{h}" display="inline"><mrow><msub><mi>v</mi><mi>l</mi></msub><mo lspace="0.222em" rspace="0.222em">×</mo><msub><mi>v</mi><mi>w</mi></msub><mo lspace="0.222em" rspace="0.222em">×</mo><msub><mi>v</mi><mi>h</mi></msub></mrow></math><span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S4.SS1.p2.p1" class="ltx_para">
+<span class="ltx_p">In practice, these dimensions are often set to be equal, creating cubic voxels.</span>
+</span></span></span></span></span>, where each voxel can contain zero or more points from the original point cloud. This approach preserves complete spatial relationships in all three dimensions, enabling rich 3D feature learning through volumetric convolutions. Points within each voxel are aggregated into a single feature representation, typically through operations like mean pooling, max pooling, or learned aggregation functions.</p>
+</div>
+<div id="S4.SS1.p3" class="ltx_para">
+<p class="ltx_p">In contrast, the <em class="ltx_emph ltx_font_italic">pillar-based representation</em> adopts a 2.5D approach, looking at the scene from a bird’s-eye view, and treats vertical columns (“pillars”) as the fundamental processing unit. The space is transformed into a 2D grid structure of size <math id="S4.SS1.p3.m1" class="ltx_Math" alttext="L\times W" display="inline"><mrow><mi>L</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>W</mi></mrow></math>. Each pillar extends vertically through the entire height range of the point cloud, effectively collapsing the height dimension during initial processing. This approach is particularly useful in self-driving settings, where the scene processed is often very large and the reduction to 2D significantly improves computational efficiency. Points within each pillar are aggregated while preserving some height information through encoding strategies, but the primary spatial reasoning occurs in the horizontal, bird’s-eye view plane.</p>
+</div>
+<div id="S4.SS1.p4" class="ltx_para">
+<p class="ltx_p">The choice between these representations involves significant trade-offs in computational complexity and spatial information preservation. Voxel-based methods provide richer spatial context by maintaining full 3D neighborhood relationships with memory scaling as <math id="S4.SS1.p4.m1" class="ltx_Math" alttext="O(L\times W\times H)" display="inline"><mrow><mi>O</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>L</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>W</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>H</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></math>, enabling detection of complex 3D geometric patterns but requiring computationally expensive 3D convolutions. Pillar-based approaches reduce complexity by projecting the problem into 2D with memory scaling as <math id="S4.SS1.p4.m2" class="ltx_Math" alttext="O(L\times W)" display="inline"><mrow><mi>O</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>L</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>W</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></math>, enabling the use of mature 2D CNN architectures and optimized implementations, but potentially losing important vertical structure information crucial for multi-level feature detection. Both representations face spatial resolution trade-offs, where finer grids capture more geometric detail at exponentially higher computational cost, and must address sparsity challenges where most grid cells remain empty, motivating the development of sparse convolution techniques.</p>
+</div>
+</section>
+<section id="S4.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">9.4.2 </span>3D Convolution Fundamentals</h3>
+
+<div id="S4.SS2.p1" class="ltx_para">
+<p class="ltx_p">Once point clouds are discretized into regular grid structures, we can apply convolutional operations to learn hierarchical feature representations. This section covers the fundamental operations that enable efficient processing of voxelized 3D data.</p>
+</div>
+<section id="S4.SS2.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">3D convolution operations.</h4>
+
+<div id="S4.SS2.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">3D Convolutional Neural Networks extend the successful principles of 2D CNNs to volumetric data by operating directly on 3D grids of voxels. While 2D convolutions slide filters across height and width dimensions of images, 3D convolutions add depth as a third spatial dimension, enabling the network to capture spatial relationships to understand the 3D scene.
+Specifically, a 3D convolution applies a filter of size <math id="S4.SS2.SSS0.Px1.p1.m1" class="ltx_Math" alttext="(k_{x},k_{y},k_{z})" display="inline"><mrow><mo stretchy="false">(</mo><msub><mi>k</mi><mi>x</mi></msub><mo>,</mo><msub><mi>k</mi><mi>y</mi></msub><mo>,</mo><msub><mi>k</mi><mi>z</mi></msub><mo stretchy="false">)</mo></mrow></math> across all three spatial dimensions of the input volume. Mathematically, for an input volume <math id="S4.SS2.SSS0.Px1.p1.m2" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> and filter <math id="S4.SS2.SSS0.Px1.p1.m3" class="ltx_Math" alttext="W" display="inline"><mi>W</mi></math>, the 3D convolution operation can be expressed as:</p>
+<table id="S4.E3" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S4.E3.m1" class="ltx_Math" alttext="Y_{i,j,k}=\sum_{u=0}^{k_{x}-1}\sum_{v=0}^{k_{y}-1}\sum_{w=0}^{k_{z}-1}X_{i+u,j%
++v,k+w}\cdot W_{u,v,w}+b," display="block"><mrow><mrow><msub><mi>Y</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>k</mi></mrow></msub><mo rspace="0.111em">=</mo><mrow><mrow><munderover><mo movablelimits="false" rspace="0em">∑</mo><mrow><mi>u</mi><mo>=</mo><mn>0</mn></mrow><mrow><msub><mi>k</mi><mi>x</mi></msub><mo>−</mo><mn>1</mn></mrow></munderover><mrow><munderover><mo movablelimits="false" rspace="0em">∑</mo><mrow><mi>v</mi><mo>=</mo><mn>0</mn></mrow><mrow><msub><mi>k</mi><mi>y</mi></msub><mo>−</mo><mn>1</mn></mrow></munderover><mrow><munderover><mo movablelimits="false">∑</mo><mrow><mi>w</mi><mo>=</mo><mn>0</mn></mrow><mrow><msub><mi>k</mi><mi>z</mi></msub><mo>−</mo><mn>1</mn></mrow></munderover><mrow><msub><mi>X</mi><mrow><mrow><mi>i</mi><mo>+</mo><mi>u</mi></mrow><mo>,</mo><mrow><mi>j</mi><mo>+</mo><mi>v</mi></mrow><mo>,</mo><mrow><mi>k</mi><mo>+</mo><mi>w</mi></mrow></mrow></msub><mo lspace="0.222em" rspace="0.222em">⋅</mo><msub><mi>W</mi><mrow><mi>u</mi><mo>,</mo><mi>v</mi><mo>,</mo><mi>w</mi></mrow></msub></mrow></mrow></mrow></mrow><mo>+</mo><mi>b</mi></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(9.3)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S4.SS2.SSS0.Px1.p1.m4" class="ltx_Math" alttext="(i,j,k)" display="inline"><mrow><mo stretchy="false">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>k</mi><mo stretchy="false">)</mo></mrow></math> represents the spatial position in the output volume and <math id="S4.SS2.SSS0.Px1.p1.m5" class="ltx_Math" alttext="b" display="inline"><mi>b</mi></math> is the bias term. Note that in practice, both the input <math id="S4.SS2.SSS0.Px1.p1.m6" class="ltx_Math" alttext="X" display="inline"><mi>X</mi></math> and output <math id="S4.SS2.SSS0.Px1.p1.m7" class="ltx_Math" alttext="Y" display="inline"><mi>Y</mi></math> typically have an additional channel dimension for multi-channel feature maps, and the weight <math id="S4.SS2.SSS0.Px1.p1.m8" class="ltx_Math" alttext="W" display="inline"><mi>W</mi></math> is a 4D tensor that includes both spatial dimensions and input/output channel dimensions, while the bias <math id="S4.SS2.SSS0.Px1.p1.m9" class="ltx_Math" alttext="b" display="inline"><mi>b</mi></math> is a vector with one element per output channel. The geometric interpretation is shown in Figure <a href="#S4.F10" title="Figure 9.10 ‣ 3D convolution operations. ‣ 9.4.2 3D Convolution Fundamentals ‣ 9.4 Voxel-Based 3D Processing" class="ltx_ref"><span class="ltx_text ltx_ref_tag">9.10</span></a>.</p>
+</div>
+<figure id="S4.F10" class="ltx_figure"><img style="width:40%;height:auto" src="/book-assets/deep-learning-perception/figs__ch12_figs__3d_convolution.png" id="S4.F10.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 9.10</span>: </span><span class="ltx_text" style="font-size:90%;">A 3D convolution filter sliding across a volumetric input, showing how the <math id="S4.F10.m2" class="ltx_Math" alttext="(k_{x},k_{y},k_{z})" display="inline"><mrow><mo stretchy="false">(</mo><msub><mi>k</mi><mi>x</mi></msub><mo>,</mo><msub><mi>k</mi><mi>y</mi></msub><mo>,</mo><msub><mi>k</mi><mi>z</mi></msub><mo stretchy="false">)</mo></mrow></math> filter operates in all three spatial dimensions.</span></figcaption>
+</figure>
+<div id="S4.SS2.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">Common kernel sizes include <math id="S4.SS2.SSS0.Px1.p2.m1" class="ltx_Math" alttext="3\times 3\times 3" display="inline"><mrow><mn>3</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>3</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>3</mn></mrow></math> for capturing local 3D patterns and <math id="S4.SS2.SSS0.Px1.p2.m2" class="ltx_Math" alttext="1\times 1\times 1" display="inline"><mrow><mn>1</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>1</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>1</mn></mrow></math> for channel-wise feature mixing without spatial aggregation<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S4.SS2.SSS0.Px1.p2.p1" class="ltx_para">
+<span class="ltx_p">Larger kernels like <math id="S4.SS2.SSS0.Px1.p2.p1.m1" class="ltx_Math" alttext="5\times 5\times 5" display="inline"><mrow><mn>5</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>5</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>5</mn></mrow></math> can capture broader spatial context but significantly increase computational cost due to the cubic scaling of operations.</span>
+</span></span></span></span></span>. The key advantage of 3D convolutions over approaches that process 2D slices independently is their ability to learn features that span multiple depths, such as the full 3D shape of objects or volumetric textures. The receptive field in 3D grows cubically with network depth, allowing deeper layers to capture increasingly global context, though this rapid growth must be balanced against increased computational cost.</p>
+</div>
+</section>
+<section id="S4.SS2.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Sparse convolutions.</h4>
+
+<div id="S4.SS2.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">Real-world point clouds exhibit extreme sparsity when discretized into voxel grids. In many applications such as autonomous driving and indoor scene processing, the majority of 3D space consists of empty air or unoccupied regions. Standard dense 3D convolutions waste significant computation on empty space, making them impractical for large-scale applications. Sparse convolutions address this by computing only on occupied voxels and their neighborhoods, using efficient data structures to maintain compact representations of non-empty regions<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S4.SS2.SSS0.Px2.p1.p1" class="ltx_para">
+<span class="ltx_p">Popular implementations include <span class="ltx_text ltx_font_typewriter">spconv</span> for PyTorch/TensorFlow and Minkowski Engine for general sparse tensor operations.</span>
+</span></span></span></span></span>.</p>
+</div>
+<div id="S4.Thmexample1" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 9.4.1</span></span><span class="ltx_text ltx_font_bold"> </span>(Memory savings in sparse convolutions)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S4.Thmexample1.p1" class="ltx_para">
+<p class="ltx_p">A typical autonomous-vehicle LiDAR scene discretized at 10cm resolution over a <math id="S4.Thmexample1.p1.m1" class="ltx_Math" alttext="100m\times 100m\times 10m" display="inline"><mrow><mrow><mrow><mrow><mrow><mn>100</mn><mo>⁢</mo><mi>m</mi></mrow><mo lspace="0.222em" rspace="0.222em">×</mo><mn>100</mn></mrow><mo>⁢</mo><mi>m</mi></mrow><mo lspace="0.222em" rspace="0.222em">×</mo><mn>10</mn></mrow><mo>⁢</mo><mi>m</mi></mrow></math> volume would require:</p>
+<table id="S4.Ex15" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S4.Ex15.m1" class="ltx_Math" alttext="\text{Grid size}=\frac{100m}{0.1m}\times\frac{100m}{0.1m}\times\frac{10m}{0.1m%
+}=1000\times 1000\times 100," display="block"><mrow><mrow><mtext>Grid size</mtext><mo>=</mo><mrow><mfrac><mrow><mn>100</mn><mo>⁢</mo><mi>m</mi></mrow><mrow><mn>0.1</mn><mo>⁢</mo><mi>m</mi></mrow></mfrac><mo lspace="0.222em" rspace="0.222em">×</mo><mfrac><mrow><mn>100</mn><mo>⁢</mo><mi>m</mi></mrow><mrow><mn>0.1</mn><mo>⁢</mo><mi>m</mi></mrow></mfrac><mo lspace="0.222em" rspace="0.222em">×</mo><mfrac><mrow><mn>10</mn><mo>⁢</mo><mi>m</mi></mrow><mrow><mn>0.1</mn><mo>⁢</mo><mi>m</mi></mrow></mfrac></mrow><mo>=</mo><mrow><mn>1000</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>1000</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>100</mn></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<table id="S4.Ex16" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S4.Ex16.m1" class="ltx_Math" alttext="\text{Total voxels}=1000\times 1000\times 100=100\text{ million voxel features%
+ per layer}," display="block"><mrow><mrow><mtext>Total voxels</mtext><mo>=</mo><mrow><mn>1000</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>1000</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>100</mn></mrow><mo>=</mo><mrow><mn>100</mn><mo>⁢</mo><mtext> million voxel features per layer</mtext></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">In contrast, sparse representations store only the occupied voxels, making memory usage proportional to the number of non-empty voxels rather than total grid size. The sparser the scene, the greater the memory savings.</p>
+</div>
+</div>
+</section>
+</section>
+<section id="S4.SS3" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">9.4.3 </span>Notable Voxel-Based Architectures</h3>
+
+<div id="S4.SS3.p1" class="ltx_para">
+<p class="ltx_p">Several landmark architectures have demonstrated the effectiveness of grid-based representations for 3D perception tasks, particularly in autonomous driving applications where real-time performance is critical.</p>
+</div>
+<section id="S4.SS3.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">VoxelNet.</h4>
+
+<div id="S4.SS3.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">VoxelNet<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">10</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">10.</span> Zhou, Yin, Tuzel, Oncel. “Voxelnet: End-to-end learning for point cloud based 3d object detection.” In <em>Proceedings of the IEEE conference on computer vision and pattern recognition</em>, 4490–4499, 2018.</span></span></span> was one of the pioneering architectures for processing voxel-based representations. The architecture addresses the challenge of processing irregular point clouds by first voxelizing them into a 3D voxel grid, then leveraging 3D convolutions to extract features and detect objects.</p>
+</div>
+<figure id="S4.F11" class="ltx_figure"><img style="width:85%;height:auto" src="/book-assets/deep-learning-perception/figs__ch12_figs__voxelnet_architecture.png" id="S4.F11.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 9.11</span>: </span><span class="ltx_text" style="font-size:90%;">VoxelNet architecture from Zhou and Tuzel (2018), showing the complete pipeline from point cloud voxelization through VFE layers, 3D convolutional middle layers, to the Region Proposal Network for 3D object detection.</span></figcaption>
+</figure>
+<div id="S4.SS3.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">A core component of VoxelNet is its Voxel Feature Encoding (VFE) layers, which process the variable number of points within each voxel to produce fixed-size feature representations. The full architecture is shown in Figure <a href="#S4.F11" title="Figure 9.11 ‣ VoxelNet. ‣ 9.4.3 Notable Voxel-Based Architectures ‣ 9.4 Voxel-Based 3D Processing" class="ltx_ref"><span class="ltx_text ltx_ref_tag">9.11</span></a>. Given a voxel containing points <math id="S4.SS3.SSS0.Px1.p2.m1" class="ltx_Math" alttext="\{p_{1},p_{2},\ldots,p_{n}\}" display="inline"><mrow><mo stretchy="false">{</mo><msub><mi>p</mi><mn>1</mn></msub><mo>,</mo><msub><mi>p</mi><mn>2</mn></msub><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msub><mi>p</mi><mi>n</mi></msub><mo stretchy="false">}</mo></mrow></math>, where each point <math id="S4.SS3.SSS0.Px1.p2.m2" class="ltx_Math" alttext="p_{i}=(x_{i},y_{i},z_{i},r_{i})" display="inline"><mrow><msub><mi>p</mi><mi>i</mi></msub><mo>=</mo><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>y</mi><mi>i</mi></msub><mo>,</mo><msub><mi>z</mi><mi>i</mi></msub><mo>,</mo><msub><mi>r</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math> includes spatial coordinates and optional reflectance intensity, the VFE layers apply point-wise multi-layer perceptrons to each point independently:</p>
+<table id="S4.Ex17" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S4.Ex17.m1" class="ltx_Math" alttext="f_{i}=\text{MLP}(p_{i})." display="block"><mrow><mrow><msub><mi>f</mi><mi>i</mi></msub><mo>=</mo><mrow><mtext>MLP</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S4.SS3.SSS0.Px1.p3" class="ltx_para">
+<p class="ltx_p">To capture contextual information within each voxel, VoxelNet augments each point with the centroid of all points in the same voxel. For a voxel containing <math id="S4.SS3.SSS0.Px1.p3.m1" class="ltx_Math" alttext="n" display="inline"><mi>n</mi></math> points, the centroid is computed as <math id="S4.SS3.SSS0.Px1.p3.m2" class="ltx_Math" alttext="\bar{p}=\frac{1}{n}\sum_{i=1}^{n}p_{i}" display="inline"><mrow><mover accent="true"><mi>p</mi><mo>¯</mo></mover><mo>=</mo><mrow><mfrac><mn>1</mn><mi>n</mi></mfrac><mo>⁢</mo><mrow><msubsup><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></msubsup><msub><mi>p</mi><mi>i</mi></msub></mrow></mrow></mrow></math>, and each point is then represented as the concatenation <math id="S4.SS3.SSS0.Px1.p3.m3" class="ltx_Math" alttext="[p_{i},p_{i}-\bar{p}]" display="inline"><mrow><mo stretchy="false">[</mo><msub><mi>p</mi><mi>i</mi></msub><mo>,</mo><mrow><msub><mi>p</mi><mi>i</mi></msub><mo>−</mo><mover accent="true"><mi>p</mi><mo>¯</mo></mover></mrow><mo stretchy="false">]</mo></mrow></math>, providing both absolute and relative spatial information. The VFE layers then aggregate features across all points in the voxel using element-wise max pooling, ensuring permutation invariance:</p>
+<table id="S4.Ex18" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S4.Ex18.m1" class="ltx_math_unparsed" alttext="v=\underset{[}{\text{maximize}}\quad i=1,\ldots,n]f_{i}," display="block"><mrow><mi>v</mi><mo>=</mo><munder accentunder="true"><mtext>maximize</mtext><mo fence="false">[</mo></munder><mspace width="1em"></mspace><mi>i</mi><mo>=</mo><mn>1</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mi>n</mi><mo stretchy="false">]</mo><mi>f</mi><msub><mi></mi><mi>i</mi></msub><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S4.SS3.SSS0.Px1.p3.m4" class="ltx_Math" alttext="v" display="inline"><mi>v</mi></math> is the final voxel-level feature representation. This aggregation step converts the variable-sized point sets within each voxel into fixed-size feature vectors suitable for subsequent 3D convolution operations.</p>
+</div>
+<div id="S4.SS3.SSS0.Px1.p4" class="ltx_para">
+<p class="ltx_p">After voxel feature encoding, VoxelNet applies a series of 3D convolutional middle layers to build hierarchical representations of the scene. These layers follow standard 3D CNN design principles, progressively increasing receptive field size while extracting increasingly abstract features. The sparse nature of voxel occupancy makes this stage well-suited for sparse convolution implementations to improve computational efficiency. The 3D convolutional layers aggregate information across neighboring voxels to capture larger geometric structures, build multi-scale representations through progressive downsampling, and prepare features for the final object detection stage.</p>
+</div>
+</section>
+<section id="S4.SS3.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">PointPillars.</h4>
+
+<div id="S4.SS3.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">While VoxelNet processes full 3D voxels, PointPillars<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">11</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">11.</span> Lang, Alex H, Vora, Sourabh, Caesar, Holger, Zhou, Lubing, Yang, Jiong, Beijbom, Oscar. “Pointpillars: Fast encoders for object detection from point clouds.” In <em>Proceedings of the IEEE/CVF conference on computer vision and pattern recognition</em>, 12697–12705, 2019.</span></span></span> takes a different approach by using vertical pillars that extend through the entire height of the scene. The key innovation lies in the Pillar Feature Network (PFN), which encodes points within each pillar and then converts the resulting pillar features into a 2D “pseudo-image” representation. This transformation allows PointPillars to leverage mature 2D CNN architectures for subsequent processing, rather than computationally expensive 3D convolutions.</p>
+</div>
+<figure id="S4.F12" class="ltx_figure"><img style="width:85%;height:auto" src="/book-assets/deep-learning-perception/figs__ch12_figs__pointpillar_architecture.png" id="S4.F12.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 9.12</span>: </span><span class="ltx_text" style="font-size:90%;">PointPillars architecture showing pillar feature encoding and 2D CNN backbone for efficient real-time 3D object detection, from Lang et al. (2019).</span></figcaption>
+</figure>
+<div id="S4.SS3.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">The pillar-based approach offers significant computational advantages by reducing the problem from 3D to 2.5D, enabling the use of optimized 2D convolution operations and existing hardware accelerations designed for image processing. This design choice makes PointPillars particularly suitable for real-time applications where computational efficiency is crucial, achieving inference speeds suitable for autonomous driving while maintaining competitive detection accuracy, as shown in Figure <a href="#S4.F12" title="Figure 9.12 ‣ PointPillars. ‣ 9.4.3 Notable Voxel-Based Architectures ‣ 9.4 Voxel-Based 3D Processing" class="ltx_ref"><span class="ltx_text ltx_ref_tag">9.12</span></a>.</p>
+</div>
+</section>
+<section id="S4.SS3.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Other variants.</h4>
+
+<div id="S4.SS3.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">Building on the success of VoxelNet and PointPillars, several variants have been developed to further improve performance and efficiency. SECOND (Sparsely Embedded Convolutional Detection)<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">12</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">12.</span> Yan, Yan, Mao, Yuxing, Li, Bo. “Second: Sparsely embedded convolutional detection.” <em>Sensors</em> 18(10), 3337, 2018.</span></span></span> combines voxel-based processing with sparse convolution techniques for improved efficiency, significantly reducing computational requirements while maintaining accuracy. Voxel R-CNN extends the voxel-based approach with refined detection stages, while VoxelNet introduces architectural improvements that further push the boundaries of voxel-based 3D detection performance.
+Similar to point-based architectures, after processing through these voxel-based architectures—VoxelNet’s VFE layers and 3D convolutions, or PointPillars’ pillar encoding and 2D CNNs—the networks produce rich feature representations that encode geometric patterns and spatial relationships across the scene. These learned features serve as input to Region Proposal Networks (RPNs) that generate 3D bounding box proposals for object detection. The key contribution of these approaches lies in demonstrating that the entire pipeline—from raw point cloud processing to 3D object detection—can be trained end-to-end, allowing the networks to learn optimal feature representations specifically for the detection task rather than relying on hand-crafted features. We will explore the details of training object detection networks and designing appropriate loss functions in subsequent chapters on object detection and segmentation.</p>
+</div>
+</section>
+</section>
+</section>
+<section id="S5" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">9.5 </span>Summary</h2>
+
+<div id="S5.p1" class="ltx_para">
+<p class="ltx_p">In this chapter, we explored fundamental neural network architectures that form the backbone of modern robotic perception, which has shifted from hand-crafted features to end-to-end learning from data.
+We began with Convolutional Neural Networks (CNNs), detailing their core components—convolutional layers, pooling, and fully-connected layers—that leverage spatial locality and translation equivariance for processing image data. We discussed landmark architectures like AlexNet, ResNet, and YOLO that demonstrated the power of deep, hierarchical feature learning.
+We then introduced the Transformer architecture, whose self-attention mechanism captures long-range dependencies without built-in spatial biases. We covered its key elements, including tokenization, positional embeddings, and multi-head attention, and focused on its adaptation to vision through Vision Transformers (ViTs), which process images as sequences of patches and excel when pre-trained on large datasets.
+Finally, we addressed the challenge of 3D sensor data by examining point-based networks like PointNet, which use permutation-invariant operations on point sets, and its hierarchical extension, PointNet++. We then discussed voxel-based methods, which discretize point clouds into regular grids to enable efficient 3D convolutions, as seen in VoxelNet, and pillar-based approaches like PointPillars that project data into a 2D representation for computational efficiency.</p>
+</div>
+<section id="S5.SS0.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">To learn more.</h4>
+
+<div id="S5.SS0.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">For a deeper exploration of the topics covered in this chapter, several key resources are available.
+A comprehensive foundation in deep learning concepts relevant to all architectures discussed can be found in <span class="ltx_cite">Goodfellow et al. (2016)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">1</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">1.</span> Ian Goodfellow, Yoshua Bengio, Aaron Courville. <em>Deep Learning</em>. MIT Press, 2016.</span></span></span>.
+The seminal paper on the Transformer architecture is presented by <span class="ltx_cite">Vaswani et al. (2017)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">2</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">2.</span> Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, ., Polosukhin, I. “Attention is All you Need.” In <em>Advances in Neural Information Processing Systems</em>. Curran Associates, Inc., 2017.</span></span></span>, while its application to vision is detailed in <span class="ltx_cite">Dosovitskiy et al. (2021)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">3</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">3.</span> Dosovitskiy, A., Beyer, L., Kolesnikov, A., Weissenborn, D., Zhai, X., Unterthiner, T., Dehghani, M., Minderer, M., Heigold, G., Gelly, S., Uszkoreit, J., Houlsby, N. “An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale.” In <em>International Conference on Learning Representations</em>, 2021.</span></span></span>.
+For in-depth studies on 3D perception, the original papers on PointNet <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">13</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">13.</span> Qi, Charles R, Su, Hao, Mo, Kaichun, Guibas, Leonidas J. “Pointnet: Deep learning on point sets for 3d classification and segmentation.” In <em>Proceedings of the IEEE conference on computer vision and pattern recognition</em>, 652–660, 2017.</span></span></span> and VoxelNet <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">14</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">14.</span> Zhou, Yin, Tuzel, Oncel. “Voxelnet: End-to-end learning for point cloud based 3d object detection.” In <em>Proceedings of the IEEE conference on computer vision and pattern recognition</em>, 4490–4499, 2018.</span></span></span> are essential reading.
+Finally, for a broader perspective on computer vision algorithms that contextualize these learning-based approaches, we refer the reader to <span class="ltx_cite">Szeliski (2010)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">4</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">4.</span> Szeliski, R. <em>Computer vision: algorithms and applications</em>. Springer Science &amp; Business Media, 2010.</span></span></span>.</p>
+</div>
+</section>
+</section>
+<section id="S6" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">9.6 </span>Exercises</h2>
+
+<div id="S6.p1" class="ltx_para">
+<p class="ltx_p">The starter code for the exercises provided below is available online through GitHub.
+To get started, download the code by running in a terminal window:</p>
+</div>
+<div id="S6.p2" class="ltx_para ltx_noindent">
+<div class="ltx_listing ltx_lst_language_bash ltx_lstlisting ltx_listing">
+<div class="ltx_listing_data"><a href="data:text/plain;base64,ICAgIGdpdCBjbG9uZSBodHRwczovL2dpdGh1Yi5jb20vU3RhbmZvcmRBU0wvcG9yYS1leGVyY2lzZXMuZ2l0" download="">⬇</a></div>
+<div id="lstnumberx1" class="ltx_listingline"><span class="ltx_text ltx_lst_space ltx_font_typewriter">    </span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">git</span><span class="ltx_text ltx_lst_space ltx_font_typewriter"> </span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">clone</span><span class="ltx_text ltx_lst_space ltx_font_typewriter"> </span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">https</span><span class="ltx_text ltx_font_typewriter">://</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">github</span><span class="ltx_text ltx_font_typewriter">.</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">com</span><span class="ltx_text ltx_font_typewriter">/</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">StanfordASL</span><span class="ltx_text ltx_font_typewriter">/</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">pora</span><span class="ltx_text ltx_font_typewriter">-</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">exercises</span><span class="ltx_text ltx_font_typewriter">.</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">git</span></div>
+</div>
+</div>
+<div id="S6.p3" class="ltx_para">
+<p class="ltx_p">We denote Problems requiring hand-written solutions and coding in Python with <img src="/book-assets/deep-learning-perception/figs__write.png" id="S6.p3.g1" class="ltx_graphics ltx_img_square" width="26" height="28" alt="[Uncaptioned image]"> and <img src="/book-assets/deep-learning-perception/figs__code.png" id="S6.p3.g2" class="ltx_graphics ltx_img_square" width="25" height="25" alt="[Uncaptioned image]">, respectively.</p>
+</div>
+</section>
+<section id="Sx1" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<img src="/book-assets/deep-learning-perception/figs__code.png" id="Sx1.g1" class="ltx_graphics ltx_img_square" width="25" height="25" alt="[Uncaptioned image]"> Problem 1: Convolutional Neural Network (CNN)</h2>
+
+<div id="Sx1.p1" class="ltx_para">
+<p class="ltx_p">In this exercise you will implement a basic convolutional neural network and use it to classify images from the CIFAR-10 dataset.
+The CIFAR-10 dataset consists of a large number of small RGB images of objects belonging to ten different classes.
+In the notebook <span class="ltx_text ltx_font_typewriter">ch09/exercises/cnn.ipynb</span>, complete the following:</p>
+<ol id="Sx1.I1" class="ltx_enumerate">
+<li id="Sx1.I1.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">1.</span> 
+<div id="Sx1.I1.i1.p1" class="ltx_para">
+<p class="ltx_p">Run the provided code to load the CIFAR-10 dataset.
+Take a look at some of the sample images, what is the dimension of each image?</p>
+</div>
+</li>
+<li id="Sx1.I1.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">2.</span> 
+<div id="Sx1.I1.i2.p1" class="ltx_para">
+<p class="ltx_p">Complete the implementation of the <span class="ltx_text ltx_font_typewriter">SimpleCNN</span> class to define the model architecture.
+Specifically, your model should have two convolution layers with ReLU activation and max pooling.
+Use the provided values to define the parameters of each of the features, such as the convolution kernel size and number of output channels.
+Following the convolution layers, your model should have two fully connected layers separated by a ReLU activation.
+Use the provided value to define the dimension of the hidden layer, and you should be able to determine the appropriate size of the first fully connected layer input based on the last convolution layer output size.
+Additionally, implement the remaining code in the training loop to train your model using the provided <span class="ltx_text ltx_font_typewriter">criterion</span> and <span class="ltx_text ltx_font_typewriter">optimizer</span>.
+Run the provided code to train your model and evaluate the model’s performance on a test dataset.</p>
+</div>
+</li>
+<li id="Sx1.I1.i3" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">3.</span> 
+<div id="Sx1.I1.i3.p1" class="ltx_para">
+<p class="ltx_p">Run the provided code to display the confusion matrix from the test dataset results.
+What is this showing you?
+Are there any surprising results or does this match your intuition?</p>
+</div>
+</li>
+<li id="Sx1.I1.i4" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">4.</span> 
+<div id="Sx1.I1.i4.p1" class="ltx_para">
+<p class="ltx_p">How many parameters does your model have in total?</p>
+</div>
+</li>
+</ol>
+<p class="ltx_p"></p>
+</div>
+</section>

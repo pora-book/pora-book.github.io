@@ -1,0 +1,648 @@
+
+<div id="p1" class="ltx_para">
+<p class="ltx_p">The preceding parts of this book have endowed the robot with a comprehensive set of foundational competencies.
+In Part I, we explored how optimal control provides a powerful framework for generating and executing robot motion.
+Part II introduced the perceptual capabilities of the robot, examining the sensors and algorithms required to observe and interpret its environment.
+Part III endowed the robot with a representation of its own state within the world, covering the methods by which it estimates its pose and constructs maps of its surroundings.</p>
+</div>
+<div id="p2" class="ltx_para">
+<p class="ltx_p">In this chapter, and Part IV as a whole, we move to a higher level of abstraction: <em class="ltx_emph ltx_font_italic">robot decision-making</em>.
+Here, the focus of decision-making shifts from the fine-grained details of physical motion to the strategic choices a robot must make to achieve its long-term goals.
+To illustrate this distinction, consider a mission in which a robot must navigate from an initial location A to a pickup location B, retrieve a package, and deliver it to a destination C.
+Executing the motion from A to B relies on the planning and control techniques developed in Part I.
+Detecting and identifying the package requires the perceptual models of Part II, while successful navigation depends on the localization and mapping methods introduced in Part III.
+However, coordinating these capabilities—deciding to navigate first, then grasp the object, then proceed to the delivery location, and to monitor and recover from failures along the way—requires an additional layer of decision-making.
+This layer operates over a discrete set of task modes and action choices, complementing the robot’s continuous physical state.</p>
+</div>
+<div id="p3" class="ltx_para">
+<p class="ltx_p">In this chapter, we introduce <em class="ltx_emph ltx_font_italic">finite state machines</em> as a foundational framework for modeling and implementing discrete decision-making in robots<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">7</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">7.</span> Kaelbling, L., White, J., Abelson, H., Freeman, D., Lozano-Pérez, T., Chuang, I. <em>6.01SC: Introduction to Electrical Engineering and Computer Science I</em>. MIT OpenCourseWare, 2011.</span></span></span>.
+We begin by providing a mathematical definition of a finite state machine in Section&#160;<a href="#S1" title="16.1 A Mathematical Model of Discrete Decision-Making" class="ltx_ref"><span class="ltx_text ltx_ref_tag">16.1</span></a>, and then discuss some architecture options, computational challenges, and practical implementation approaches in Section&#160;<a href="#S2" title="16.2 Finite State Machine Architectures" class="ltx_ref"><span class="ltx_text ltx_ref_tag">16.2</span></a>.
+Finally, in Section&#160;<a href="#S3" title="16.3 Limitations of Finite State Machines" class="ltx_ref"><span class="ltx_text ltx_ref_tag">16.3</span></a>, we discuss the main limitations of finite state machines that motivate more advanced decision-making frameworks, which we explore in Chapters <span class="ltx_ref">the referenced item</span>-<span class="ltx_ref">the referenced item</span>.</p>
+</div>
+<section id="S1" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">16.1 </span>A Mathematical Model of Discrete Decision-Making</h2>
+
+<div id="S1.p1" class="ltx_para">
+<p class="ltx_p">Finite state machines (FSMs) are a computational modeling framework for systems that can be in one of a <em class="ltx_emph ltx_font_italic">finite</em> number of discrete states at any given time.
+This framework is used in a wide variety of disciplines, including electrical engineering, linguistics, computer science, philosophy, biology, and more.
+We can use FSMs in several different ways, including to <em class="ltx_emph ltx_font_italic">specify</em> a desired program or behavior, to <em class="ltx_emph ltx_font_italic">model and analyze</em> a system’s behavior, or to <em class="ltx_emph ltx_font_italic">predict future behavior</em>.</p>
+</div>
+<div id="S1.p2" class="ltx_para">
+<p class="ltx_p">Formally, we define a FSM by a finite set of states <math id="S1.p2.m1" class="ltx_Math" alttext="S" display="inline"><mi>S</mi></math>, an input alphabet <math id="S1.p2.m2" class="ltx_Math" alttext="I" display="inline"><mi>I</mi></math>, an output alphabet <math id="S1.p2.m3" class="ltx_Math" alttext="O" display="inline"><mi>O</mi></math>, a next–state function <math id="S1.p2.m4" class="ltx_Math" alttext="n:S\times I\to S" display="inline"><mrow><mi>n</mi><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mrow><mi>S</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>I</mi></mrow><mo stretchy="false">→</mo><mi>S</mi></mrow></mrow></math>, and an initial state <math id="S1.p2.m5" class="ltx_Math" alttext="s_{0}\in S" display="inline"><mrow><msub><mi>s</mi><mn>0</mn></msub><mo>∈</mo><mi>S</mi></mrow></math>.
+Additionally, we can define an output function according to two standard conventions:</p>
+<ul id="S1.I1" class="ltx_itemize">
+<li id="S1.I1.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="S1.I1.i1.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Mealy machine:</em> the output depends on the current state and the current input:</p>
+<table id="S1.Ex1" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex1.m1" class="ltx_Math" alttext="o:S\times I\to O,\qquad o_{t}=o(s_{t},i_{t})." display="block"><mrow><mrow><mi>o</mi><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mrow><mrow><mi>S</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>I</mi></mrow><mo stretchy="false">→</mo><mi>O</mi></mrow><mo rspace="2.167em">,</mo><mrow><msub><mi>o</mi><mi>t</mi></msub><mo>=</mo><mrow><mi>o</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mi>t</mi></msub><mo>,</mo><msub><mi>i</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+</li>
+<li id="S1.I1.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="S1.I1.i2.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Moore machine:</em> the output depends only on the current state:</p>
+<table id="S1.Ex2" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex2.m1" class="ltx_Math" alttext="\tilde{o}:S\to O,\qquad o_{t}=\tilde{o}(s_{t})." display="block"><mrow><mrow><mover accent="true"><mi>o</mi><mo>~</mo></mover><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mrow><mi>S</mi><mo stretchy="false">→</mo><mi>O</mi></mrow><mo rspace="2.167em">,</mo><mrow><msub><mi>o</mi><mi>t</mi></msub><mo>=</mo><mrow><mover accent="true"><mi>o</mi><mo>~</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+</li>
+</ul>
+<p class="ltx_p">Graphically, we represent states <math id="S1.p2.m6" class="ltx_Math" alttext="S" display="inline"><mi>S</mi></math> as nodes and admissible transitions as directed edges.
+For a Mealy machine, each edge is typically labeled with an input/output pair <math id="S1.p2.m7" class="ltx_Math" alttext="i/o" display="inline"><mrow><mi>i</mi><mo>/</mo><mi>o</mi></mrow></math>, indicating that when input <math id="S1.p2.m8" class="ltx_Math" alttext="i" display="inline"><mi>i</mi></math> is received in state <math id="S1.p2.m9" class="ltx_Math" alttext="s" display="inline"><mi>s</mi></math>, the machine moves along that edge to <math id="S1.p2.m10" class="ltx_Math" alttext="s^{\prime}=n(s,i)" display="inline"><mrow><msup><mi>s</mi><mo>′</mo></msup><mo>=</mo><mrow><mi>n</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>s</mi><mo>,</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></math> and produces output <math id="S1.p2.m11" class="ltx_Math" alttext="o\!=\!o(s,i)" display="inline"><mrow><mi>o</mi><mo lspace="0.108em" rspace="0.108em">=</mo><mrow><mi>o</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>s</mi><mo>,</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></math>.
+Equivalently, the output associated with a Mealy machine can be viewed as an annotation on each state–input pair <math id="S1.p2.m12" class="ltx_Math" alttext="(s,i)" display="inline"><mrow><mo stretchy="false">(</mo><mi>s</mi><mo>,</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></math>.
+For a Moore machine, edges are labeled only by inputs<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.p2.p1" class="ltx_para">
+<span class="ltx_p">Since outputs do not depend on inputs.</span>
+</span></span></span></span></span> and each node is annotated with its output value.</p>
+</div>
+<div id="S1.p3" class="ltx_para">
+<p class="ltx_p">In what follows, we adopt the Mealy convention.
+Unless stated otherwise, we assume a deterministic<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.p3.p1" class="ltx_para">
+<span class="ltx_p">In a deterministic FSM, each state has only one transition for each possible input.</span>
+</span></span></span></span></span> FSM with initial state <math id="S1.p3.m1" class="ltx_Math" alttext="s_{0}" display="inline"><msub><mi>s</mi><mn>0</mn></msub></math>, discrete time index <math id="S1.p3.m2" class="ltx_Math" alttext="t=0,1,2,\dots" display="inline"><mrow><mi>t</mi><mo>=</mo><mrow><mn>0</mn><mo>,</mo><mn>1</mn><mo>,</mo><mn>2</mn><mo>,</mo><mi mathvariant="normal">…</mi></mrow></mrow></math>, next state <math id="S1.p3.m3" class="ltx_Math" alttext="s_{t+1}=n(s_{t},i_{t})" display="inline"><mrow><msub><mi>s</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>=</mo><mrow><mi>n</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mi>t</mi></msub><mo>,</mo><msub><mi>i</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></math>, and output <math id="S1.p3.m4" class="ltx_Math" alttext="o_{t}=o(s_{t},i_{t})" display="inline"><mrow><msub><mi>o</mi><mi>t</mi></msub><mo>=</mo><mrow><mi>o</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mi>t</mi></msub><mo>,</mo><msub><mi>i</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></math>.
+This matches the graphical convention in Figure&#160;<a href="#S1.F1" title="Figure 16.1 ‣ 16.1 A Mathematical Model of Discrete Decision-Making" class="ltx_ref"><span class="ltx_text ltx_ref_tag">16.1</span></a>, where nodes are states, directed edges encode input-driven transitions, and edge labels include both the triggering input and the resulting output.</p>
+</div>
+<figure id="S1.F1" class="ltx_figure">
+<p class="ltx_p ltx_align_center"><img class="ltx_graphics ltx_centering" src="/book-assets/finite-state-machines/_tikz__finite-state-machines-1.svg" alt="diagram"></p>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 16.1</span>: </span><span class="ltx_text" style="font-size:90%;">A graphical representation of a FSM with states <math id="S1.F1.m6" class="ltx_Math" alttext="S=\{s_{0},s_{1},s_{2}\}" display="inline"><mrow><mi>S</mi><mo>=</mo><mrow><mo stretchy="false">{</mo><msub><mi>s</mi><mn>0</mn></msub><mo>,</mo><msub><mi>s</mi><mn>1</mn></msub><mo>,</mo><msub><mi>s</mi><mn>2</mn></msub><mo stretchy="false">}</mo></mrow></mrow></math>, inputs <math id="S1.F1.m7" class="ltx_Math" alttext="I=\{i_{0},i_{1},i_{2}\}" display="inline"><mrow><mi>I</mi><mo>=</mo><mrow><mo stretchy="false">{</mo><msub><mi>i</mi><mn>0</mn></msub><mo>,</mo><msub><mi>i</mi><mn>1</mn></msub><mo>,</mo><msub><mi>i</mi><mn>2</mn></msub><mo stretchy="false">}</mo></mrow></mrow></math> and outputs <math id="S1.F1.m8" class="ltx_Math" alttext="O=\{o_{0},o_{1}\}" display="inline"><mrow><mi>O</mi><mo>=</mo><mrow><mo stretchy="false">{</mo><msub><mi>o</mi><mn>0</mn></msub><mo>,</mo><msub><mi>o</mi><mn>1</mn></msub><mo stretchy="false">}</mo></mrow></mrow></math>.
+The directed edges correspond to the next-state functions and the output associated with each edge is defined by the output function.
+For example, in this FSM, we show the transition <math id="S1.F1.m9" class="ltx_Math" alttext="n(s_{0},i_{1})\xrightarrow{}s_{1}" display="inline"><mrow><mrow><mi>n</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mn>0</mn></msub><mo>,</mo><msub><mi>i</mi><mn>1</mn></msub><mo stretchy="false">)</mo></mrow></mrow><mover accent="true"><mo stretchy="false">→</mo><mi></mi></mover><msub><mi>s</mi><mn>1</mn></msub></mrow></math> in the top left, along with the corresponding output <math id="S1.F1.m10" class="ltx_Math" alttext="o(s_{0},i_{1})\xrightarrow{}o_{1}" display="inline"><mrow><mrow><mi>o</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mn>0</mn></msub><mo>,</mo><msub><mi>i</mi><mn>1</mn></msub><mo stretchy="false">)</mo></mrow></mrow><mover accent="true"><mo stretchy="false">→</mo><mi></mi></mover><msub><mi>o</mi><mn>1</mn></msub></mrow></math>.</span></figcaption>
+</figure>
+<div id="S1.Thmexample1" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 16.1.1</span></span><span class="ltx_text ltx_font_bold"> </span>(Parking Gate Control)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmexample1.p1" class="ltx_para">
+<p class="ltx_p">Consider a parking gate control problem where the goal is to raise the gate when a car arrives, and then lower the gate when the car has passed.
+We assume sensors (or software events) indicate when a car is detected/cleared at the gate and when the gate reaches its end stops.
+The control actions are raising, lowering, or holding the gate position fixed.
+Note that in the real world, the position and velocity of the gate can vary continuously between the <em class="ltx_emph ltx_font_italic">down</em> and <em class="ltx_emph ltx_font_italic">up</em> positions. However, we use a higher-level discrete abstraction for the overall logic.</p>
+</div>
+<figure id="S1.F2" class="ltx_figure">
+<p class="ltx_p ltx_align_center"><img class="ltx_graphics ltx_centering" src="/book-assets/finite-state-machines/_tikz__finite-state-machines-2.svg" alt="diagram"></p>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 16.2</span>: </span><span class="ltx_text" style="font-size:90%;">FSM for the parking gate controller. Edges are labeled <em class="ltx_emph ltx_font_italic">input / output</em>.</span></figcaption>
+</figure>
+<div id="S1.Thmexample1.p2" class="ltx_para">
+<p class="ltx_p">We model the FSM in Mealy style with states:</p>
+<table id="S1.Ex3" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex3.m1" class="ltx_Math" alttext="S\coloneqq\{\textsc{Down},\textsc{Raising},\textsc{Up},\textsc{Lowering}\}," display="block"><mrow><mrow><mi>S</mi><mo>≔</mo><mrow><mo stretchy="false">{</mo><mtext class="ltx_font_smallcaps">Down</mtext><mo>,</mo><mtext class="ltx_font_smallcaps">Raising</mtext><mo>,</mo><mtext class="ltx_font_smallcaps">Up</mtext><mo>,</mo><mtext class="ltx_font_smallcaps">Lowering</mtext><mo stretchy="false">}</mo></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">an input alphabet:</p>
+<table id="S1.Ex4" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex4.m1" class="ltx_Math" alttext="I\coloneqq\{\texttt{CAR\_DETECTED},\ \texttt{CAR\_CLEARED},\ \texttt{GATE\_AT%
+\_TOP},\ \texttt{GATE\_AT\_BOTTOM},\ \texttt{TICK}\}," display="block"><mrow><mrow><mi>I</mi><mo>≔</mo><mrow><mo stretchy="false">{</mo><mtext class="ltx_mathvariant_monospace">CAR_DETECTED</mtext><mo rspace="0.667em">,</mo><mtext class="ltx_mathvariant_monospace">CAR_CLEARED</mtext><mo rspace="0.667em">,</mo><mtext class="ltx_mathvariant_monospace">GATE_AT_TOP</mtext><mo rspace="0.667em">,</mo><mtext class="ltx_mathvariant_monospace">GATE_AT_BOTTOM</mtext><mo rspace="0.667em">,</mo><mtext class="ltx_mathvariant_monospace">TICK</mtext><mo stretchy="false">}</mo></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">and outputs:</p>
+<table id="S1.Ex5" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex5.m1" class="ltx_Math" alttext="O\coloneqq\{\texttt{RAISE},\ \texttt{LOWER},\ \texttt{HOLD}\}." display="block"><mrow><mrow><mi>O</mi><mo>≔</mo><mrow><mo stretchy="false">{</mo><mtext class="ltx_mathvariant_monospace">RAISE</mtext><mo rspace="0.667em">,</mo><mtext class="ltx_mathvariant_monospace">LOWER</mtext><mo rspace="0.667em">,</mo><mtext class="ltx_mathvariant_monospace">HOLD</mtext><mo stretchy="false">}</mo></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Here <span class="ltx_text ltx_font_typewriter">TICK</span> is a periodic control-cycle event that lets the machine command continuous motion between end-stop events.</p>
+</div>
+<div id="S1.Thmexample1.p3" class="ltx_para">
+<p class="ltx_p">We define the next-state and output maps <math id="S1.Thmexample1.p3.m1" class="ltx_Math" alttext="n(s,i)" display="inline"><mrow><mi>n</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>s</mi><mo>,</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></mrow></math> and <math id="S1.Thmexample1.p3.m2" class="ltx_Math" alttext="o(s,i)" display="inline"><mrow><mi>o</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>s</mi><mo>,</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></mrow></math> with representative rules:</p>
+<table id="S1.Ex6" class="ltx_equationgroup ltx_eqn_table">
+
+<tbody id="S1.Ex6X"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_eqn_cell"></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex6X.m2" class="ltx_Math" alttext="\displaystyle n(\textsc{Down},\texttt{CAR\_DETECTED})=\textsc{Raising},\quad" display="inline"><mrow><mrow><mrow><mi>n</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mtext class="ltx_font_smallcaps">Down</mtext><mo>,</mo><mtext class="ltx_mathvariant_monospace">CAR_DETECTED</mtext><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext class="ltx_font_smallcaps">Raising</mtext></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_td ltx_eqn_cell"></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex6X.m4" class="ltx_Math" alttext="\displaystyle o(\textsc{Down},\texttt{CAR\_DETECTED})=\texttt{RAISE}," display="inline"><mrow><mrow><mrow><mi>o</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mtext class="ltx_font_smallcaps">Down</mtext><mo>,</mo><mtext class="ltx_mathvariant_monospace">CAR_DETECTED</mtext><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext class="ltx_mathvariant_monospace">RAISE</mtext></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S1.Ex6Xa"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_eqn_cell"></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex6Xa.m2" class="ltx_Math" alttext="\displaystyle n(\textsc{Raising},\texttt{GATE\_AT\_TOP})=\textsc{Up},\quad" display="inline"><mrow><mrow><mrow><mi>n</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mtext class="ltx_font_smallcaps">Raising</mtext><mo>,</mo><mtext class="ltx_mathvariant_monospace">GATE_AT_TOP</mtext><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext class="ltx_font_smallcaps">Up</mtext></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_td ltx_eqn_cell"></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex6Xa.m4" class="ltx_Math" alttext="\displaystyle o(\textsc{Raising},\texttt{GATE\_AT\_TOP})=\texttt{HOLD}," display="inline"><mrow><mrow><mrow><mi>o</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mtext class="ltx_font_smallcaps">Raising</mtext><mo>,</mo><mtext class="ltx_mathvariant_monospace">GATE_AT_TOP</mtext><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext class="ltx_mathvariant_monospace">HOLD</mtext></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S1.Ex6Xb"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_eqn_cell"></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex6Xb.m2" class="ltx_Math" alttext="\displaystyle n(\textsc{Raising},\texttt{TICK})=\textsc{Raising},\quad" display="inline"><mrow><mrow><mrow><mi>n</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mtext class="ltx_font_smallcaps">Raising</mtext><mo>,</mo><mtext class="ltx_mathvariant_monospace">TICK</mtext><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext class="ltx_font_smallcaps">Raising</mtext></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_td ltx_eqn_cell"></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex6Xb.m4" class="ltx_Math" alttext="\displaystyle o(\textsc{Raising},\texttt{TICK})=\texttt{RAISE}," display="inline"><mrow><mrow><mrow><mi>o</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mtext class="ltx_font_smallcaps">Raising</mtext><mo>,</mo><mtext class="ltx_mathvariant_monospace">TICK</mtext><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext class="ltx_mathvariant_monospace">RAISE</mtext></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S1.Ex6Xc"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_eqn_cell"></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex6Xc.m2" class="ltx_Math" alttext="\displaystyle n(\textsc{Up},\texttt{CAR\_CLEARED})=\textsc{Lowering},\quad" display="inline"><mrow><mrow><mrow><mi>n</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mtext class="ltx_font_smallcaps">Up</mtext><mo>,</mo><mtext class="ltx_mathvariant_monospace">CAR_CLEARED</mtext><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext class="ltx_font_smallcaps">Lowering</mtext></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_td ltx_eqn_cell"></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex6Xc.m4" class="ltx_Math" alttext="\displaystyle o(\textsc{Up},\texttt{CAR\_CLEARED})=\texttt{LOWER}," display="inline"><mrow><mrow><mrow><mi>o</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mtext class="ltx_font_smallcaps">Up</mtext><mo>,</mo><mtext class="ltx_mathvariant_monospace">CAR_CLEARED</mtext><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext class="ltx_mathvariant_monospace">LOWER</mtext></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S1.Ex6Xd"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_eqn_cell"></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex6Xd.m2" class="ltx_Math" alttext="\displaystyle n(\textsc{Lowering},\texttt{GATE\_AT\_BOTTOM})=\textsc{Down},\quad" display="inline"><mrow><mrow><mrow><mi>n</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mtext class="ltx_font_smallcaps">Lowering</mtext><mo>,</mo><mtext class="ltx_mathvariant_monospace">GATE_AT_BOTTOM</mtext><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext class="ltx_font_smallcaps">Down</mtext></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_td ltx_eqn_cell"></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex6Xd.m4" class="ltx_Math" alttext="\displaystyle o(\textsc{Lowering},\texttt{GATE\_AT\_BOTTOM})=\texttt{HOLD}," display="inline"><mrow><mrow><mrow><mi>o</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mtext class="ltx_font_smallcaps">Lowering</mtext><mo>,</mo><mtext class="ltx_mathvariant_monospace">GATE_AT_BOTTOM</mtext><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext class="ltx_mathvariant_monospace">HOLD</mtext></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S1.Ex6Xe"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_eqn_cell"></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex6Xe.m2" class="ltx_Math" alttext="\displaystyle n(\textsc{Lowering},\texttt{TICK})=\textsc{Lowering},\quad" display="inline"><mrow><mrow><mrow><mi>n</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mtext class="ltx_font_smallcaps">Lowering</mtext><mo>,</mo><mtext class="ltx_mathvariant_monospace">TICK</mtext><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext class="ltx_font_smallcaps">Lowering</mtext></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_td ltx_eqn_cell"></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex6Xe.m4" class="ltx_Math" alttext="\displaystyle o(\textsc{Lowering},\texttt{TICK})=\texttt{LOWER}," display="inline"><mrow><mrow><mrow><mi>o</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mtext class="ltx_font_smallcaps">Lowering</mtext><mo>,</mo><mtext class="ltx_mathvariant_monospace">TICK</mtext><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext class="ltx_mathvariant_monospace">LOWER</mtext></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S1.Ex6Xf"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_eqn_cell"></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex6Xf.m2" class="ltx_Math" alttext="\displaystyle n(\textsc{Down},\texttt{TICK})=\textsc{Down},\quad" display="inline"><mrow><mrow><mrow><mi>n</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mtext class="ltx_font_smallcaps">Down</mtext><mo>,</mo><mtext class="ltx_mathvariant_monospace">TICK</mtext><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext class="ltx_font_smallcaps">Down</mtext></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_td ltx_eqn_cell"></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex6Xf.m4" class="ltx_Math" alttext="\displaystyle o(\textsc{Down},\texttt{TICK})=\texttt{HOLD}," display="inline"><mrow><mrow><mrow><mi>o</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mtext class="ltx_font_smallcaps">Down</mtext><mo>,</mo><mtext class="ltx_mathvariant_monospace">TICK</mtext><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext class="ltx_mathvariant_monospace">HOLD</mtext></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S1.Ex6Xg"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_eqn_cell"></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex6Xg.m2" class="ltx_Math" alttext="\displaystyle n(\textsc{Up},\texttt{TICK})=\textsc{Up},\quad" display="inline"><mrow><mrow><mrow><mi>n</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mtext class="ltx_font_smallcaps">Up</mtext><mo>,</mo><mtext class="ltx_mathvariant_monospace">TICK</mtext><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext class="ltx_font_smallcaps">Up</mtext></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_td ltx_eqn_cell"></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex6Xg.m4" class="ltx_Math" alttext="\displaystyle o(\textsc{Up},\texttt{TICK})=\texttt{HOLD}." display="inline"><mrow><mrow><mrow><mi>o</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mtext class="ltx_font_smallcaps">Up</mtext><mo>,</mo><mtext class="ltx_mathvariant_monospace">TICK</mtext><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext class="ltx_mathvariant_monospace">HOLD</mtext></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S1.Thmexample1.p4" class="ltx_para ltx_noindent">
+<p class="ltx_p">Figure&#160;<a href="#S1.F2" title="Figure 16.2 ‣ Example 16.1.1 (Parking Gate Control). ‣ 16.1 A Mathematical Model of Discrete Decision-Making" class="ltx_ref"><span class="ltx_text ltx_ref_tag">16.2</span></a> shows the graphical representation of the FSM.</p>
+</div>
+</div>
+</section>
+<section id="S2" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">16.2 </span>Finite State Machine Architectures</h2>
+
+<div id="S2.p1" class="ltx_para">
+<p class="ltx_p">One important practical disadvantage of FSMs is that their complexity does not scale well with system complexity, and, generally speaking, it can be time consuming and challenging to design FSMs for practical robotic systems.
+To reduce complexity as much as possible, we must carefully choose the appropriate set of states to represent the system, and even with a well-defined set of states the interactions and transitions between states can be complex and hard to specify.
+For example, Figure&#160;<a href="#S2.F3" title="Figure 16.3 ‣ 16.2 Finite State Machine Architectures" class="ltx_ref"><span class="ltx_text ltx_ref_tag">16.3</span></a> shows a graphical representation of the FSM for the popular open source flight software PX4<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.p1.p1" class="ltx_para">
+<span class="ltx_p">PX4 is a flight control software for drones and other unmanned vehicles. See <span class="ltx_ref ltx_nolink ltx_url ltx_font_typewriter ltx_ref_self"><a href="https://px4.io/" target="_blank" rel="noopener">https://px4.io/</a></span> for more information.</span>
+</span></span></span></span></span>.
+Specifying the full behavior for a system like this can lead to a complex FSM, even if there are not very many states.</p>
+</div>
+<figure id="S2.F3" class="ltx_figure"><img style="width:65%;height:auto" src="/book-assets/finite-state-machines/figs__ch19_figs__px4_state_machine.png" id="S2.F3.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 16.3</span>: </span><span class="ltx_text" style="font-size:90%;">A graphical representation of the FSM for PX4.
+We can see that even for a relatively small number of states, the FSM is quite complex in order to model the full behavior of the system.
+Image retrieved from diydrones.com.</span></figcaption>
+</figure>
+<div id="S2.p2" class="ltx_para">
+<p class="ltx_p">At a high level, three complementary techniques help manage this complexity:</p>
+<ul id="S2.I1" class="ltx_itemize">
+<li id="S2.I1.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="S2.I1.i1.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">State Minimization</em>, which merges behaviorally equivalent states to remove redundancy.</p>
+</div>
+</li>
+<li id="S2.I1.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="S2.I1.i2.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Hierarchical State Machines</em>, which allow states to be nested within other states to create a hierarchy of states.</p>
+</div>
+</li>
+<li id="S2.I1.i3" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="S2.I1.i3.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Composition</em>, where larger state machines are built from smaller, simpler state machines.</p>
+</div>
+</li>
+</ul>
+</div>
+<section id="S2.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">16.2.1 </span>State Minimization</h3>
+
+<div id="S2.SS1.p1" class="ltx_para">
+<p class="ltx_p">A standard way to reduce an FSM without changing its input–output behavior is <em class="ltx_emph ltx_font_italic">partition refinement</em>.
+Two states are <em class="ltx_emph ltx_font_italic">equivalent</em> if, for every input string, they produce the same output sequence (Mealy) or the same state outputs (Moore) and transition to equivalent states.
+Partition refinement starts from a coarse partition—states that are immediately distinguishable by their outputs—and repeatedly refines the blocks by splitting states whose next states fall into different blocks for some input.
+When the process reaches a fixed point, merging the states within each block yields a minimal machine with the same behavior.
+We provide an example of this procedure in Example&#160;<a href="#S2.Thmexample1" title="Example 16.2.1 (Finite State Machine State Reduction). ‣ 16.2.1 State Minimization ‣ 16.2 Finite State Machine Architectures" class="ltx_ref"><span class="ltx_text ltx_ref_tag">16.2.1</span></a>.</p>
+</div>
+<div id="S2.Thmexample1" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 16.2.1</span></span><span class="ltx_text ltx_font_bold"> </span>(Finite State Machine State Reduction)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S2.Thmexample1.p1" class="ltx_para">
+<p class="ltx_p">Consider a FSM that detects the input sequences 010 or 110.
+Table&#160;<a href="#S2.T1" title="Table 16.1 ‣ Example 16.2.1 (Finite State Machine State Reduction). ‣ 16.2.1 State Minimization ‣ 16.2 Finite State Machine Architectures" class="ltx_ref"><span class="ltx_text ltx_ref_tag">16.1</span></a> lists the next-state function and the output function for each state and input.
+We can see that the states are the partial sequences and a <em class="ltx_emph ltx_font_italic">Reset</em> state, <math id="S2.Thmexample1.p1.m1" class="ltx_Math" alttext="S\coloneqq\{0,1,00,01,10,11,\text{Reset}\}" display="inline"><mrow><mi>S</mi><mo>≔</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>,</mo><mn>00</mn><mo>,</mo><mn>01</mn><mo>,</mo><mn>10</mn><mo>,</mo><mn>11</mn><mo>,</mo><mtext>Reset</mtext><mo stretchy="false">}</mo></mrow></mrow></math>, the inputs are <math id="S2.Thmexample1.p1.m2" class="ltx_Math" alttext="I\coloneqq\{0,1\}" display="inline"><mrow><mi>I</mi><mo>≔</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false">}</mo></mrow></mrow></math>, and the outputs are the booleans <math id="S2.Thmexample1.p1.m3" class="ltx_Math" alttext="O\coloneqq\{\text{True},\text{False}\}" display="inline"><mrow><mi>O</mi><mo>≔</mo><mrow><mo stretchy="false">{</mo><mtext>True</mtext><mo>,</mo><mtext>False</mtext><mo stretchy="false">}</mo></mrow></mrow></math> that indicate if the sequence 010 or 110 has been created.
+For example, if the current partial sequence is 01 and a 0 is input, the next state will be the <em class="ltx_emph ltx_font_italic">Reset</em> state and the output will be <em class="ltx_emph ltx_font_italic">True</em>.</p>
+</div>
+<figure id="S2.T1" class="ltx_table">
+<table class="ltx_tabular ltx_centering ltx_align_middle">
+<tbody class="ltx_tbody">
+<tr class="ltx_tr">
+<td class="ltx_td ltx_align_left ltx_border_l ltx_border_r ltx_border_t">State, <math id="S2.T1.m1" class="ltx_Math" alttext="s" display="inline"><mi>s</mi></math>
+</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t"><math id="S2.T1.m2" class="ltx_Math" alttext="n(s,0)" display="inline"><mrow><mi>n</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>s</mi><mo>,</mo><mn>0</mn><mo stretchy="false">)</mo></mrow></mrow></math></td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t"><math id="S2.T1.m3" class="ltx_Math" alttext="n(s,1)" display="inline"><mrow><mi>n</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>s</mi><mo>,</mo><mn>1</mn><mo stretchy="false">)</mo></mrow></mrow></math></td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t"><math id="S2.T1.m4" class="ltx_Math" alttext="o(s,0)" display="inline"><mrow><mi>o</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>s</mi><mo>,</mo><mn>0</mn><mo stretchy="false">)</mo></mrow></mrow></math></td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t"><math id="S2.T1.m5" class="ltx_Math" alttext="o(s,1)" display="inline"><mrow><mi>o</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>s</mi><mo>,</mo><mn>1</mn><mo stretchy="false">)</mo></mrow></mrow></math></td>
+</tr>
+<tr class="ltx_tr">
+<td class="ltx_td ltx_align_left ltx_border_l ltx_border_r ltx_border_t">Reset</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">0</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">1</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">False</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">False</td>
+</tr>
+<tr class="ltx_tr">
+<td class="ltx_td ltx_align_left ltx_border_l ltx_border_r ltx_border_t">0</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">00</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">01</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">False</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">False</td>
+</tr>
+<tr class="ltx_tr">
+<td class="ltx_td ltx_align_left ltx_border_l ltx_border_r ltx_border_t">1</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">10</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">11</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">False</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">False</td>
+</tr>
+<tr class="ltx_tr">
+<td class="ltx_td ltx_align_left ltx_border_l ltx_border_r ltx_border_t">00</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">Reset</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">Reset</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">False</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">False</td>
+</tr>
+<tr class="ltx_tr">
+<td class="ltx_td ltx_align_left ltx_border_l ltx_border_r ltx_border_t">01</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">Reset</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">Reset</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">True</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">False</td>
+</tr>
+<tr class="ltx_tr">
+<td class="ltx_td ltx_align_left ltx_border_l ltx_border_r ltx_border_t">10</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">Reset</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">Reset</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">False</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">False</td>
+</tr>
+<tr class="ltx_tr">
+<td class="ltx_td ltx_align_left ltx_border_b ltx_border_l ltx_border_r ltx_border_t">11</td>
+<td class="ltx_td ltx_align_left ltx_border_b ltx_border_r ltx_border_t">Reset</td>
+<td class="ltx_td ltx_align_left ltx_border_b ltx_border_r ltx_border_t">Reset</td>
+<td class="ltx_td ltx_align_left ltx_border_b ltx_border_r ltx_border_t">True</td>
+<td class="ltx_td ltx_align_left ltx_border_b ltx_border_r ltx_border_t">False</td>
+</tr>
+</tbody>
+</table>
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_table"><span class="ltx_text" style="font-size:90%;">Table 16.1</span>: </span><span class="ltx_text" style="font-size:90%;">FSM for a sequence detector that accepts digits 0 and 1 and outputs True if the sequences 010 or 110 are generated.</span></figcaption>
+</figure>
+<div id="S2.Thmexample1.p2" class="ltx_para">
+<p class="ltx_p">We can now simplify this FSM by removing redundant states.
+To do so, we begin with the initial partition that groups states based on their output behavior:</p>
+<table id="S2.Ex7" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex7.m1" class="ltx_Math" alttext="\begin{split}\{\text{Reset},0,1,00,10\}&amp;:\text{always leads to a False output}%
+,\\
+\{01,11\}&amp;:\text{does not always lead to False output}.\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mo stretchy="false">{</mo><mtext>Reset</mtext><mo>,</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>,</mo><mn>00</mn><mo>,</mo><mn>10</mn><mo stretchy="false">}</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo lspace="0.278em" rspace="0.278em">:</mo><mtext>always leads to a False output</mtext></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mo stretchy="false">{</mo><mn>01</mn><mo>,</mo><mn>11</mn><mo stretchy="false">}</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo lspace="0.278em" rspace="0.278em">:</mo><mtext>does not always lead to False output</mtext></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">We then further partition these sets based on the next-state function until we cannot make any further partitions.
+In the first step, we partition the set <math id="S2.Thmexample1.p2.m1" class="ltx_Math" alttext="\{\text{Reset},0,1,00,10\}" display="inline"><mrow><mo stretchy="false">{</mo><mtext>Reset</mtext><mo>,</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>,</mo><mn>00</mn><mo>,</mo><mn>10</mn><mo stretchy="false">}</mo></mrow></math> into:</p>
+<table id="S2.Ex8" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex8.m1" class="ltx_Math" alttext="\begin{split}\{\text{Reset},00,10\}&amp;:\text{cannot transition to \{01,11\}},\\
+\{0,1\}&amp;:\text{can transition to \{01,11\}},\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mo stretchy="false">{</mo><mtext>Reset</mtext><mo>,</mo><mn>00</mn><mo>,</mo><mn>10</mn><mo stretchy="false">}</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo lspace="0.278em" rspace="0.278em">:</mo><mtext>cannot transition to {01,11}</mtext></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false">}</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo lspace="0.278em" rspace="0.278em">:</mo><mtext>can transition to {01,11}</mtext></mrow><mo>,</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">and then partition <math id="S2.Thmexample1.p2.m2" class="ltx_Math" alttext="\{\text{Reset},00,10\}" display="inline"><mrow><mo stretchy="false">{</mo><mtext>Reset</mtext><mo>,</mo><mn>00</mn><mo>,</mo><mn>10</mn><mo stretchy="false">}</mo></mrow></math> into:</p>
+<table id="S2.Ex9" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex9.m1" class="ltx_Math" alttext="\begin{split}\{\text{Reset}\}&amp;:\text{can transition to }\{0,1\},\\
+\{00,10\}&amp;:\text{cannot transition to }\{0,1\}.\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mo stretchy="false">{</mo><mtext>Reset</mtext><mo stretchy="false">}</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mtext>can transition to </mtext><mo>⁢</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false">}</mo></mrow></mrow></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mo stretchy="false">{</mo><mn>00</mn><mo>,</mo><mn>10</mn><mo stretchy="false">}</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mtext>cannot transition to </mtext><mo>⁢</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false">}</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">After applying the partition refinement procedure, the original seven states <math id="S2.Thmexample1.p2.m3" class="ltx_Math" alttext="\{0,\allowbreak 1,\allowbreak 00,\allowbreak 01,\allowbreak 10,\allowbreak 11,%
+\text{Reset}\}" display="inline"><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>,</mo><mn>00</mn><mo>,</mo><mn>01</mn><mo>,</mo><mn>10</mn><mo>,</mo><mn>11</mn><mo>,</mo><mtext>Reset</mtext><mo stretchy="false">}</mo></mrow></math> are reduced to four states, <math id="S2.Thmexample1.p2.m4" class="ltx_Math" alttext="S_{\text{new}}=\{\{01,11\},\allowbreak\{0,1\},\allowbreak\{00,10\},\allowbreak%
+\text{Reset}\}" display="inline"><mrow><msub><mi>S</mi><mtext>new</mtext></msub><mo>=</mo><mrow><mo stretchy="false">{</mo><mrow><mo stretchy="false">{</mo><mn>01</mn><mo>,</mo><mn>11</mn><mo stretchy="false">}</mo></mrow><mo>,</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false">}</mo></mrow><mo>,</mo><mrow><mo stretchy="false">{</mo><mn>00</mn><mo>,</mo><mn>10</mn><mo stretchy="false">}</mo></mrow><mo>,</mo><mtext>Reset</mtext><mo stretchy="false">}</mo></mrow></mrow></math>.
+The resulting machine, shown in Table&#160;<a href="#S2.T2" title="Table 16.2 ‣ Example 16.2.1 (Finite State Machine State Reduction). ‣ 16.2.1 State Minimization ‣ 16.2 Finite State Machine Architectures" class="ltx_ref"><span class="ltx_text ltx_ref_tag">16.2</span></a>, is therefore an equivalent<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.Thmexample1.p2.p1" class="ltx_para">
+<span class="ltx_p">Equivalent here meaning it has the same input–output behavior.</span>
+</span></span></span></span></span> but reduced FSM.</p>
+</div>
+<figure id="S2.T2" class="ltx_table">
+<table class="ltx_tabular ltx_centering ltx_guessed_headers ltx_align_middle">
+<thead class="ltx_thead">
+<tr class="ltx_tr">
+<th class="ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_l ltx_border_r ltx_border_t">State, <math id="S2.T2.m1" class="ltx_Math" alttext="s" display="inline"><mi>s</mi></math>
+</th>
+<th class="ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_r ltx_border_t"><math id="S2.T2.m2" class="ltx_Math" alttext="n(s,0)" display="inline"><mrow><mi>n</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>s</mi><mo>,</mo><mn>0</mn><mo stretchy="false">)</mo></mrow></mrow></math></th>
+<th class="ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_r ltx_border_t"><math id="S2.T2.m3" class="ltx_Math" alttext="n(s,1)" display="inline"><mrow><mi>n</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>s</mi><mo>,</mo><mn>1</mn><mo stretchy="false">)</mo></mrow></mrow></math></th>
+<th class="ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_r ltx_border_t"><math id="S2.T2.m4" class="ltx_Math" alttext="o(s,0)" display="inline"><mrow><mi>o</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>s</mi><mo>,</mo><mn>0</mn><mo stretchy="false">)</mo></mrow></mrow></math></th>
+<th class="ltx_td ltx_align_left ltx_th ltx_th_column ltx_border_r ltx_border_t"><math id="S2.T2.m5" class="ltx_Math" alttext="o(s,1)" display="inline"><mrow><mi>o</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>s</mi><mo>,</mo><mn>1</mn><mo stretchy="false">)</mo></mrow></mrow></math></th>
+</tr>
+</thead>
+<tbody class="ltx_tbody">
+<tr class="ltx_tr">
+<td class="ltx_td ltx_align_left ltx_border_l ltx_border_r ltx_border_t">Reset</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">{0,1}</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">{0,1}</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">False</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">False</td>
+</tr>
+<tr class="ltx_tr">
+<td class="ltx_td ltx_align_left ltx_border_l ltx_border_r ltx_border_t">{0,1}</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">{00,10}</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">{01,11}</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">False</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">False</td>
+</tr>
+<tr class="ltx_tr">
+<td class="ltx_td ltx_align_left ltx_border_l ltx_border_r ltx_border_t">{00,10}</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">Reset</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">Reset</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">False</td>
+<td class="ltx_td ltx_align_left ltx_border_r ltx_border_t">False</td>
+</tr>
+<tr class="ltx_tr">
+<td class="ltx_td ltx_align_left ltx_border_b ltx_border_l ltx_border_r ltx_border_t">{01,11}</td>
+<td class="ltx_td ltx_align_left ltx_border_b ltx_border_r ltx_border_t">Reset</td>
+<td class="ltx_td ltx_align_left ltx_border_b ltx_border_r ltx_border_t">Reset</td>
+<td class="ltx_td ltx_align_left ltx_border_b ltx_border_r ltx_border_t">True</td>
+<td class="ltx_td ltx_align_left ltx_border_b ltx_border_r ltx_border_t">False</td>
+</tr>
+</tbody>
+</table>
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_table"><span class="ltx_text" style="font-size:90%;">Table 16.2</span>: </span><span class="ltx_text" style="font-size:90%;">Reduced FSM for the 010 or 110 sequence detector.</span></figcaption>
+</figure>
+</div>
+</section>
+<section id="S2.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">16.2.2 </span>Hierarchical FSMs</h3>
+
+<div id="S2.SS2.p1" class="ltx_para">
+<p class="ltx_p">In some cases there are states that are not strictly equivalent but are closely related in behavior.
+A common way to manage such structure is to use <em class="ltx_emph ltx_font_italic">hierarchical finite state machines</em> (HFSMs), also known as <em class="ltx_emph ltx_font_italic">Statecharts</em><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">8</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">8.</span> Harel, D. “Statecharts: A visual formalism for complex systems.” <em>Science of Computer Programming</em> 8(3), 231–274, 1987.</span></span></span>.
+HFSMs introduce <em class="ltx_emph ltx_font_italic">super-states</em><span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.SS2.p1.p1" class="ltx_para">
+<span class="ltx_p">Also called <em class="ltx_emph ltx_font_italic">composite states</em>.</span>
+</span></span></span></span></span> that group together related states into a higher-level state, and <em class="ltx_emph ltx_font_italic">generalized transitions</em> that allow transitions to and from these super-states.
+This reduces diagram clutter and mitigates state explosion by allowing behavior to be factored and reused across related modes.
+Compared to flat FSMs, HFSMs support modularity, abstraction, and reuse of shared transitions at higher levels of the hierarchy.
+<span class="ltx_cite">Harel (1987)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">1</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">1.</span> Harel, D. “Statecharts: A visual formalism for complex systems.” <em>Science of Computer Programming</em> 8(3), 231–274, 1987.</span></span></span> and <span class="ltx_cite">Alur (2015)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">2</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">2.</span> Alur, R. <em>Algorithms for Decision Making</em>. MIT Press, 2015.</span></span></span> provide an in-depth treatment of hierarchical FSMs, including formal definitions, semantics, and algorithms for analysis and verification.</p>
+</div>
+</section>
+<section id="S2.SS3" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">16.2.3 </span>Compositions</h3>
+
+<div id="S2.SS3.p1" class="ltx_para">
+<p class="ltx_p">We can also compose individual state machines in a variety of ways depending on their input/output behavior, including <em class="ltx_emph ltx_font_italic">cascade</em> compositions, <em class="ltx_emph ltx_font_italic">parallel</em> compositions, and <em class="ltx_emph ltx_font_italic">feedback</em> compositions.</p>
+</div>
+<div id="S2.SS3.p2" class="ltx_para">
+<p class="ltx_p">An example of each of these composition types is shown in Figure&#160;<a href="#S2.F4" title="Figure 16.4 ‣ 16.2.3 Compositions ‣ 16.2 Finite State Machine Architectures" class="ltx_ref"><span class="ltx_text ltx_ref_tag">16.4</span></a>.</p>
+</div>
+<figure id="S2.F4" class="ltx_figure"><img style="width:80%;height:auto" src="/book-assets/finite-state-machines/figs__ch19_figs__compositions.png" id="S2.F4.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 16.4</span>: </span><span class="ltx_text" style="font-size:90%;">Cascade, parallel, and feedback compositions of FSMs.</span></figcaption>
+</figure>
+<section id="S2.SS3.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Cascade (serial) composition.</h4>
+
+<div id="S2.SS3.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">Let <math id="S2.SS3.SSS0.Px1.p1.m1" class="ltx_Math" alttext="M_{1}=(S_{1},I_{1},O_{1},n_{1},o_{1},s_{1,0})" display="inline"><mrow><msub><mi>M</mi><mn>1</mn></msub><mo>=</mo><mrow><mo stretchy="false">(</mo><msub><mi>S</mi><mn>1</mn></msub><mo>,</mo><msub><mi>I</mi><mn>1</mn></msub><mo>,</mo><msub><mi>O</mi><mn>1</mn></msub><mo>,</mo><msub><mi>n</mi><mn>1</mn></msub><mo>,</mo><msub><mi>o</mi><mn>1</mn></msub><mo>,</mo><msub><mi>s</mi><mrow><mn>1</mn><mo>,</mo><mn>0</mn></mrow></msub><mo stretchy="false">)</mo></mrow></mrow></math> and <math id="S2.SS3.SSS0.Px1.p1.m2" class="ltx_Math" alttext="M_{2}=(S_{2},\allowbreak I_{2},\allowbreak O_{2},\allowbreak n_{2},\allowbreak
+o%
+_{2},\allowbreak s_{2,0})" display="inline"><mrow><msub><mi>M</mi><mn>2</mn></msub><mo>=</mo><mrow><mo stretchy="false">(</mo><msub><mi>S</mi><mn>2</mn></msub><mo>,</mo><msub><mi>I</mi><mn>2</mn></msub><mo>,</mo><msub><mi>O</mi><mn>2</mn></msub><mo>,</mo><msub><mi>n</mi><mn>2</mn></msub><mo>,</mo><msub><mi>o</mi><mn>2</mn></msub><mo>,</mo><msub><mi>s</mi><mrow><mn>2</mn><mo>,</mo><mn>0</mn></mrow></msub><mo stretchy="false">)</mo></mrow></mrow></math> be two FSMs and assume a wiring map <math id="S2.SS3.SSS0.Px1.p1.m3" class="ltx_Math" alttext="\rho:O_{1}\to I_{2}" display="inline"><mrow><mi>ρ</mi><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><msub><mi>O</mi><mn>1</mn></msub><mo stretchy="false">→</mo><msub><mi>I</mi><mn>2</mn></msub></mrow></mrow></math> (often <math id="S2.SS3.SSS0.Px1.p1.m4" class="ltx_Math" alttext="\rho" display="inline"><mi>ρ</mi></math> is the identity after renaming).
+The cascade composition <math id="S2.SS3.SSS0.Px1.p1.m5" class="ltx_Math" alttext="M=M_{2}\circ_{\rho}M_{1}" display="inline"><mrow><mi>M</mi><mo>=</mo><mrow><msub><mi>M</mi><mn>2</mn></msub><msub><mo lspace="0.222em" rspace="0.222em">∘</mo><mi>ρ</mi></msub><msub><mi>M</mi><mn>1</mn></msub></mrow></mrow></math> is defined as the FSM <math id="S2.SS3.SSS0.Px1.p1.m6" class="ltx_Math" alttext="M=(S,I,O,n,o,s_{0})" display="inline"><mrow><mi>M</mi><mo>=</mo><mrow><mo stretchy="false">(</mo><mi>S</mi><mo>,</mo><mi>I</mi><mo>,</mo><mi>O</mi><mo>,</mo><mi>n</mi><mo>,</mo><mi>o</mi><mo>,</mo><msub><mi>s</mi><mn>0</mn></msub><mo stretchy="false">)</mo></mrow></mrow></math> where:</p>
+<table id="S2.E1" class="ltx_equationgroup ltx_eqn_table">
+<tbody>
+<tr id="S2.E1X" class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.E1X.m2" class="ltx_Math" alttext="\displaystyle S" display="inline"><mi>S</mi></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.E1X.m3" class="ltx_Math" alttext="\displaystyle=S_{1}\times S_{2}," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><msub><mi>S</mi><mn>1</mn></msub><mo lspace="0.222em" rspace="0.222em">×</mo><msub><mi>S</mi><mn>2</mn></msub></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="6" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equationgroup ltx_align_right">(16.1)</span></td>
+</tr>
+<tr id="S2.E1Xa" class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.E1Xa.m2" class="ltx_Math" alttext="\displaystyle I" display="inline"><mi>I</mi></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.E1Xa.m3" class="ltx_Math" alttext="\displaystyle=I_{1}," display="inline"><mrow><mrow><mi></mi><mo>=</mo><msub><mi>I</mi><mn>1</mn></msub></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr>
+<tr id="S2.E1Xb" class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.E1Xb.m2" class="ltx_Math" alttext="\displaystyle O" display="inline"><mi>O</mi></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.E1Xb.m3" class="ltx_Math" alttext="\displaystyle=O_{2}," display="inline"><mrow><mrow><mi></mi><mo>=</mo><msub><mi>O</mi><mn>2</mn></msub></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr>
+<tr id="S2.E1Xc" class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.E1Xc.m2" class="ltx_Math" alttext="\displaystyle n((s_{1},s_{2}),i)" display="inline"><mrow><mi>n</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mn>1</mn></msub><mo>,</mo><msub><mi>s</mi><mn>2</mn></msub><mo stretchy="false">)</mo></mrow><mo>,</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></mrow></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.E1Xc.m3" class="ltx_Math" alttext="\displaystyle=(n_{1}(s_{1},i),n_{2}(s_{2},\rho(o_{1}(s_{1},i))))," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>n</mi><mn>1</mn></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mn>1</mn></msub><mo>,</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></mrow><mo>,</mo><mrow><msub><mi>n</mi><mn>2</mn></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mn>2</mn></msub><mo>,</mo><mrow><mi>ρ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>o</mi><mn>1</mn></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mn>1</mn></msub><mo>,</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr>
+<tr id="S2.E1Xd" class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.E1Xd.m2" class="ltx_Math" alttext="\displaystyle o((s_{1},s_{2}),i)" display="inline"><mrow><mi>o</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mn>1</mn></msub><mo>,</mo><msub><mi>s</mi><mn>2</mn></msub><mo stretchy="false">)</mo></mrow><mo>,</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></mrow></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.E1Xd.m3" class="ltx_Math" alttext="\displaystyle=o_{2}(s_{2},\rho(o_{1}(s_{1},i)))," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><msub><mi>o</mi><mn>2</mn></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mn>2</mn></msub><mo>,</mo><mrow><mi>ρ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>o</mi><mn>1</mn></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mn>1</mn></msub><mo>,</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr>
+<tr id="S2.E1Xe" class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.E1Xe.m2" class="ltx_Math" alttext="\displaystyle s_{0}" display="inline"><msub><mi>s</mi><mn>0</mn></msub></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.E1Xe.m3" class="ltx_Math" alttext="\displaystyle=(s_{1,0},s_{2,0})." display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mrow><mn>1</mn><mo>,</mo><mn>0</mn></mrow></msub><mo>,</mo><msub><mi>s</mi><mrow><mn>2</mn><mo>,</mo><mn>0</mn></mrow></msub><mo stretchy="false">)</mo></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr>
+</tbody>
+</table>
+<p class="ltx_p">Intuitively, <math id="S2.SS3.SSS0.Px1.p1.m7" class="ltx_Math" alttext="M_{1}" display="inline"><msub><mi>M</mi><mn>1</mn></msub></math> processes the external input <math id="S2.SS3.SSS0.Px1.p1.m8" class="ltx_Math" alttext="i" display="inline"><mi>i</mi></math> and produces an output <math id="S2.SS3.SSS0.Px1.p1.m9" class="ltx_Math" alttext="o_{1}(s_{1},i)" display="inline"><mrow><msub><mi>o</mi><mn>1</mn></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mn>1</mn></msub><mo>,</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></mrow></math>, which is then fed into <math id="S2.SS3.SSS0.Px1.p1.m10" class="ltx_Math" alttext="M_{2}" display="inline"><msub><mi>M</mi><mn>2</mn></msub></math> as input via the wiring map <math id="S2.SS3.SSS0.Px1.p1.m11" class="ltx_Math" alttext="\rho" display="inline"><mi>ρ</mi></math>.</p>
+</div>
+</section>
+<section id="S2.SS3.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Parallel (synchronous) composition.</h4>
+
+<div id="S2.SS3.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">Parallel compositions combine two FSMs that share the same input alphabet and operate simultaneously on the same input.
+Let <math id="S2.SS3.SSS0.Px2.p1.m1" class="ltx_Math" alttext="M_{1}=(S_{1},I,O_{1},n_{1},o_{1},s_{1,0})" display="inline"><mrow><msub><mi>M</mi><mn>1</mn></msub><mo>=</mo><mrow><mo stretchy="false">(</mo><msub><mi>S</mi><mn>1</mn></msub><mo>,</mo><mi>I</mi><mo>,</mo><msub><mi>O</mi><mn>1</mn></msub><mo>,</mo><msub><mi>n</mi><mn>1</mn></msub><mo>,</mo><msub><mi>o</mi><mn>1</mn></msub><mo>,</mo><msub><mi>s</mi><mrow><mn>1</mn><mo>,</mo><mn>0</mn></mrow></msub><mo stretchy="false">)</mo></mrow></mrow></math> and <math id="S2.SS3.SSS0.Px2.p1.m2" class="ltx_Math" alttext="M_{2}=(S_{2},I,O_{2},n_{2},o_{2},s_{2,0})" display="inline"><mrow><msub><mi>M</mi><mn>2</mn></msub><mo>=</mo><mrow><mo stretchy="false">(</mo><msub><mi>S</mi><mn>2</mn></msub><mo>,</mo><mi>I</mi><mo>,</mo><msub><mi>O</mi><mn>2</mn></msub><mo>,</mo><msub><mi>n</mi><mn>2</mn></msub><mo>,</mo><msub><mi>o</mi><mn>2</mn></msub><mo>,</mo><msub><mi>s</mi><mrow><mn>2</mn><mo>,</mo><mn>0</mn></mrow></msub><mo stretchy="false">)</mo></mrow></mrow></math> be two FSMs with the same input alphabet <math id="S2.SS3.SSS0.Px2.p1.m3" class="ltx_Math" alttext="I" display="inline"><mi>I</mi></math>.
+The parallel composition <math id="S2.SS3.SSS0.Px2.p1.m4" class="ltx_Math" alttext="M=M_{1}\parallel M_{2}" display="inline"><mrow><mi>M</mi><mo>=</mo><mrow><msub><mi>M</mi><mn>1</mn></msub><mo>∥</mo><msub><mi>M</mi><mn>2</mn></msub></mrow></mrow></math> is defined as the FSM <math id="S2.SS3.SSS0.Px2.p1.m5" class="ltx_Math" alttext="M=(S,I,O,n,o,s_{0})" display="inline"><mrow><mi>M</mi><mo>=</mo><mrow><mo stretchy="false">(</mo><mi>S</mi><mo>,</mo><mi>I</mi><mo>,</mo><mi>O</mi><mo>,</mo><mi>n</mi><mo>,</mo><mi>o</mi><mo>,</mo><msub><mi>s</mi><mn>0</mn></msub><mo stretchy="false">)</mo></mrow></mrow></math> where:</p>
+<table id="S2.E2" class="ltx_equationgroup ltx_eqn_table">
+<tbody>
+<tr id="S2.E2X" class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.E2X.m2" class="ltx_Math" alttext="\displaystyle S" display="inline"><mi>S</mi></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.E2X.m3" class="ltx_Math" alttext="\displaystyle=S_{1}\times S_{2}," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><msub><mi>S</mi><mn>1</mn></msub><mo lspace="0.222em" rspace="0.222em">×</mo><msub><mi>S</mi><mn>2</mn></msub></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="6" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equationgroup ltx_align_right">(16.2)</span></td>
+</tr>
+<tr id="S2.E2Xa" class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.E2Xa.m2" class="ltx_Math" alttext="\displaystyle I" display="inline"><mi>I</mi></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.E2Xa.m3" class="ltx_Math" alttext="\displaystyle=I," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mi>I</mi></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr>
+<tr id="S2.E2Xb" class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.E2Xb.m2" class="ltx_Math" alttext="\displaystyle O" display="inline"><mi>O</mi></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.E2Xb.m3" class="ltx_Math" alttext="\displaystyle=O_{1}\times O_{2}," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><msub><mi>O</mi><mn>1</mn></msub><mo lspace="0.222em" rspace="0.222em">×</mo><msub><mi>O</mi><mn>2</mn></msub></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr>
+<tr id="S2.E2Xc" class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.E2Xc.m2" class="ltx_Math" alttext="\displaystyle n((s_{1},s_{2}),i)" display="inline"><mrow><mi>n</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mn>1</mn></msub><mo>,</mo><msub><mi>s</mi><mn>2</mn></msub><mo stretchy="false">)</mo></mrow><mo>,</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></mrow></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.E2Xc.m3" class="ltx_Math" alttext="\displaystyle=(n_{1}(s_{1},i),n_{2}(s_{2},i))," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>n</mi><mn>1</mn></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mn>1</mn></msub><mo>,</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></mrow><mo>,</mo><mrow><msub><mi>n</mi><mn>2</mn></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mn>2</mn></msub><mo>,</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr>
+<tr id="S2.E2Xd" class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.E2Xd.m2" class="ltx_Math" alttext="\displaystyle o((s_{1},s_{2}),i)" display="inline"><mrow><mi>o</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mn>1</mn></msub><mo>,</mo><msub><mi>s</mi><mn>2</mn></msub><mo stretchy="false">)</mo></mrow><mo>,</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></mrow></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.E2Xd.m3" class="ltx_Math" alttext="\displaystyle=(o_{1}(s_{1},i),o_{2}(s_{2},i))," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>o</mi><mn>1</mn></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mn>1</mn></msub><mo>,</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></mrow><mo>,</mo><mrow><msub><mi>o</mi><mn>2</mn></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mn>2</mn></msub><mo>,</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr>
+<tr id="S2.E2Xe" class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.E2Xe.m2" class="ltx_Math" alttext="\displaystyle s_{0}" display="inline"><msub><mi>s</mi><mn>0</mn></msub></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.E2Xe.m3" class="ltx_Math" alttext="\displaystyle=(s_{1,0},s_{2,0})." display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><mo stretchy="false">(</mo><msub><mi>s</mi><mrow><mn>1</mn><mo>,</mo><mn>0</mn></mrow></msub><mo>,</mo><msub><mi>s</mi><mrow><mn>2</mn><mo>,</mo><mn>0</mn></mrow></msub><mo stretchy="false">)</mo></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="S2.SS3.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Feedback composition.</h4>
+
+<div id="S2.SS3.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">Feedback compositions connect (part of) an FSM’s output back to its input, creating a closed-loop system.
+The closed-loop machine is well-defined if the induced equations have a unique solution for the input given the output.
+Otherwise, the feedback composition is said to be ill-formed.</p>
+</div>
+</section>
+</section>
+</section>
+<section id="S3" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">16.3 </span>Limitations of Finite State Machines</h2>
+
+<div id="S3.p1" class="ltx_para">
+<p class="ltx_p">FSMs provide a clear, simple, and formally verifiable framework for discrete decision-making, which makes them attractive for implementing basic robot behaviors.
+However, their effectiveness as the primary control architecture for complex autonomous robots is fundamentally limited.
+Although the architectural techniques discussed in Section&#160;<a href="#S2" title="16.2 Finite State Machine Architectures" class="ltx_ref"><span class="ltx_text ltx_ref_tag">16.2</span></a> can alleviate some practical issues, they do not address the core limitations of the FSM paradigm.
+In practice, FSMs are best suited to highly structured environments in which the set of relevant situations and required responses is small, predictable, and can be exhaustively anticipated by a designer.</p>
+</div>
+<div id="S3.p2" class="ltx_para">
+<p class="ltx_p">As the complexity of a robot’s task and environment increases, FSM-based systems become difficult to scale.
+The number of states required to accurately represent the system can grow combinatorially with the number of factors that influence decision-making, including both the robot’s internal operating mode and aspects of the external world such as object configurations or the behavior of other agents.</p>
+</div>
+<div id="S3.p3" class="ltx_para">
+<p class="ltx_p">FSMs also tend to exhibit brittle behavior when deployed outside the situations explicitly anticipated by their designers.
+Because all transitions and responses must be hand-specified, the robot can only react meaningfully to inputs for which logic has been defined in advance.
+When confronted with novel objects, unmodeled environmental changes, or unexpected sensor readings, the FSM lacks a mechanism for reasoning about new information or generalizing from prior experience.
+As a result, reliable performance is difficult to achieve in open-ended or dynamic environments without extensive manual engineering.</p>
+</div>
+<div id="S3.p4" class="ltx_para">
+<p class="ltx_p">Another limitation of FSMs is the absence of an intrinsic notion of optimality.
+Standard FSMs describe which behaviors are permissible, but they do not provide a formal way to evaluate or compare alternative actions in terms of cost, reward, or long-term objectives.
+While it is possible to encode heuristically chosen preferences through careful state and transition design, the FSM framework itself does not support principled decision-making based on the optimization of a defined performance criterion.
+The system simply executes the logic that has been predefined.</p>
+</div>
+<div id="S3.p5" class="ltx_para">
+<p class="ltx_p">Finally, the deterministic nature of FSMs makes them a poor match for the uncertainty inherent in real-world robotics.
+Sensor measurements are noisy, action outcomes are often stochastic, and the robot’s internal representation of the world is typically incomplete or approximate.
+Although designers can introduce states that qualitatively represent uncertainty, such as hypothesized or likely conditions, FSMs do not provide a principled mechanism for updating beliefs or making decisions based on probabilistic information.</p>
+</div>
+<div id="S3.p6" class="ltx_para">
+<p class="ltx_p">Taken together, these limitations—poor scalability, sensitivity to unanticipated situations, and the inability to reason explicitly about optimality and uncertainty—motivate the use of more expressive decision-making frameworks.
+In the next chapters, we will introduce decision-making frameworks which support optimization under stochastic dynamics, as well as extensions that address partial observability, and learning-based approaches that allow robots to acquire complex behaviors from data rather than relying solely on manual specification.</p>
+</div>
+</section>
+<section id="S4" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">16.4 </span>Summary</h2>
+
+<div id="S4.p1" class="ltx_para">
+<p class="ltx_p">In this chapter, we introduced finite state machines as a mathematical model for systems with discrete states and transitions.
+We defined the components of an FSM, including states, input and output alphabets, state transition functions, and output functions.
+We explored how FSMs can be represented using state diagrams and transition tables, providing visual and tabular representations of their behavior.
+Recognizing that FSMs can rapidly grow in complexity, we discussed three architectural strategies for managing this complexity: state minimization, hierarchical finite state machines, and mechanisms for composing FSMs.</p>
+</div>
+<section id="S4.SS0.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">To learn more.</h4>
+
+<div id="S4.SS0.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">For a rigorous and comprehensive introduction to finite state machines within the broader context of computation, a classic resource is the textbook by <span class="ltx_cite">Sipser (1996)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">3</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">3.</span> Sipser, M. <em>Introduction to the Theory of Computation</em>. International Thomson Publishing, 1996.</span></span></span> on the theory of computation.
+The seminal paper by <span class="ltx_cite">Harel (1987)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">4</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">4.</span> Harel, D. “Statecharts: A visual formalism for complex systems.” <em>Science of Computer Programming</em> 8(3), 231–274, 1987.</span></span></span> is essential reading for a deep understanding of hierarchical FSMs, which it introduced as Statecharts.
+For a more modern and formal textbook treatment of hybrid systems, including hierarchical and concurrent state machines, see <span class="ltx_cite">Alur (2015)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">5</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">5.</span> Alur, R. <em>Algorithms for Decision Making</em>. MIT Press, 2015.</span></span></span>.
+Finally, for the application of these concepts in the wider context of AI for robotics, we refer to the course by <span class="ltx_cite">Kaelbling et al. (2011)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">6</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">6.</span> Kaelbling, L., White, J., Abelson, H., Freeman, D., Lozano-Pérez, T., Chuang, I. <em>6.01SC: Introduction to Electrical Engineering and Computer Science I</em>. MIT OpenCourseWare, 2011.</span></span></span>.</p>
+</div>
+</section>
+</section>
+<section id="S5" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">16.5 </span>Exercises</h2>
+
+<div id="S5.p1" class="ltx_para">
+<p class="ltx_p">The starter code for the exercises provided below is available online through GitHub.
+To get started, download the code by running in a terminal window:</p>
+</div>
+<div id="S5.p2" class="ltx_para ltx_noindent">
+<div class="ltx_listing ltx_lst_language_bash ltx_lstlisting ltx_listing">
+<div class="ltx_listing_data"><a href="data:text/plain;base64,ICAgIGdpdCBjbG9uZSBodHRwczovL2dpdGh1Yi5jb20vU3RhbmZvcmRBU0wvcG9yYS1leGVyY2lzZXMuZ2l0" download="">⬇</a></div>
+<div id="lstnumberx1" class="ltx_listingline"><span class="ltx_text ltx_lst_space ltx_font_typewriter">    </span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">git</span><span class="ltx_text ltx_lst_space ltx_font_typewriter"> </span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">clone</span><span class="ltx_text ltx_lst_space ltx_font_typewriter"> </span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">https</span><span class="ltx_text ltx_font_typewriter">://</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">github</span><span class="ltx_text ltx_font_typewriter">.</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">com</span><span class="ltx_text ltx_font_typewriter">/</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">StanfordASL</span><span class="ltx_text ltx_font_typewriter">/</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">pora</span><span class="ltx_text ltx_font_typewriter">-</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">exercises</span><span class="ltx_text ltx_font_typewriter">.</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">git</span></div>
+</div>
+</div>
+<div id="S5.p3" class="ltx_para">
+<p class="ltx_p">We denote Problems requiring hand-written solutions and coding in Python with <img src="/book-assets/finite-state-machines/figs__write.png" id="S5.p3.g1" class="ltx_graphics ltx_img_square" width="26" height="28" alt="[Uncaptioned image]"> and <img src="/book-assets/finite-state-machines/figs__code.png" id="S5.p3.g2" class="ltx_graphics ltx_img_square" width="25" height="25" alt="[Uncaptioned image]">, respectively.</p>
+</div>
+</section>
+<section id="Sx1" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<img src="/book-assets/finite-state-machines/figs__write.png" id="Sx1.g1" class="ltx_graphics ltx_img_square" width="26" height="28" alt="[Uncaptioned image]"> Problem 1: State Machine</h2>
+
+<div id="Sx1.p1" class="ltx_para">
+<p class="ltx_p">In this problem, you will create a finite state machine for a simple autonomous machine of your choice.
+For the system of your choice, define the set of states <math id="Sx1.p1.m1" class="ltx_Math" alttext="S" display="inline"><mi>S</mi></math>, the input alphabet <math id="Sx1.p1.m2" class="ltx_Math" alttext="I" display="inline"><mi>I</mi></math>, the output alphabet <math id="Sx1.p1.m3" class="ltx_Math" alttext="O" display="inline"><mi>O</mi></math>, the next–state function <math id="Sx1.p1.m4" class="ltx_Math" alttext="n:S\times I\to S" display="inline"><mrow><mi>n</mi><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mrow><mi>S</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>I</mi></mrow><mo stretchy="false">→</mo><mi>S</mi></mrow></mrow></math>, and the initial state <math id="Sx1.p1.m5" class="ltx_Math" alttext="s_{0}\in S" display="inline"><mrow><msub><mi>s</mi><mn>0</mn></msub><mo>∈</mo><mi>S</mi></mrow></math>.
+Define the output function using the Mealy machine convention.
+Draw a diagram of the state machine similar to Figure&#160;<a href="#S1.F2" title="Figure 16.2 ‣ Example 16.1.1 (Parking Gate Control). ‣ 16.1 A Mathematical Model of Discrete Decision-Making" class="ltx_ref"><span class="ltx_text ltx_ref_tag">16.2</span></a>.</p>
+</div>
+</section>

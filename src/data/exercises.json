@@ -1,0 +1,272 @@
+{
+  "ch01": [
+    {
+      "name": "Double Integrator Dynamics",
+      "path": "ch01/exercises/double_integrator_dynamics.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch01/exercises/double_integrator_dynamics.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch01/exercises/double_integrator_dynamics.ipynb"
+    },
+    {
+      "name": "Nonholonomic Wheeled Robot Dynamics",
+      "path": "ch01/exercises/nonholonomic_wheeled_robot_dynamics.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch01/exercises/nonholonomic_wheeled_robot_dynamics.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch01/exercises/nonholonomic_wheeled_robot_dynamics.ipynb"
+    },
+    {
+      "name": "Simulation",
+      "path": "ch01/exercises/simulation.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch01/exercises/simulation.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch01/exercises/simulation.ipynb"
+    },
+    {
+      "name": "Numerical Integration",
+      "path": "ch01/numerical_integration.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch01/numerical_integration.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch01/numerical_integration.ipynb"
+    }
+  ],
+  "ch02": [
+    {
+      "name": "Differentially Flat Planar Quadrotor",
+      "path": "ch02/differentially_flat_planar_quadrotor.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch02/differentially_flat_planar_quadrotor.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch02/differentially_flat_planar_quadrotor.ipynb"
+    },
+    {
+      "name": "Unicycle Optimal Control",
+      "path": "ch02/exercises/unicycle_optimal_control.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch02/exercises/unicycle_optimal_control.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch02/exercises/unicycle_optimal_control.ipynb"
+    },
+    {
+      "name": "Free Final Time Optimal Control",
+      "path": "ch02/free_final_time_optimal_control.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch02/free_final_time_optimal_control.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch02/free_final_time_optimal_control.ipynb"
+    },
+    {
+      "name": "Tpbvp",
+      "path": "ch02/tpbvp.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch02/tpbvp.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch02/tpbvp.ipynb"
+    },
+    {
+      "name": "Zermelos Problem",
+      "path": "ch02/zermelos_problem.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch02/zermelos_problem.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch02/zermelos_problem.ipynb"
+    }
+  ],
+  "ch03": [
+    {
+      "name": "Cartpole Iterative Lqr",
+      "path": "ch03/exercises/cartpole_iterative_lqr.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch03/exercises/cartpole_iterative_lqr.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch03/exercises/cartpole_iterative_lqr.ipynb"
+    },
+    {
+      "name": "Cartpole Lqr Control",
+      "path": "ch03/exercises/cartpole_lqr_control.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch03/exercises/cartpole_lqr_control.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch03/exercises/cartpole_lqr_control.ipynb"
+    },
+    {
+      "name": "Linear Mpc",
+      "path": "ch03/exercises/linear_mpc.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch03/exercises/linear_mpc.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch03/exercises/linear_mpc.ipynb"
+    },
+    {
+      "name": "Pid Control",
+      "path": "ch03/exercises/pid_control.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch03/exercises/pid_control.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch03/exercises/pid_control.ipynb"
+    },
+    {
+      "name": "Unicycle Trajectory Tracking",
+      "path": "ch03/exercises/unicycle_trajectory_tracking.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch03/exercises/unicycle_trajectory_tracking.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch03/exercises/unicycle_trajectory_tracking.ipynb"
+    },
+    {
+      "name": "Jax Linearization",
+      "path": "ch03/jax_linearization.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch03/jax_linearization.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch03/jax_linearization.ipynb"
+    },
+    {
+      "name": "Lqr",
+      "path": "ch03/lqr.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch03/lqr.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch03/lqr.ipynb"
+    }
+  ],
+  "ch04": [
+    {
+      "name": "A Star",
+      "path": "ch04/exercises/a_star.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch04/exercises/a_star.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch04/exercises/a_star.ipynb"
+    },
+    {
+      "name": "Rrt",
+      "path": "ch04/exercises/rrt.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch04/exercises/rrt.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch04/exercises/rrt.ipynb"
+    },
+    {
+      "name": "Prm Star",
+      "path": "ch04/prm_star.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch04/prm_star.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch04/prm_star.ipynb"
+    }
+  ],
+  "ch06": [
+    {
+      "name": "Camera Extrinsics",
+      "path": "ch06/exercises/camera_extrinsics.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch06/exercises/camera_extrinsics.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch06/exercises/camera_extrinsics.ipynb"
+    },
+    {
+      "name": "Camera Intrinsics",
+      "path": "ch06/exercises/camera_intrinsics.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch06/exercises/camera_intrinsics.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch06/exercises/camera_intrinsics.ipynb"
+    },
+    {
+      "name": "Sift Feature Matching",
+      "path": "ch06/sift_feature_matching.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch06/sift_feature_matching.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch06/sift_feature_matching.ipynb"
+    }
+  ],
+  "ch08": [
+    {
+      "name": "Correlation Filter",
+      "path": "ch08/exercises/correlation_filter.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch08/exercises/correlation_filter.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch08/exercises/correlation_filter.ipynb"
+    },
+    {
+      "name": "Icp",
+      "path": "ch08/exercises/icp.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch08/exercises/icp.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch08/exercises/icp.ipynb"
+    }
+  ],
+  "ch09": [
+    {
+      "name": "Cnn",
+      "path": "ch09/exercises/cnn.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch09/exercises/cnn.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch09/exercises/cnn.ipynb"
+    }
+  ],
+  "ch10": [
+    {
+      "name": "Object Detection",
+      "path": "ch10/exercises/object_detection.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch10/exercises/object_detection.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch10/exercises/object_detection.ipynb"
+    }
+  ],
+  "ch11": [
+    {
+      "name": "Discrete Bayes",
+      "path": "ch11/discrete_bayes.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch11/discrete_bayes.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch11/discrete_bayes.ipynb"
+    }
+  ],
+  "ch12": [
+    {
+      "name": "Ekf Ukf Range Bearing",
+      "path": "ch12/ekf_ukf_range_bearing.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch12/ekf_ukf_range_bearing.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch12/ekf_ukf_range_bearing.ipynb"
+    },
+    {
+      "name": "Kalman Filter",
+      "path": "ch12/exercises/kalman_filter.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch12/exercises/kalman_filter.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch12/exercises/kalman_filter.ipynb"
+    }
+  ],
+  "ch13": [
+    {
+      "name": "Ekf Localization",
+      "path": "ch13/exercises/ekf_localization.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch13/exercises/ekf_localization.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch13/exercises/ekf_localization.ipynb"
+    },
+    {
+      "name": "Particle Filter Localization",
+      "path": "ch13/exercises/particle_filter_localization.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch13/exercises/particle_filter_localization.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch13/exercises/particle_filter_localization.ipynb"
+    }
+  ],
+  "ch14": [
+    {
+      "name": "Ekf Slam",
+      "path": "ch14/exercises/ekf_slam.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch14/exercises/ekf_slam.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch14/exercises/ekf_slam.ipynb"
+    },
+    {
+      "name": "Pose Graph Slam",
+      "path": "ch14/pose_graph_slam.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch14/pose_graph_slam.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch14/pose_graph_slam.ipynb"
+    },
+    {
+      "name": "Range Bearing Ekf Slam",
+      "path": "ch14/range_bearing_ekf_slam.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch14/range_bearing_ekf_slam.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch14/range_bearing_ekf_slam.ipynb"
+    }
+  ],
+  "ch15": [
+    {
+      "name": "Kalman Sensor Fusion",
+      "path": "ch15/exercises/kalman_sensor_fusion.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch15/exercises/kalman_sensor_fusion.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch15/exercises/kalman_sensor_fusion.ipynb"
+    }
+  ],
+  "ch17": [
+    {
+      "name": "Markovian Drone",
+      "path": "ch17/exercises/markovian_drone.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch17/exercises/markovian_drone.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch17/exercises/markovian_drone.ipynb"
+    }
+  ],
+  "ch18": [
+    {
+      "name": "Advantage Actor Critic",
+      "path": "ch18/exercises/advantage_actor_critic.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch18/exercises/advantage_actor_critic.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch18/exercises/advantage_actor_critic.ipynb"
+    },
+    {
+      "name": "Cartpole Balance",
+      "path": "ch18/exercises/cartpole_balance.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch18/exercises/cartpole_balance.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch18/exercises/cartpole_balance.ipynb"
+    },
+    {
+      "name": "Widget Sales",
+      "path": "ch18/exercises/widget_sales.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch18/exercises/widget_sales.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch18/exercises/widget_sales.ipynb"
+    },
+    {
+      "name": "Policy Iteration",
+      "path": "ch18/policy_iteration.ipynb",
+      "colab": "https://colab.research.google.com/github/StanfordASL/pora-exercises/blob/main/ch18/policy_iteration.ipynb",
+      "source": "https://github.com/StanfordASL/pora-exercises/blob/main/ch18/policy_iteration.ipynb"
+    }
+  ]
+}

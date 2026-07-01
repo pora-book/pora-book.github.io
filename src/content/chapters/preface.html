@@ -1,0 +1,232 @@
+
+<section id="Sx1" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">What is robot autonomy?</h2>
+
+<div id="Sx1.p1" class="ltx_para">
+<p class="ltx_p">Depending on one’s imagination, the term <em class="ltx_emph ltx_font_italic">robot</em> often evokes one of two extremes.
+For some, it conjures visions of fantastical do-it-all android butlers from various sci-fi futures, to this day brought to life only on the page or on the screen.
+These helpful servants are defined by their ability to deftly handle anything the world throws at them.
+Endowed with human (or even super-human!) levels of artificial intelligence, our aspirational creations are unbounded in creativity and resourcefulness for problem-solving.
+For others, the word <em class="ltx_emph ltx_font_italic">robot</em> refers instead to an assortment of mechatronic tools existing today, exemplified by the robotic arms and manipulators that have powered industry since the latter half of the twentieth century.
+This more practically-grounded interpretation is characterized by precision and control, not only in the machines themselves but also in the carefully structured environments in which they operate.
+Motion is optimized, and every element is arranged to occur exactly when and where it should.
+The production line is designed to admit no surprises, and in the rare event that there are, human supervisors intervene to restore nominal operation.</p>
+</div>
+<div id="Sx1.p2" class="ltx_para">
+<p class="ltx_p">In recent decades, however, a middle ground between these two extremes has begun to take shape.
+As illustrated in Figure&#160;<a href="#Sx1.F1" title="Figure 1 ‣ What is robot autonomy?" class="ltx_ref"><span class="ltx_text ltx_ref_tag">1</span></a>, contemporary systems—including the growing presence of self-driving cars, follow-me aerial drones, legged and humanoid robots, and free-flying space robots—demonstrate capabilities that lie between rigid industrial automation and fully general artificial agents.
+In the course of their operation, such robots inevitably encounter novel situations and unanticipated combinations of tasks and constraints.
+These cannot be exhaustively specified in advance, nor can they rely on continuous human supervision to resolve every contingency.
+Instead, their functionality depends on an ability to act independently in the face of uncertainty and change.
+In this sense, a defining feature of these systems is that they must exhibit some degree of <em class="ltx_emph ltx_font_italic">autonomy</em>.</p>
+</div>
+<div id="Sx1.p3" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Robot autonomy</em> refers to a robot’s capacity to perceive its environment and to act in pursuit of its objectives without direct external guidance, particularly from human operators.
+Central to this capability is the ability to make decisions based on an evolving understanding of the environment and its relation to the robot’s goals.
+This understanding is informed by a continual stream of sensory data, which is itself shaped by the robot’s actions as it moves through and interacts with its surroundings.
+This feedback loop connecting perception and action is what enables robots to operate in unstructured and uncertain scenarios, where the ability to react and replan is paramount.</p>
+</div>
+<figure id="Sx1.F1" class="ltx_figure">
+<div class="ltx_flex_figure">
+<div class="ltx_flex_cell ltx_flex_size_3">
+<figure id="Sx1.F1.sf1" class="ltx_figure ltx_figure_panel ltx_align_center"><img src="/book-assets/preface/figs__ch00_figs__waymo.jpg" id="Sx1.F1.sf1.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">(a)</span> </span><span class="ltx_text" style="font-size:90%;">Waymo self-driving car.</span></figcaption>
+</figure>
+</div>
+<div class="ltx_flex_cell ltx_flex_size_3">
+<figure id="Sx1.F1.sf2" class="ltx_figure ltx_figure_panel ltx_align_center"><img src="/book-assets/preface/figs__ch00_figs__astrobee.jpg" id="Sx1.F1.sf2.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">(b)</span> </span><span class="ltx_text" style="font-size:90%;">NASA’s Astrobee robot.</span></figcaption>
+</figure>
+</div>
+<div class="ltx_flex_cell ltx_flex_size_3">
+<figure id="Sx1.F1.sf3" class="ltx_figure ltx_figure_panel ltx_align_center"><img src="/book-assets/preface/figs__ch00_figs__spotmini.jpg" id="Sx1.F1.sf3.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">(c)</span> </span><span class="ltx_text" style="font-size:90%;">Boston Dynamics SpotMini.</span></figcaption>
+</figure>
+</div>
+<div class="ltx_flex_break"></div>
+<div class="ltx_flex_cell ltx_flex_size_3">
+<figure id="Sx1.F1.sf4" class="ltx_figure ltx_figure_panel ltx_align_center"><img src="/book-assets/preface/figs__ch00_figs__humanoid.jpg" id="Sx1.F1.sf4.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">(d)</span> </span><span class="ltx_text" style="font-size:90%;">Tesla Optimus humanoid robot.</span></figcaption>
+</figure>
+</div>
+<div class="ltx_flex_cell ltx_flex_size_3">
+<figure id="Sx1.F1.sf5" class="ltx_figure ltx_figure_panel ltx_align_center"><img src="/book-assets/preface/figs__ch00_figs__starship.jpg" id="Sx1.F1.sf5.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">(e)</span> </span><span class="ltx_text" style="font-size:90%;">Starship delivery robot.</span></figcaption>
+</figure>
+</div>
+<div class="ltx_flex_cell ltx_flex_size_3">
+<figure id="Sx1.F1.sf6" class="ltx_figure ltx_figure_panel ltx_align_center"><img src="/book-assets/preface/figs__ch00_figs__skydio.jpg" id="Sx1.F1.sf6.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">(f)</span> </span><span class="ltx_text" style="font-size:90%;">Skydio follow-me drone.</span></figcaption>
+</figure>
+</div>
+</div>
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 1</span>: </span><span class="ltx_text" style="font-size:90%;">Autonomous robots deployed around the world (and in the skies above!) today.</span></figcaption>
+</figure>
+</section>
+<section id="Sx2" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">Autonomy vs. Automation vs. Artificial Intelligence</h2>
+
+<div id="Sx2.p1" class="ltx_para">
+<p class="ltx_p">The notion of robot autonomy developed in this textbook overlaps with, but should not be conflated with, the broader and more established field of <em class="ltx_emph ltx_font_italic">automation</em>, nor the rapidly evolving field of <em class="ltx_emph ltx_font_italic">embodied artificial intelligence (AI)</em>.
+At a high level, what distinguishes autonomy as a subset of automation technologies is its emphasis on active decision making.
+More generally, <em class="ltx_emph ltx_font_italic">automation</em> refers to the reduction or elimination of human involvement in the execution of tasks through a combination of different technologies.
+In many cases, it is advantageous to constrain the task domain or impose additional structure on the environment so as to eliminate the need for autonomous decision-making during operation.
+This is not to say that automation technologies are incapable of handling variation; rather, such variations are typically anticipated during design, with predefined responses or safeguards incorporated in advance.
+For instance, while the exact motor commands executed by a robotic welding system may not be explicitly prescribed—since the required levels of precision often necessitate closed-loop (feedback) control—the surrounding factory environment is carefully engineered in conjunction with the robot to ensure reliability and efficiency.
+This co-design of robot and workspace is a hallmark of classical automation.
+Beyond industrial manufacturing, well-established examples of automation include visual servoing, process control, and Computer Numerical Control (CNC) machine tools.
+In contrast, autonomous robotic systems are generally designed under weaker assumptions about environmental structure.
+Consequently, they must be endowed with the ability to understand their surroundings, reason, and implement novel courses of action.</p>
+</div>
+<div id="Sx2.p2" class="ltx_para">
+<p class="ltx_p">On the other hand, the term <em class="ltx_emph ltx_font_italic">artificial intelligence</em> refers to the broad goal of creating systems capable of perceiving, reasoning, planning, and problem-solving in ways that parallel, or exceed, human capabilities.
+Within robotics, AI provides many of the computational tools that enable autonomy.
+Classically, these have taken the form of algorithms that perform structured reasoning or search over well-defined spaces of possibilities.
+More recently, however, the term AI has become closely associated with data-driven methods, particularly machine learning (ML), in which systems acquire capabilities from data rather than through explicit programming.
+<em class="ltx_emph ltx_font_italic">Embodied</em> AI, also referred to as <em class="ltx_emph ltx_font_italic">physical</em> AI, extends this paradigm by grounding intelligence in a physical instantiation, or embodiment, that interacts with the world rather than existing solely in a virtual or abstract form.
+This perspective has recently been accompanied by a shift toward <em class="ltx_emph ltx_font_italic">end-to-end</em> system design, where the classical boundaries between perception, estimation, planning, and control are increasingly blurred or replaced by unified models.
+Such models learn direct mappings from sensory inputs to actions, high-level decisions, or even predictions of future outcomes.
+Prominent examples include <em class="ltx_emph ltx_font_italic">vision-language-action</em> (VLA) models, which integrate multimodal input streams with action generation, and emerging <em class="ltx_emph ltx_font_italic">world models</em>, which learn to predict the future evolution of the environment from rich sensory data such as images and video, often at internet scale.
+As a result, modern approaches to robot autonomy span a spectrum, ranging from structured, model-based pipelines to fully learned, end-to-end systems.
+In this textbook, we present both human-designed algorithms and machine-learned approaches to provide a unified and comprehensive view of the available methods—and because, in practice, it is often valuable to combine these approaches to various degrees depending on the application at hand.</p>
+</div>
+</section>
+<section id="Sx3" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">How is robot autonomy achieved?</h2>
+
+<div id="Sx3.p1" class="ltx_para">
+<p class="ltx_p">Robot autonomy is in its essence an interdisciplinary endeavor.
+While many areas of science and engineering often benefit from the exchange of ideas across fields, robot autonomy is fundamentally defined by the integration of techniques from multiple domains.
+It is, by its very nature, a synthesis of computer vision, estimation theory, artificial intelligence, and control theory, just to name a few.
+The science and practice drawn from each of these domains form critical components of the modern autonomy <em class="ltx_emph ltx_font_italic">stack</em>, a term which in itself emphasizes the multifaceted, multi-component structure through which a robot perceives, reasons about, and interacts with its environment.
+At a high level, robot autonomy can be understood as requiring three fundamental capabilities:</p>
+<ul id="Sx3.I1" class="ltx_itemize">
+<li id="Sx3.I1.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="Sx3.I1.i1.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">See:</em> A robot uses sensors, such as cameras, laser scanners, global positioning system measurements, and motor feedback, to collect raw data about its surroundings.
+These signals are processed to extract semantic and geometric information of the robot’s state and its environment.</p>
+</div>
+</li>
+<li id="Sx3.I1.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="Sx3.I1.i2.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Think:</em> Building on these local perceptual signals, a robot first synthesizes sensor data over time into a coherent global estimate of its state in the environment, typically through filtering, localization, and mapping.
+On top of this estimate, it performs higher-level reasoning and decision-making, selecting behaviors that advance both immediate objectives and longer-horizon mission goals.</p>
+</div>
+</li>
+<li id="Sx3.I1.i3" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="Sx3.I1.i3.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Act:</em> A robot executes these higher-level decisions by translating them into physically realizable motions through trajectory generation and motion planning.
+These planned motions are then realized at the actuator level through control laws that are typically feedback-based and closed-loop, enabling robust execution despite disturbances, model mismatch, and uncertainty.</p>
+</div>
+</li>
+</ul>
+</div>
+<figure id="Sx3.F2" class="ltx_figure">
+<p class="ltx_p ltx_align_center"><img class="ltx_graphics ltx_centering" src="/book-assets/preface/_tikz__preface-1.svg" alt="diagram"></p>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 2</span>: </span><span class="ltx_text" style="font-size:90%;">The <em class="ltx_emph ltx_font_italic">See-Think-Act</em> cycle. In the <em class="ltx_emph ltx_font_italic">See</em> stage, raw sensor signals are processed into local semantic and geometric observations. In the <em class="ltx_emph ltx_font_italic">Think</em> stage, these observations are integrated over time to form a global estimate of the robot’s state and environment, which supports higher-level decision-making. In the <em class="ltx_emph ltx_font_italic">Act</em> stage, decisions are translated into feasible trajectories and motion plans, and executed through actuator-level feedback control.</span></figcaption>
+</figure>
+<div id="Sx3.p2" class="ltx_para">
+<p class="ltx_p">The <em class="ltx_emph ltx_font_italic">See–Think–Act</em> paradigm provides a high-level blueprint for robot autonomy and is conceptually aligned with established human decision-making cycles such as the observe–orient–decide–act (OODA) loop and the plan–do–check–act (PDCA) cycle, used in domains ranging from business to military strategy.
+Most modern autonomy stacks adopt some form of <em class="ltx_emph ltx_font_italic">See–Think–Act</em> as the foundation for their behavior, although the specific implementation can vary widely depending on the intended application.
+Indeed, designing this stack is a central responsibility of the roboticist.
+In practice, the stages of this pipeline are often combined or treated implicitly.
+This is particularly evident in emerging end-to-end approaches, where the explicit boundaries between <em class="ltx_emph ltx_font_italic">See</em>, <em class="ltx_emph ltx_font_italic">Think</em>, and <em class="ltx_emph ltx_font_italic">Act</em> are increasingly blurred.
+However, this shift does not eliminate the underlying functional roles these components play; rather, it reflects a different way of organizing them, where, ultimately, an autonomous robot must still possess each of these capabilities to some degree in order to operate effectively.</p>
+</div>
+<div id="Sx3.p3" class="ltx_para">
+<p class="ltx_p">The steps of <em class="ltx_emph ltx_font_italic">See-Think-Act</em> are typically presented as a loop, where the actions executed by a robot influence the observations it receives at the next cycle.
+Ideally, these observations are consistent with the robot’s expectations under its current plan.
+Closing the loop, however, is essential for providing corrective feedback, enabling the robot to adapt to previously unseen or unexpected changes in its environment.
+In this way, updates to situational understanding lead to revisions of the current plan, which in turn inform the selection of the next action, ultimately generating new observations that initiate the cycle once again.</p>
+</div>
+<div id="Sx3.p4" class="ltx_para">
+<p class="ltx_p">In practice, however, this abstract loop is rarely implemented as a single, sequential process.
+Instead, it is realized as a network of asynchronously operating components that run at different rates while continually incorporating the most up-to-date information available.
+Consider the example of a quadrotor drone.
+Object detection modules may process each incoming camera frame at around 30Hz and feed into object trackers operating at a similar rate, while more computationally intensive tasks, such as maintaining a 3D map of the environment, may update more slowly, on the order of 2Hz.
+The most recent outputs from these <em class="ltx_emph ltx_font_italic">See</em> components can then inform a trajectory planner running at approximately 10Hz, which generates motion plans that account for both static and dynamic obstacles.
+At the lowest level, a flight controller tracks the planned trajectory and operates at a much higher frequency, often around 200Hz, using high-rate inertial measurements from accelerometers and gyroscopes that may reach 1000Hz.
+Each component in this system consumes inputs either directly from sensors or from other components, and produces outputs that are used elsewhere in the stack or ultimately translated into actuation commands.
+Rather than viewing autonomy as a single closed loop, it is therefore more useful to think of the system as a graph: nodes correspond to functional components, and edges represent the flow of information between them.
+To make this abstraction concrete, and in the accompanying programming exercises, we will assume that communication between components is handled through the Robot Operating System (ROS), a widely used framework in both academic research and industry practice.</p>
+</div>
+</section>
+<section id="Sx4" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">Learning objectives</h2>
+
+<div id="Sx4.p1" class="ltx_para">
+<p class="ltx_p">This book has evolved from the course notes for the series of classes <em class="ltx_emph ltx_font_italic">Principles of Robot Autonomy</em>, taught annually at Stanford University since Winter 2017.
+The course was initiated in response to the growing deployment of self-driving cars, drones, and mobile robots more broadly, signaling a transition of robot autonomy from a primarily academic pursuit to a collection of mature, field-tested tools and techniques on which practitioners can depend.
+The aim of this book is therefore to equip the reader with a principled understanding of the theoretical, algorithmic, and practical aspects underlying modern robot autonomy.
+This is arguably an ever-moving target, particularly on the implementation side, as software tools and system abstractions continue to evolve.
+Nevertheless, because the performance of an autonomy stack depends critically on effective system integration, these practical considerations are essential and cannot be overlooked; accordingly, the <em class="ltx_emph ltx_font_italic">Robot Autonomy Software</em> chapter provides an orienting overview of the software principles and ROS-based implementation paradigms that underpin modern robotic systems.</p>
+</div>
+<div id="Sx4.p2" class="ltx_para">
+<p class="ltx_p">At the same time, many of the fundamental principles for endowing mobile autonomous robots with perception, planning, and decision-making capabilities are now well established.
+The chapters that follow present the core techniques in modeling and control, motion planning and trajectory optimization, object detection and tracking, state estimation, simultaneous localization and mapping (SLAM), deep learning for perception and decision making, reinforcement learning, imitation learning, and more.
+These methods are supported by mathematical tools drawn from optimization theory, geometry and coordinate transformations, filtering theory, machine learning, statistical learning theory, deep learning, and broader artificial intelligence.
+By developing familiarity with these foundational tools, the reader will gain a coherent understanding of the broader autonomy stack, and will be well prepared to contribute new methods and ideas to the evolving field of robot autonomy.</p>
+</div>
+</section>
+<section id="Sx5" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">Structure of the book</h2>
+
+<div id="Sx5.p1" class="ltx_para">
+<p class="ltx_p">Before proceeding, let us outline the structure of the book and how the material is organized.
+We begin with the <em class="ltx_emph ltx_font_italic">Robot Autonomy Software</em> chapter, which provides an overview of the software principles and tools that underpin modern robotic systems.
+In particular, we introduce ROS and the computational abstractions used throughout the text.
+While not strictly part of the autonomy stack itself, this material serves as an essential foundation for understanding how the algorithms presented in later chapters are implemented in practice.
+The book is then organized into four parts, which reflect key aspects of the <em class="ltx_emph ltx_font_italic">See–Think–Act</em> paradigm illustrated in Figure&#160;<a href="#Sx3.F2" title="Figure 2 ‣ How is robot autonomy achieved?" class="ltx_ref"><span class="ltx_text ltx_ref_tag">2</span></a>.</p>
+</div>
+<div id="Sx5.p2" class="ltx_para">
+<p class="ltx_p">Part I, <em class="ltx_emph ltx_font_italic">Robot Motion Planning and Control</em>, focuses on the <em class="ltx_emph ltx_font_italic">Act</em> portion of the autonomy stack, covering modeling, control, trajectory generation, and motion planning.
+We begin here deliberately.
+By grounding the discussion in how robots ultimately produce motion, we establish a concrete understanding of the final outcome of autonomy, introduce core notation and system models, and provide a pedagogical foundation upon which higher-level reasoning can be built.</p>
+</div>
+<div id="Sx5.p3" class="ltx_para">
+<p class="ltx_p">Part II, <em class="ltx_emph ltx_font_italic">Robot Perception</em>, corresponds to the <em class="ltx_emph ltx_font_italic">See</em> stage.
+It develops the tools required for extracting meaningful information from raw sensor data, including camera modeling, geometric perception, and modern learning-based approaches for detection and recognition.</p>
+</div>
+<div id="Sx5.p4" class="ltx_para">
+<p class="ltx_p">Part III, <em class="ltx_emph ltx_font_italic">Robot Localization and Mapping</em>, bridges perception and reasoning by addressing state estimation, filtering, and SLAM, forming a critical component of the <em class="ltx_emph ltx_font_italic">Think</em> stage.</p>
+</div>
+<div id="Sx5.p5" class="ltx_para">
+<p class="ltx_p">Finally, Part IV, <em class="ltx_emph ltx_font_italic">Robot Decision Making</em>, focuses on higher-level reasoning and planning under uncertainty, including sequential decision-making, dynamic programming, reinforcement learning, and imitation learning.</p>
+</div>
+<div id="Sx5.p6" class="ltx_para">
+<p class="ltx_p">The book concludes with a <em class="ltx_emph ltx_font_italic">Prospects</em> chapter, which reflects on the broader trajectory of the field. There, we revisit the <em class="ltx_emph ltx_font_italic">See–Think–Act</em> paradigm and discuss emerging directions.</p>
+</div>
+<div id="Sx5.p7" class="ltx_para">
+<p class="ltx_p">A central emphasis of this book is learning by doing.
+To that end, most chapters are accompanied by interactive Python implementations in Jupyter Notebooks that allow the reader to experiment directly with the concepts and algorithms presented in the text.
+These notebooks are designed to complement the theoretical material, providing hands-on intuition and practical experience.
+In addition, each chapter includes exercises of varying difficulty, as well as pointers to further reading that highlight extensions, open problems, and connections to current research.
+Interactive notebooks and exercises are available online at:</p>
+</div>
+<div id="Sx5.p8" class="ltx_para">
+<p class="ltx_p ltx_align_center"><span class="ltx_text ltx_font_typewriter"><a href="https://github.com/StanfordASL/pora-exercises.git" target="_blank" rel="noopener">https://github.com/StanfordASL/pora-exercises.git</a></span></p>
+</div>
+<div id="Sx5.p9" class="ltx_para">
+<p class="ltx_p">Ultimately, each chapter is structured to include three main components: core conceptual and mathematical content, accompanying notebooks and exercises for active exploration, and references for deeper study.
+Together, these elements are intended to support both a principled understanding and practical proficiency in robot autonomy.</p>
+</div>
+<div id="Sx5.p10" class="ltx_para">
+<p class="ltx_p">We also release a regularly maintained website that includes additional teaching materials, updates, and resources related to the book.
+The official website can be found at:</p>
+<p class="ltx_p ltx_align_center"><span class="ltx_text ltx_font_typewriter"><a href="https://pora-book.github.io/" target="_blank" rel="noopener">https://pora-book.github.io/</a></span></p>
+</div>
+</section>
+<section id="Sx6" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">Acknowledgments</h2>
+
+<div id="Sx6.p1" class="ltx_para">
+<p class="ltx_p">These notes accompany and are based largely on the content of the courses <em class="ltx_emph ltx_font_italic">AA174A / AA274A: Principles of Robot Autonomy I</em> and <em class="ltx_emph ltx_font_italic">AA274B: Principles of Robot Autonomy II</em> at Stanford University.
+We would therefore like to acknowledge the students who have taken these courses and provided useful feedback since their initial offering in 2017.
+We also reserve special acknowledgements for the course assistants who were instrumental in developing and refining the course material, and in particular Benoit Landry and Edward Schmerling, who were instrumental in developing the first iteration of the courses.
+We would also like to acknowledge Yue Wang and Yan Wang for their contributions to the perception chapters, especially for developing the initial structure and organization, much of which informed and shaped the present version.
+We are also grateful to the members of the Autonomous Systems Lab at Stanford University for many insightful discussions, careful proofreading, and helpful feedback on the material, all of which have helped shape and refine this book.</p>
+</div>
+</section>

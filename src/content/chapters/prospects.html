@@ -1,0 +1,226 @@
+
+<section id="Sx1" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">A Journey through the landscape of Robot Autonomy</h2>
+
+<div id="Sx1.p1" class="ltx_para">
+<p class="ltx_p">At the outset of this book, we asked a deceptively simple question: <em class="ltx_emph ltx_font_italic">What is robot autonomy?</em>
+We described a space between two extremes, where on one end we have the fantastical general-purpose android of science fiction, and on the other end we have the simple, pre-programmed machine that is capable of only a single, narrowly defined task.
+In that middle ground lives the modern autonomous robot, a system that must perceive, reason, and act in a world that is complex, dynamic, and uncertain.</p>
+</div>
+<div id="Sx1.p2" class="ltx_para">
+<p class="ltx_p">In this book, we have explored the core principles that underpin the design and operation of modern autonomous robots.
+Specifically, we anchored our discussion in the <em class="ltx_emph ltx_font_italic">See-Think-Act</em> cycle, which provides a structured way to understand the flow of information and decision-making in an autonomous system.
+By now, that abstraction should feel less like a theoretical construct and more like a technical blueprint.
+Let us briefly revisit each of these stages and reflect on the key insights that emerged from our exploration:</p>
+</div>
+<section id="Sx1.SS0.SSS0.Px1" class="ltx_paragraph">
+<h3 class="ltx_title ltx_title_paragraph">See.</h3>
+
+<div id="Sx1.SS0.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">We emphasized how the <em class="ltx_emph ltx_font_italic">See</em> stage is not merely about the passive acquisition of data, but about the active process of extracting meaningful information from the environment.
+Much of this discussion appeared in Part II, where we began by examining the fundamental properties and limitations of common sensing modalities, both proprioceptive and exteroceptive, and by establishing the physical and geometric principles that govern their measurements.
+Building on this foundation, we explored how raw sensor data can be transformed into structured and informative representations.
+We first surveyed classical approaches, including filtering techniques, feature detection, and methods for extracting geometric information about the environment.
+We then turned to modern, learning-based techniques, examining how deep neural network architectures enable end-to-end learning of rich representations directly from raw sensory inputs, including images as well as point-based and voxel-based representations of 3D geometry.
+Finally, we discussed higher-level visual understanding tasks such as object detection and segmentation, in which algorithms must interpret scenes by identifying object instances and reasoning about their spatial relationships.</p>
+</div>
+<div id="Sx1.SS0.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">Taken together, the <em class="ltx_emph ltx_font_italic">See</em> phase is not simply about sensing, but about perception, where the robot must transform raw sensory signals into the rich, semantic representations that are necessary for it to think and act intelligently.</p>
+</div>
+</section>
+<section id="Sx1.SS0.SSS0.Px2" class="ltx_paragraph">
+<h3 class="ltx_title ltx_title_paragraph">Think.</h3>
+
+<div id="Sx1.SS0.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">Once the <em class="ltx_emph ltx_font_italic">See</em> stage has produced a structured and semantically meaningful representation of the world, the <em class="ltx_emph ltx_font_italic">Think</em> stage is where that representation is transformed into actionable intent.
+This is the stage in which the robot reasons about where it is with respect to its environment, its goals, and how its actions will shape future outcomes.
+In Part III, we discussed how this process typically begins with robot localization and mapping, where local sensor measurements are synthesized into a coherent global estimate of the robot’s state and a map of the environment.
+Building on this foundation, Part IV introduced techniques for high-level decision-making.
+Specifically, we discussed approaches to <em class="ltx_emph ltx_font_italic">sequential decision-making</em>, where the robot determines, loosely speaking, <em class="ltx_emph ltx_font_italic">what</em> to do, ultimately defining the objectives that guide subsequent stages of planning and control.
+To address this problem, we explored methods rooted in optimal control, such as dynamic programming, and extended this perspective to modern learning-based approaches, such as reinforcement learning and imitation learning.
+Across these frameworks, we emphasized different but complementary strategies for reasoning under uncertainty, balancing model-based formulations with data-driven approximations.</p>
+</div>
+<div id="Sx1.SS0.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">Viewed holistically, the <em class="ltx_emph ltx_font_italic">Think</em> phase emerges as a structured process that transforms information about the environment and abstract goals into concrete plans and intentions that can be executed by the robot.</p>
+</div>
+</section>
+<section id="Sx1.SS0.SSS0.Px3" class="ltx_paragraph">
+<h3 class="ltx_title ltx_title_paragraph">Act.</h3>
+
+<div id="Sx1.SS0.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">The final stage of the cycle, <em class="ltx_emph ltx_font_italic">Act</em>, is where high-level decisions are translated into physical motion.
+While the <em class="ltx_emph ltx_font_italic">Think</em> stage determines <em class="ltx_emph ltx_font_italic">what</em> the robot should do, the <em class="ltx_emph ltx_font_italic">Act</em> stage determines <em class="ltx_emph ltx_font_italic">how</em> those decisions are realized by a dynamical system subject to physical constraints.
+In Part I, we developed the tools required to bridge this gap.
+We began with modeling the robot as a dynamical system, introducing the representations and notation needed to describe its motion and constraints.
+Building on this foundation, we discussed how desired behaviors are converted into feasible trajectories through motion planning and trajectory optimization.
+Motion planning algorithms produce geometrically feasible, collision-free paths, while trajectory optimization refines these paths into time-parameterized motions that respect dynamics, actuator limits, and task requirements.
+Execution, however, is never merely the blind following of precomputed motor commands.
+The real world is inherently uncertain, subject to external disturbances, sensor noise, actuator limitations, and inevitable inaccuracies in the robot’s internal dynamic models.
+For this reason, execution must be grounded in the principle of <em class="ltx_emph ltx_font_italic">feedback control</em>.
+Rather than assuming that a planned trajectory will unfold exactly as predicted, feedback control continuously compares the robot’s measured state against its desired state and corrects deviations in real time.
+Our discussion spanned a spectrum of closed-loop control strategies, from classical PID to optimization-based methods, such as Linear Quadratic Regulators (LQR) and Model Predictive Control (MPC), which explicitly reason about system dynamics, performance objectives, and constraints.</p>
+</div>
+<div id="Sx1.SS0.SSS0.Px3.p2" class="ltx_para">
+<p class="ltx_p">Viewed in the context of the full See-Think-Act cycle, the <em class="ltx_emph ltx_font_italic">Act</em> phase closes the loop between intention and reality.
+It is where plans meet physical embodiment, and where the robot’s ability to adapt and respond to the unpredictable nature of the real world is put to the test.</p>
+</div>
+</section>
+</section>
+<section id="Sx2" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">From Modular Pipelines to End-to-End Autonomy.</h2>
+
+<div id="Sx2.p1" class="ltx_para">
+<p class="ltx_p">Throughout this book, we have emphasized that the stages of <em class="ltx_emph ltx_font_italic">See</em>, <em class="ltx_emph ltx_font_italic">Think</em>, and <em class="ltx_emph ltx_font_italic">Act</em> are not isolated modules, but deeply interconnected processes with information flowing asynchronously at different rates, and with multiple feedback loops.
+At the same time, the field is undergoing a noticeable shift from carefully engineered, modular autonomy stacks toward increasingly <em class="ltx_emph ltx_font_italic">end-to-end</em> frameworks.
+In classical architectures, perception, state estimation, planning, and control are designed and tuned as distinct components, each with explicit interfaces and well-defined responsibilities.
+In contrast, modern data-driven systems often blur or even collapse these boundaries, and can now solve tasks that were once considered beyond the reach of traditional, non-learning-based systems.</p>
+</div>
+<div id="Sx2.p2" class="ltx_para">
+<p class="ltx_p">This shift toward end-to-end learning has been enabled by the availability of large-scale datasets, increasingly realistic simulation environments, and unprecedented computational resources.
+End-to-end learning promises greater adaptability, reduced manual engineering, and the ability to capture complex couplings that are difficult to model analytically.
+Yet, this evolution does not make the material in this book any less relevant, as the principles and techniques of sensing, estimation, planning, and control continue to underpin the design and analysis of these end-to-end systems.
+For instance, modular components often serve as strong baselines against which end-to-end approaches are compared.
+Classical algorithms frequently reappear as safety layers, fallback strategies, or constraint-enforcing mechanisms wrapped around learned policies, ensuring that the system maintains a degree of interpretability, reliability, and safety.
+Moreover, this data-centric paradigm introduces new system-level challenges.
+The design of datasets, labeling pipelines, simulation environments, evaluation metrics, and benchmarking protocols becomes even more critical, and often draws heavily on traditional techniques from perception, state estimation, and control.
+In this sense, the traditional See-Think-Act abstraction continues to provide not only a conceptual framework, but also a powerful lens through which to analyze, debug, and responsibly deploy the increasingly end-to-end systems that are shaping the future of robot autonomy.</p>
+</div>
+</section>
+<section id="Sx3" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">The Road Ahead</h2>
+
+<div id="Sx3.p1" class="ltx_para">
+<p class="ltx_p">As we write this book, we find ourselves at a remarkable inflection point in robotics research, where advances in computation, sensing, machine learning, and large-scale data are rapidly reshaping how autonomous systems are designed, developed, and operated.
+In this final section, we will briefly reflect on some of the most exciting emerging trends in robotics research, and how they are shaping the future of robot autonomy.</p>
+</div>
+<section id="Sx3.SS0.SSS0.Px1" class="ltx_paragraph">
+<h3 class="ltx_title ltx_title_paragraph">Foundation Models (FMs).</h3>
+
+<div id="Sx3.SS0.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">Over the past few years, artificial intelligence has undergone a dramatic shift driven by large-scale <em class="ltx_emph ltx_font_italic">foundation models</em>.
+Citing the seminal work of <span class="ltx_cite">Bommasani et al. (2021)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">1</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">1.</span> Bommasani, R., Hudson, D. A., Adeli, E., Altman, R., Arora, S. et al. “On the Opportunities and Risks of Foundation Models.” <em>arXiv preprint arXiv:2108.07258</em>, 2021.</span></span></span>, we define foundation models as:</p>
+<blockquote class="ltx_quote">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">“[Foundation models are] models that are trained on broad data (generally using self-supervision at scale) that can be adapted (e.g., fine-tuned) to a wide range of downstream tasks.”</em></p>
+</blockquote>
+<p class="ltx_p">Importantly, the term “foundation model” is not meant to refer to a specific architecture.
+Rather, it describes a class of models characterized by scale, broad pretraining, and adaptability.
+Well-known examples include large language models (LLMs) <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">2</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">2.</span> Radford, A., Wu, J., Child, R., Luan, D., Amodei, D., Sutskever, I. “Language Models are Unsupervised Multitask Learners.” 2019.</span></span></span> <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">3</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">3.</span> Brown, T. B., Mann, B., Ryder, N., Subbiah, M., Kaplan, J., Dhariwal, P., Neelakantan, A., Shyam, P., Sastry, G., Askell, A., Agarwal, S., Herbert-Voss, A., Krueger, G., Henighan, T., Child, R., Ramesh, A., Ziegler, D. M., Wu, J., Winter, C., Hesse, C., Chen, M., Sigler, E., Litwin, M., Gray, S., Chess, B., Clark, J., Berner, C., McCandlish, S., Radford, A., Sutskever, I., Amodei, D. “Language Models are Few-Shot Learners.” In <em>Advances in Neural Information Processing Systems</em>, 1877–1901, 2020.</span></span></span>, which underpin systems such as ChatGPT, as well as vision-language models (VLMs) <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">4</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">4.</span> Radford, A., Kim, J. W., Hallacy, C., Ramesh, A., Goh, G., Agarwal, S., Sastry, G., Askell, A., Mishkin, P., Clark, J., Krueger, G., Sutskever, I. “Learning Transferable Visual Models From Natural Language Supervision.” In <em>Proceedings of the 38th International Conference on Machine Learning</em>, 8748–8763, 2021.</span></span></span>, video generation models <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">5</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">5.</span> Ho, J., Chan, W., Saharia, C., Whang, J., Gao, R., Gritsenko, A., Kingma, D. P., Poole, B., Norouzi, M., Fleet, D. J., Salimans, T. “Imagen Video: High Definition Video Generation with Diffusion Models.” <em>arXiv preprint arXiv:2210.02303</em>, 2022.</span></span></span>, and other large-scale architectures <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">6</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">6.</span> Rives, A., Meier, J., Sercu, T., Goyal, S., Lin, Z., Liu, J., Guo, D., Ott, M., Zitnick, C. L., Ma, J., Fergus, R. “Biological structure and function emerge from scaling unsupervised learning to 250 million protein sequences.” <em>Proceedings of the National Academy of Sciences</em> 118(15), 2021.</span></span></span>.
+Beyond their impact on purely digital applications, foundation models are increasingly being integrated into physical robotic systems.</p>
+</div>
+<div id="Sx3.SS0.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">Their growing relevance in robotics stems from several key properties.
+First, foundation models provide <em class="ltx_emph ltx_font_italic">broad priors about the world</em>.
+Trained on large and diverse datasets, they encode a wealth of information about the structure of language, visual concepts, and physical interactions, enabling improved generalization in settings with limited task-specific data.</p>
+</div>
+<div id="Sx3.SS0.SSS0.Px1.p3" class="ltx_para">
+<p class="ltx_p">Second, foundation models are inherently <em class="ltx_emph ltx_font_italic">multimodal</em>.
+Many modern architectures jointly process text, images, video, audio, and structured data.
+Robotics, by its very nature, is a multimodal domain where robots must integrate information from diverse sensory modalities such as vision, proprioception, tactile sensing, and language-based instructions.
+Multimodal foundation models offer a unified representational framework in which these heterogeneous data streams can be fused and reasoned over coherently.</p>
+</div>
+<div id="Sx3.SS0.SSS0.Px1.p4" class="ltx_para">
+<p class="ltx_p">Third, foundation models provide a powerful and flexible <em class="ltx_emph ltx_font_italic">interface for human-robot interaction</em>.
+Language-conditioned policies enable users to specify goals in natural language rather than low-level commands.
+This dramatically lowers the barrier between human intent and robotic execution, enabling more intuitive forms of supervision, correction, and collaboration.</p>
+</div>
+<div id="Sx3.SS0.SSS0.Px1.p5" class="ltx_para">
+<p class="ltx_p">Within this broader paradigm, several emerging instantiations of foundation models are particularly influential in robotics:</p>
+</div>
+<div id="Sx3.SS0.SSS0.Px1.p6" class="ltx_para ltx_noindent">
+<p class="ltx_p"><span class="ltx_text ltx_font_bold">Vision–language–action (VLA) and reasoning models.</span>
+VLA models <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">7</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">7.</span> Zitkovich, B., Yu, T., Xu, S., Xu, P., Xiao, T., Xia, F., Wu, J., Wohlhart, P., Welker, S., Wahid, A. et al. “RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control.” In <em>Proceedings of The 7th Conference on Robot Learning</em>, 2165–2183, 2023.</span></span></span> <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">8</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">8.</span> Black, K., Brown, N., Driess, D., Esmail, A., Equi, M., Finn, C., Fusai, N., Groom, L., Hausman, K., Ichter, B., Jakubczak, S., Jones, T., Ke, L., Levine, S., Li-Bell, A., Mothukuri, M., Nair, S., Pertsch, K., Shi, L. X., Tanner, J., Vuong, Q., Walling, A., Wang, H., Zhilinsky, U. “$\$0: A Vision-Language-Action Flow Model for General Robot Control.” 2024.</span></span></span> <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">9</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">9.</span> Kim, M. J., Pertsch, K., Karamcheti, S., Xiao, T., Balakrishna, A., Nair, S., Rafailov, R., Foster, E. P., Sanketi, P. R., Vuong, Q., Kollar, T., Burchfiel, B., Tedrake, R., Sadigh, D., Levine, S., Liang, P., Finn, C. “OpenVLA: An Open-Source Vision-Language-Action Model.” In <em>Proceedings of The 8th Conference on Robot Learning</em>, 2679–2713, 2025.</span></span></span> represent an emerging class of architectures that directly couple vision and language representations to action outputs.
+In contrast to traditional pipelines where perception, planning, and control are engineered as separate modules, VLA models attempt to learn end-to-end mappings from multimodal inputs to motor commands or high-level actions, essentially learning the See-Think-Act cycle as a single, integrated process.
+Typically pretrained on large-scale vision and language data and subsequently fine-tuned on robotic interaction data, these models aim to combine broad semantic understanding with embodied control.</p>
+</div>
+<div id="Sx3.SS0.SSS0.Px1.p7" class="ltx_para">
+<p class="ltx_p">A closely related development is the emergence of <em class="ltx_emph ltx_font_italic">reasoning models</em> within embodied systems <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">10</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">10.</span> Huang, W., Xia, F., Xiao, T., Chan, H., Liang, J., Florence, P., Zeng, A., Tompson, J., Mordatch, I., Chebotar, Y., Sermanet, P., Jackson, T., Brown, N., Luu, L., Levine, S., Hausman, K. “Inner Monologue: Embodied Reasoning through Planning with Language Models.” In <em>Proceedings of The 6th Conference on Robot Learning</em>, 1769–1782, 2023.</span></span></span> <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">11</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">11.</span> NVIDIA. “Alpamayo-R1: Bridging Reasoning and Action Prediction for Generalizable Autonomous Driving in the Long Tail.” <em>arXiv preprint arXiv:2511.00088</em>, 2025.</span></span></span> <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">12</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">12.</span> Zawalski, M., Chen, W., Pertsch, K., Mees, O., Finn, C., Levine, S. “Robotic Control via Embodied Chain-of-Thought Reasoning.” In <em>Proceedings of The 8th Conference on Robot Learning</em>, 2024.</span></span></span>.
+Beyond mapping observations directly to actions, these architectures allocate explicit computation to intermediate deliberation, generating structured reasoning traces—often in natural language—that attempt to make causal relationships, counterfactuals, and task constraints explicit before committing to specific actions.
+Inspired by advances in large language models where inference-time reasoning improves robustness and accuracy, reasoning-enabled robotic systems treat deliberation itself as a tunable resource, where more complex or safety-critical situations can trigger deeper chains of thought, self-reflection, or verification steps.
+In embodied contexts, however, reasoning cannot remain purely textual.
+It must be grounded in geometry, dynamics, and physical feasibility, and must remain consistent with the actions ultimately executed.
+The central challenge, therefore, is not merely to produce articulate explanations, but to ensure alignment between internal rationale and external behavior, so that reasoning becomes a functional component of autonomy rather than a post-hoc narrative.</p>
+</div>
+<div id="Sx3.SS0.SSS0.Px1.p8" class="ltx_para ltx_noindent">
+<p class="ltx_p"><span class="ltx_text ltx_font_bold">World models.</span>
+Another especially important instantiation of the foundation model paradigm for robotics is the development of <em class="ltx_emph ltx_font_italic">world models</em>.
+Broadly speaking, world models aim to capture how the world evolves over time, including its physical, spatial, and visual dynamics <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">13</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">13.</span> Ha, D., Schmidhuber, J. “World Models.” <em>arXiv preprint arXiv:1803.10122</em>, 2018.</span></span></span> <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">14</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">14.</span> NVIDIA. “Cosmos World Foundation Model Platform for Physical AI.” <em>arXiv preprint arXiv:2501.03575</em>, 2025.</span></span></span>.
+Unlike traditional dynamics models, which operate on carefully designed state representations, modern world models are learned directly from rich, high-dimensional inputs such as images, video, depth, and other multimodal signals.
+This allows them to model complex aspects of real-world environments—such as object persistence, scene geometry, contact interactions, and temporal visual change—that are difficult to specify analytically but are essential for robust autonomy.</p>
+</div>
+<div id="Sx3.SS0.SSS0.Px1.p9" class="ltx_para">
+<p class="ltx_p">This richer predictive interface is particularly valuable in robotics, where data is a fundamental bottleneck.
+Robot interaction data is expensive to collect, embodiment-specific, and limited in scale.
+In contrast, visual data—especially video—is abundant and diverse.
+World models provide a pathway for leveraging this disparity by learning general physical and semantic structure from large-scale, largely passive observations.
+In doing so, they enable a partial decoupling between <em class="ltx_emph ltx_font_italic">world understanding</em> and <em class="ltx_emph ltx_font_italic">control</em>, allowing robots to acquire broad knowledge about how environments behave without requiring equivalent amounts of task-specific interaction data.</p>
+</div>
+<div id="Sx3.SS0.SSS0.Px1.p10" class="ltx_para">
+<p class="ltx_p">At a high level, world models equip robots with the ability to <em class="ltx_emph ltx_font_italic">predict and imagine</em>.
+Given a current situation and, potentially, a proposed action sequence, a world model can forecast how the environment and the robot within it may evolve.
+This enables planning through the evaluation of imagined futures, where a robot may compare alternative outcomes, select actions that lead toward desirable states, or optimize behavior by reasoning directly over predicted trajectories.</p>
+</div>
+<div id="Sx3.SS0.SSS0.Px1.p11" class="ltx_para">
+<p class="ltx_p">A second major advantage is that world models can support the generation of realistic synthetic data.
+Because they model visual, spatial, and physical regularities, world models can be used to synthesize new scenarios, including rare edge cases or safety-critical situations that are difficult to collect in practice.
+In this way, world models can augment traditional simulation, providing a data-driven substrate for training and evaluating autonomous systems in a broader range of conditions, while maintaining high visual fidelity.</p>
+</div>
+<div id="Sx3.SS0.SSS0.Px1.p12" class="ltx_para">
+<p class="ltx_p">The precise form that such world models should take remains an open research question.
+Some approaches focus on predicting high-dimensional sensory observations such as future video frames conditioned on actions <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">15</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">15.</span> Google DeepMind. <em>Genie 3: A New Frontier for World Models</em>. Research blog, 2025.</span></span></span>.
+Others learn compact latent representations of the environment and predict future states within this lower-dimensional space rather than at the raw pixel level <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">16</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">16.</span> Assran, M., Bardes, A., Fan, D., Garrido, Q., Howes, R., Komeili, M., Muckley, M., Rizvi, A., Roberts, C., Sinha, K. et al. “V-JEPA 2: Self-Supervised Video Models Enable Understanding, Prediction and Planning.” <em>arXiv preprint arXiv:2506.09985</em>, 2025.</span></span></span>.
+Additional work explores structured representations that encode objects, physical interactions, or causal relationships in an effort to improve generalization and data efficiency <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">17</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">17.</span> Locatello, F., Weissenborn, D., Unterthiner, T., Mahendran, A., Neumann, G., Rätsch, M., Kohli, P., Botvinick, M., Bachem, O. “Object-Centric Learning with Slot Attention.” In <em>Advances in Neural Information Processing Systems 33</em>, 11525–11538, 2020.</span></span></span>.</p>
+</div>
+<div id="Sx3.SS0.SSS0.Px1.p13" class="ltx_para ltx_noindent">
+<p class="ltx_p">Taken together, while the integration of foundation models into robotics remains an active and rapidly evolving area of research, recent developments suggest that they may fundamentally reshape how autonomous systems are designed, developed, and operated.
+Rather than building task-specific autonomy stacks from scratch, future robots may increasingly rely on large pretrained models as adaptable cores, as well as key enablers across the entire autonomy development pipeline.</p>
+</div>
+<div id="Sx3.SS0.SSS0.Px1.p14" class="ltx_para">
+<p class="ltx_p">In this sense, foundation models are not merely new building blocks within the autonomy stack, but are beginning to redefine the abstractions and workflows used to construct it.</p>
+</div>
+</section>
+<section id="Sx3.SS0.SSS0.Px2" class="ltx_paragraph">
+<h3 class="ltx_title ltx_title_paragraph">Simulation and Closing the Gap to Reality.</h3>
+
+<div id="Sx3.SS0.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">In parallel, progress in simulation has accelerated dramatically, expanding both its fidelity and its role within the autonomy development pipeline.
+Advances in physics-based engines, high-fidelity rendering, differentiable simulators, and large-scale synthetic data generation now enable training and evaluation in increasingly realistic environments <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">18</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">18.</span> Makoviychuk, V., Wawrzyniak, L., Guo, Y., Lu, M., Storey, K., Macklin, M., Hoeller, D., Rudin, N., Allshire, A., Handa, A. et al. “Isaac Gym: High Performance GPU Based Physics Simulation For Robot Learning.” In <em>Proceedings of the Neural Information Processing Systems Track on Datasets and Benchmarks</em>, 2021.</span></span></span>.
+At the same time, the emergence of generative simulation has begun to complement traditional simulators by producing realistic, diverse, and often open-ended scenarios directly from data.</p>
+</div>
+<div id="Sx3.SS0.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">Simulation has long been an essential tool in robotics, but it is increasingly becoming a central substrate for large-scale training, evaluation, and red-teaming of autonomous systems.</p>
+</div>
+</section>
+<section id="Sx3.SS0.SSS0.Px3" class="ltx_paragraph">
+<h3 class="ltx_title ltx_title_paragraph">Physical AI Safety.</h3>
+
+<div id="Sx3.SS0.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">As autonomy stacks incorporate more data-driven components, the question of safety becomes increasingly critical.
+Data-driven models can hallucinate, extrapolate poorly outside their training distribution, or produce internally inconsistent reasoning traces.
+In physical systems, such failures carry real-world consequences.</p>
+</div>
+<div id="Sx3.SS0.SSS0.Px3.p2" class="ltx_para">
+<p class="ltx_p">Physical AI safety is therefore becoming a central topic.
+This includes research on detecting and mitigating failure modes of data-driven models, developing robust training and evaluation protocols, and combining data-driven learning with traditional control-theoretic safety guarantees <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">19</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">19.</span> Sinha, R., Elhafsi, A., Agia, C., Foutter, M., Schmerling, E., Pavone, M. “Real-Time Anomaly Detection and Reactive Planning with Large Language Models.” In <em>Proceedings of Robotics: Science and Systems</em>, 2024.</span></span></span> <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">20</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">20.</span> Sagawa, S., Koh, P. W., Hashimoto, T. B., Liang, P. “Distributionally Robust Neural Networks for Group Shifts: On the Importance of Regularization for Worst-Case Generalization.” In <em>Proceedings of the International Conference on Learning Representations</em>, 2020.</span></span></span> <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">21</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">21.</span> Hoffman, J., Tzeng, E., Park, T., Zhu, J.-Y., Isola, P., Saenko, K., Efros, A. A., Darrell, T. “CyCADA: Cycle-Consistent Adversarial Domain Adaptation.” In <em>Proceedings of the 35th International Conference on Machine Learning</em>, 1994–2003, 2018.</span></span></span> <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">22</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">22.</span> Taylor, A., Singletary, A., Yue, Y., Ames, A. “Learning for Safety-Critical Control with Control Barrier Functions.” In <em>Learning for Dynamics and Control</em>, 708–717, 2020.</span></span></span>.
+At the systems level, emerging frameworks such as NVIDIA’s <em class="ltx_emph ltx_font_italic">Halos</em> platform aim to provide end-to-end safety validation pipelines for autonomous systems, integrating simulation, scenario generation, and formal evaluation to stress-test models under diverse and safety-critical conditions <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">23</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">23.</span> NVIDIA. <em>NVIDIA Halos: Autonomous Vehicle Safety</em>. 2024.</span></span></span>.
+Such efforts highlight the growing recognition that safety must be addressed holistically, spanning model design, data curation, evaluation, and deployment.</p>
+</div>
+</section>
+</section>
+<section id="Sx4" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">An Open Frontier</h2>
+
+<div id="Sx4.p1" class="ltx_para">
+<p class="ltx_p">One thing is clear: it is an exciting time to be working in robotics.
+Autonomous systems that were once confined to research laboratories are increasingly deployed in real-world environments and embedded within critical infrastructure.
+From autonomous vehicles and aerial systems to space robotics and medical platforms, the impact of robotics is expanding rapidly.</p>
+</div>
+<div id="Sx4.p2" class="ltx_para">
+<p class="ltx_p">With this book, our aim has been twofold.
+First, to provide the reader with the mathematical and algorithmic foundations that underpin modern robot autonomy, so that they can understand the core principles and techniques that enable robots to perceive, plan, and act in complex environments.
+Second, to cultivate a systems-level perspective, so that the reader may understand not only individual algorithms, but how they interconnect and compose into complete autonomy stacks.
+The future of robotics will not be built by isolated techniques, but by thoughtful integration.
+It will be shaped by engineers and researchers who understand both theory and systems, both abstraction and embodiment.
+The tools are evolving rapidly, but the underlying principles will remain enduring guides.
+The next chapter of robot autonomy will be written by those who are willing to build, and we hope this book has given the reader the foundation to do just that.</p>
+</div>
+</section>

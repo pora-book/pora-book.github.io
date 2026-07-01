@@ -1,0 +1,113 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import '../../styles/latexml.css';
+import { publishedChapters, displayNumber } from '../../data/book.js';
+import exercises from '../../data/exercises.json';
+
+const bodies = import.meta.glob('../../content/chapters/*.html', {
+  query: '?raw', import: 'default', eager: true,
+});
+
+export async function getStaticPaths() {
+  const bodies = import.meta.glob('../../content/chapters/*.html', {
+    query: '?raw', import: 'default', eager: true,
+  });
+  const available = new Set(
+    Object.keys(bodies).map((p) => p.split('/').pop().replace('.html', ''))
+  );
+  const list = publishedChapters().filter((c) => available.has(c.slug));
+  return list.map((c, i) => ({
+    params: { slug: c.slug },
+    props: { chapter: c, prev: list[i - 1] ?? null, next: list[i + 1] ?? null },
+  }));
+}
+
+const { chapter, prev, next } = Astro.props;
+const body = bodies[`../../content/chapters/${chapter.slug}.html`];
+const notebooks = chapter.exercises ? exercises[chapter.exercises] : null;
+const num = displayNumber(chapter);
+const lecture = chapter.lecture ?? null; // data-driven; null hides the Watch slot
+---
+<BaseLayout title={chapter.title} active="book">
+  <div class="prose-wrap">
+    <div class="chapter-header">
+      <div class="kicker">{num ? `Chapter ${num}` : 'Getting started'}</div>
+      <h1>{chapter.title}</h1>
+    </div>
+  </div>
+
+  <div class="chapter-grid">
+    <aside class="chapter-toc">
+      <div class="toc" id="chapter-toc">
+        <h4>On this page</h4>
+      </div>
+    </aside>
+
+    <article class="chapter-main">
+      <div class="ltx_document" set:html={body}></div>
+
+      {notebooks && notebooks.length > 0 && (
+        <section class="rail" aria-label="Exercises">
+          <h3>Practice · {notebooks.length} notebooks</h3>
+          <ul>
+            {notebooks.map((nb) => (
+              <li>
+                <span class="nb-name">{nb.name}</span>
+                <span class="nb-links">
+                  <a href={nb.colab} target="_blank" rel="noopener">Open in Colab</a>
+                  <a href={nb.source} target="_blank" rel="noopener">Source</a>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {lecture && (
+        <section class="rail" aria-label="Lecture">
+          <h3>Watch · lecture</h3>
+          <p><a href={lecture.videoUrl} target="_blank" rel="noopener">View recording</a>
+            {lecture.slidesUrl && <> · <a href={lecture.slidesUrl}>Slides</a></>}</p>
+        </section>
+      )}
+
+      <nav class="pager">
+        {prev
+          ? <a href={`/book/${prev.slug}/`}><span class="lbl">Previous</span>{prev.title}</a>
+          : <span></span>}
+        {next
+          ? <a href={`/book/${next.slug}/`} style="text-align:right"><span class="lbl">Next</span>{next.title}</a>
+          : <span></span>}
+      </nav>
+    </article>
+  </div>
+
+  <script>
+    // Build the in-page TOC from the converted section headings, with scroll-spy.
+    const main = document.querySelector('.chapter-main .ltx_document');
+    const tocEl = document.getElementById('chapter-toc');
+    if (main && tocEl) {
+      const heads = main.querySelectorAll('.ltx_title_section, .ltx_title_subsection');
+      const links = [];
+      heads.forEach((h, i) => {
+        const section = h.closest('section, div[id]');
+        let id = section?.id || h.id;
+        if (!id) { id = `sec-${i}`; (section || h).id = id; }
+        const a = document.createElement('a');
+        a.href = `#${id}`;
+        a.textContent = h.textContent.replace(/\s+/g, ' ').trim().slice(0, 70);
+        if (h.classList.contains('ltx_title_subsection')) a.classList.add('sub');
+        tocEl.appendChild(a);
+        links.push({ a, id, el: section || h });
+      });
+      const obs = new IntersectionObserver((entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            links.forEach((l) => l.a.classList.toggle('active', l.el === e.target));
+          }
+        });
+      }, { rootMargin: '-10% 0px -80% 0px' });
+      links.forEach((l) => obs.observe(l.el));
+    }
+  </script>
+</BaseLayout>

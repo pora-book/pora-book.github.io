@@ -1,0 +1,1246 @@
+
+<div id="p1" class="ltx_para">
+<p class="ltx_p">The filtering algorithms developed in <a class="ltx_ref" href="/book/localization-filtering/">Chapter 11</a> and <a class="ltx_ref" href="/book/approximate-filters/">Chapter 12</a> provide general tools for estimating the state of a dynamical system from noisy measurements.
+In mobile robotics, one of the most important instances of this general problem is <em class="ltx_emph ltx_font_italic">localization</em>: estimating a robot’s pose with respect to a map of the environment.</p>
+</div>
+<div id="p2" class="ltx_para">
+<p class="ltx_p">In this chapter, we specialize the Bayesian filtering framework to the robot localization problem.
+We begin in Section&#160;<a href="#S1" title="13.1 A Taxonomy of Robot Localization Problems" class="ltx_ref"><span class="ltx_text ltx_ref_tag">13.1</span></a> with a taxonomy that organizes different localization scenarios—pose tracking versus global localization, static versus dynamic environments, active versus passive sensing, and single-robot versus multi-robot settings.
+This taxonomy provides a mental model for the kinds of problems that arise in practice.</p>
+</div>
+<div id="p3" class="ltx_para">
+<p class="ltx_p">In Section&#160;<a href="#S2" title="13.2 Robot Localization via Bayesian Filtering" class="ltx_ref"><span class="ltx_text ltx_ref_tag">13.2</span></a>, we then express localization formally as a Bayesian filtering problem in which the state is the robot pose and the map is an additional, known variable that influences both motion and measurements.
+This leads to map-aware state transition and measurement models, which we discuss in Section&#160;<a href="#S3" title="13.3 Map-Aware State Transition Model" class="ltx_ref"><span class="ltx_text ltx_ref_tag">13.3</span></a>.</p>
+</div>
+<div id="p4" class="ltx_para">
+<p class="ltx_p">Building on this formulation, in Section&#160;<a href="#S4" title="13.4 Markov Localization" class="ltx_ref"><span class="ltx_text ltx_ref_tag">13.4</span></a> we introduce <em class="ltx_emph ltx_font_italic">Markov localization</em>, a general Bayes filter for estimating a robot’s pose that explicitly incorporates a map. Markov localization is conceptually clean but rarely implemented directly; instead, it serves as a reference from which more specialized algorithms are derived.</p>
+</div>
+<div id="p5" class="ltx_para">
+<p class="ltx_p">We then present two specializations of Markov localization.
+In Section&#160;<a href="#S5" title="13.5 EKF Localization" class="ltx_ref"><span class="ltx_text ltx_ref_tag">13.5</span></a>, we develop an EKF localization algorithm for feature-based maps that are well suited to pose tracking with moderate uncertainty.
+Finally, in Section&#160;<a href="#S6" title="13.6 Monte Carlo Localization (MCL)" class="ltx_ref"><span class="ltx_text ltx_ref_tag">13.6</span></a> we introduce Monte Carlo Localization (MCL), a particle filter–based method that can handle global localization and strongly multimodal beliefs.
+Along the way, we discuss data association and practical considerations that arise in map-based localization.</p>
+</div>
+<section id="S1" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">13.1 </span>A Taxonomy of Robot Localization Problems</h2>
+
+<figure id="S1.T1" class="ltx_table">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_table"><span class="ltx_text" style="font-size:90%;">Table 13.1</span>: </span><span class="ltx_text" style="font-size:90%;">A taxonomy of robot localization problems along four key axes.</span></figcaption>
+<table class="ltx_tabular ltx_centering ltx_guessed_headers ltx_align_middle">
+<thead class="ltx_thead">
+<tr class="ltx_tr">
+<th class="ltx_td ltx_align_justify ltx_align_top ltx_th ltx_th_column ltx_border_tt">
+<span class="ltx_inline-block ltx_align_top">
+<span class="ltx_p" style="width:71.1pt;">Axis</span>
+</span>
+</th>
+<th class="ltx_td ltx_align_justify ltx_align_top ltx_th ltx_th_column ltx_border_tt">
+<span class="ltx_inline-block ltx_align_top">
+<span class="ltx_p" style="width:113.8pt;">Representative cases</span>
+</span>
+</th>
+<th class="ltx_td ltx_align_justify ltx_align_top ltx_th ltx_th_column ltx_border_tt">
+<span class="ltx_inline-block ltx_align_top">
+<span class="ltx_p" style="width:156.5pt;">Typical algorithmic implications</span>
+</span>
+</th>
+</tr>
+</thead>
+<tbody class="ltx_tbody">
+<tr class="ltx_tr">
+<td class="ltx_td ltx_align_justify ltx_align_top ltx_border_t" style="padding-bottom:3.00003pt;">
+<span class="ltx_inline-block ltx_align_top">
+<span class="ltx_p" style="width:71.1pt;">Initial pose</span>
+</span>
+</td>
+<td class="ltx_td ltx_align_justify ltx_align_top ltx_border_t" style="padding-bottom:3.00003pt;">
+<span class="ltx_inline-block ltx_align_top">
+<span class="ltx_p" style="width:113.8pt;">Pose tracking (local), global localization, kidnapped robot</span>
+</span>
+</td>
+<td class="ltx_td ltx_align_justify ltx_align_top ltx_border_t" style="padding-bottom:3.00003pt;">
+<span class="ltx_inline-block ltx_align_top">
+<span class="ltx_p" style="width:156.5pt;">Tracking often amenable to unimodal Gaussian filters; global and kidnapped
+scenarios typically require non-parametric, multimodal beliefs (e.g.,
+particle filters).</span>
+</span>
+</td>
+</tr>
+<tr class="ltx_tr">
+<td class="ltx_td ltx_align_justify ltx_align_top" style="padding-bottom:3.00003pt;">
+<span class="ltx_inline-block ltx_align_top">
+<span class="ltx_p" style="width:71.1pt;">Environment</span>
+</span>
+</td>
+<td class="ltx_td ltx_align_justify ltx_align_top" style="padding-bottom:3.00003pt;">
+<span class="ltx_inline-block ltx_align_top">
+<span class="ltx_p" style="width:113.8pt;">Static, slowly varying, strongly dynamic</span>
+</span>
+</td>
+<td class="ltx_td ltx_align_justify ltx_align_top" style="padding-bottom:3.00003pt;">
+<span class="ltx_inline-block ltx_align_top">
+<span class="ltx_p" style="width:156.5pt;">Static maps simplify modeling; dynamic elements motivate robust measurement
+models and possibly explicit dynamic object tracking.</span>
+</span>
+</td>
+</tr>
+<tr class="ltx_tr">
+<td class="ltx_td ltx_align_justify ltx_align_top" style="padding-bottom:3.00003pt;">
+<span class="ltx_inline-block ltx_align_top">
+<span class="ltx_p" style="width:71.1pt;">Action selection</span>
+</span>
+</td>
+<td class="ltx_td ltx_align_justify ltx_align_top" style="padding-bottom:3.00003pt;">
+<span class="ltx_inline-block ltx_align_top">
+<span class="ltx_p" style="width:113.8pt;">Passive, active (information-seeking)</span>
+</span>
+</td>
+<td class="ltx_td ltx_align_justify ltx_align_top" style="padding-bottom:3.00003pt;">
+<span class="ltx_inline-block ltx_align_top">
+<span class="ltx_p" style="width:156.5pt;">Passive use treats controls as given; active localization couples the
+filter with planning methods that trade off task progress and information
+gain.</span>
+</span>
+</td>
+</tr>
+<tr class="ltx_tr">
+<td class="ltx_td ltx_align_justify ltx_align_top ltx_border_bb">
+<span class="ltx_inline-block ltx_align_top">
+<span class="ltx_p" style="width:71.1pt;">Number of robots</span>
+</span>
+</td>
+<td class="ltx_td ltx_align_justify ltx_align_top ltx_border_bb">
+<span class="ltx_inline-block ltx_align_top">
+<span class="ltx_p" style="width:113.8pt;">Single robot, multi-robot (cooperative)</span>
+</span>
+</td>
+<td class="ltx_td ltx_align_justify ltx_align_top ltx_border_bb">
+<span class="ltx_inline-block ltx_align_top">
+<span class="ltx_p" style="width:156.5pt;">Multi-robot settings introduce shared maps and inter-robot observations,
+leading to coupled estimation problems and opportunities for improved
+robustness.</span>
+</span>
+</td>
+</tr>
+</tbody>
+</table>
+</figure>
+<div id="S1.p1" class="ltx_para">
+<p class="ltx_p">Robot localization problems can differ substantially depending on how much is known about the initial pose, how the environment evolves, how actions are chosen, and how many robots are involved.
+Before turning to specific algorithms, it is helpful to organize these variations using a taxonomy.</p>
+</div>
+<div id="S1.p2" class="ltx_para">
+<p class="ltx_p">We will use the term <em class="ltx_emph ltx_font_italic">pose</em> to refer to the robot’s position and orientation in a global coordinate frame.
+For a planar mobile robot, the pose is typically <math id="S1.p2.m1" class="ltx_Math" alttext="x_{t}=(x_{t},y_{t},\theta_{t})" display="inline"><mrow><msub><mi>x</mi><mi>t</mi></msub><mo>=</mo><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo>,</mo><msub><mi>y</mi><mi>t</mi></msub><mo>,</mo><msub><mi>θ</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math> at time <math id="S1.p2.m2" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math>, where <math id="S1.p2.m3" class="ltx_Math" alttext="(x,y)" display="inline"><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></math> is the planar position and <math id="S1.p2.m4" class="ltx_Math" alttext="\theta" display="inline"><mi>θ</mi></math> is the heading angle.</p>
+</div>
+<section id="S1.SS0.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Pose tracking and global pose localization.</h4>
+
+<div id="S1.SS0.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">One of the first distinctions among robot localization problems concerns what we assume we know about the initial pose:</p>
+</div>
+<div id="S1.SS0.SSS0.Px1.p2" class="ltx_para">
+<ul id="S1.I1" class="ltx_itemize">
+<li id="S1.I1.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="S1.I1.i1.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Pose tracking (local localization).</em> In pose tracking problems,
+the initial pose is known with reasonably small uncertainty. For example, a
+robot may be placed at a known charging station or docking location, with
+a prior belief concentrated in a small neighborhood. The goal is to maintain
+an accurate estimate of pose over time as the robot moves and senses, despite
+process and measurement noise.</p>
+</div>
+</li>
+<li id="S1.I1.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="S1.I1.i2.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Global localization.</em> In global localization, the robot has very
+little prior information about its initial pose. For instance, it may know
+only that it is somewhere within a building, but not which floor, corridor,
+or room. The belief over poses must therefore represent multiple plausible
+hypotheses, often spread over a large region of the map.</p>
+</div>
+</li>
+<li id="S1.I1.i3" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="S1.I1.i3.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Kidnapped robot problem.</em> A challenge related to global localization arises when a
+robot that has been successfully tracking its pose is suddenly transported
+to a different, unknown location without its sensors or localization
+algorithm being aware of the event. This <em class="ltx_emph ltx_font_italic">kidnapped robot problem</em>
+requires the localization method to recover from a grossly incorrect belief
+and reinitialize globally.</p>
+</div>
+</li>
+</ul>
+</div>
+<div id="S1.SS0.SSS0.Px1.p3" class="ltx_para">
+<p class="ltx_p">Pose tracking problems are often amenable to unimodal Gaussian approximations, such as EKF-based methods, whereas global localization and kidnapped robot scenarios typically require non-parametric methods capable of representing multiple hypotheses, such as histogram or particle filters.</p>
+</div>
+</section>
+<section id="S1.SS0.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Static and dynamic environment localization.</h4>
+
+<div id="S1.SS0.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">A second axis in the taxonomy of robot localization concerns how the environment changes over time:</p>
+</div>
+<div id="S1.SS0.SSS0.Px2.p2" class="ltx_para">
+<ul id="S1.I2" class="ltx_itemize">
+<li id="S1.I2.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="S1.I2.i1.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Static environments.</em> In the simplest case, the environment map
+is fixed and does not change. Walls and landmarks remain in place, and any
+moving objects (such as people) are ignored or treated as noise. Many
+foundational localization algorithms are developed under this assumption.</p>
+</div>
+</li>
+<li id="S1.I2.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="S1.I2.i2.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Dynamic environments.</em> In more realistic settings, parts of the
+environment change over time. Examples include doors that open and close,
+furniture that moves, or other agents that occupy the same space. In these
+cases, the map may be time varying or may explicitly model dynamic objects.</p>
+</div>
+</li>
+</ul>
+</div>
+<div id="S1.SS0.SSS0.Px2.p3" class="ltx_para">
+<p class="ltx_p">In this chapter, we primarily consider localization with respect to a static map, while allowing for noisy measurements that may occasionally be corrupted by dynamic elements.
+Handling fully dynamic maps is closely related to SLAM and tracking, and will be revisited in <a class="ltx_ref" href="/book/slam/">Chapter 14</a>.</p>
+</div>
+</section>
+<section id="S1.SS0.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Active and passive localization.</h4>
+
+<div id="S1.SS0.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">Localization algorithms also differ in how they interact with the environment:</p>
+</div>
+<div id="S1.SS0.SSS0.Px3.p2" class="ltx_para">
+<ul id="S1.I3" class="ltx_itemize">
+<li id="S1.I3.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="S1.I3.i1.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Passive localization.</em> In passive localization, the algorithm
+treats the sequence of controls <math id="S1.I3.i1.p1.m1" class="ltx_Math" alttext="u_{1:t}" display="inline"><msub><mi>u</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></math> as given; it does not attempt to
+choose actions to improve localization performance. Many navigation systems
+fall into this category when localization is treated as a background process.</p>
+</div>
+</li>
+<li id="S1.I3.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="S1.I3.i2.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Active localization.</em> In active localization, the robot chooses
+its actions with the explicit goal of reducing uncertainty about its pose. For
+example, the robot may move to viewpoints that disambiguate map symmetries
+or collect measurements that are expected to be highly informative.</p>
+</div>
+</li>
+</ul>
+</div>
+<div id="S1.SS0.SSS0.Px3.p3" class="ltx_para">
+<p class="ltx_p">The algorithms developed in this chapter apply in both settings.
+When used in an active framework, they provide the state and uncertainty estimates needed for planning information-seeking actions.</p>
+</div>
+</section>
+<section id="S1.SS0.SSS0.Px4" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Single and multi-robot localization.</h4>
+
+<div id="S1.SS0.SSS0.Px4.p1" class="ltx_para">
+<p class="ltx_p">Finally, localization problems can involve one or multiple robots:</p>
+</div>
+<div id="S1.SS0.SSS0.Px4.p2" class="ltx_para">
+<ul id="S1.I4" class="ltx_itemize">
+<li id="S1.I4.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="S1.I4.i1.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Single-robot localization.</em> A single robot must estimate its
+pose using on-board sensors and possibly an external reference, such as GPS,
+relative to a map that we assume is given.</p>
+</div>
+</li>
+<li id="S1.I4.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="S1.I4.i2.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Multi-robot localization.</em> In multi-robot settings, several
+robots localize simultaneously, often sharing information. Robots may observe
+each other, exchange measurements, or maintain a shared map. This introduces
+additional structure and opportunities for cooperation, but also coupling
+between the individual localization problems.</p>
+</div>
+</li>
+</ul>
+</div>
+<div id="S1.SS0.SSS0.Px4.p3" class="ltx_para">
+<p class="ltx_p">Throughout this chapter, we focus on single-robot localization in a known, largely static map.
+The methods we develop form the basis for more advanced multi-robot and SLAM systems.</p>
+</div>
+</section>
+</section>
+<section id="S2" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">13.2 </span>Robot Localization via Bayesian Filtering</h2>
+
+<div id="S2.p1" class="ltx_para">
+<p class="ltx_p">In previous chapters, we introduced several well-known variations of the Bayes filter, including the parametric EKF and the non-parametric particle filter in <a class="ltx_ref" href="/book/approximate-filters/">Chapter 12</a>.
+These algorithms propagate a belief distribution over a state <math id="S2.p1.m1" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math> using a probabilistic Markov state transition model and a probabilistic measurement model.
+Recall that for a general state-space model, the belief at time <math id="S2.p1.m2" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math> is defined as:</p>
+<table id="S2.E1" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.E1.m1" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t})\coloneqq p(\bm{x}_{t}\mid\bm{z}_{1:t},\bm{u}_{1:t})," display="block"><mrow><mrow><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>≔</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(13.1)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S2.p1.m3" class="ltx_Math" alttext="\bm{z}_{1:t}" display="inline"><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></math> are all measurements up to time <math id="S2.p1.m4" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math> and <math id="S2.p1.m5" class="ltx_Math" alttext="\bm{u}_{1:t}" display="inline"><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></math> are the applied controls.</p>
+</div>
+<div id="S2.p2" class="ltx_para">
+<p class="ltx_p">In map-based localization, the state <math id="S2.p2.m1" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math> represents the robot pose, and we assume that a map <math id="S2.p2.m2" class="ltx_Math" alttext="\bm{m}" display="inline"><mi>𝒎</mi></math> of the environment is given.
+The map encodes information about the environment that constrains both how the robot can move and what it can measure.
+Our goal is to compute the posterior over robot poses conditioned on the map:</p>
+<table id="S2.Ex1" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex1.m1" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t})\coloneqq p(\bm{x}_{t}\mid\bm{z}_{1:t},\bm{u}_{1:t},\bm{%
+m})." display="block"><mrow><mrow><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>≔</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S2.p3" class="ltx_para">
+<p class="ltx_p">To incorporate the map into the filtering framework, we modify both the state transition model and the measurement model.
+Specifically, in Section&#160;<a href="#S3" title="13.3 Map-Aware State Transition Model" class="ltx_ref"><span class="ltx_text ltx_ref_tag">13.3</span></a>, we introduce a <em class="ltx_emph ltx_font_italic">map-aware</em> state transition model <math id="S2.p3.m1" class="ltx_Math" alttext="p(\bm{x}_{t}\mid\bm{x}_{t-1},\bm{u}_{t},\bm{m})" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></math> that captures the fact that some poses are inconsistent with the environment.
+Then, in Section&#160;<a href="#S3.SS1" title="13.3.1 Map-Aware Measurement Model ‣ 13.3 Map-Aware State Transition Model" class="ltx_ref"><span class="ltx_text ltx_ref_tag">13.3.1</span></a>, we introduce a <em class="ltx_emph ltx_font_italic">map-aware</em> measurement model <math id="S2.p3.m2" class="ltx_Math" alttext="p(\bm{z}_{t}\mid\bm{x}_{t},\bm{m})" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></math> that reflects how local sensor readings depend on nearby structures in the map.
+The combination of these two models leads directly to the localization algorithms we introduce in Section&#160;<a href="#S5" title="13.5 EKF Localization" class="ltx_ref"><span class="ltx_text ltx_ref_tag">13.5</span></a> and Section&#160;<a href="#S6" title="13.6 Monte Carlo Localization (MCL)" class="ltx_ref"><span class="ltx_text ltx_ref_tag">13.6</span></a>.</p>
+</div>
+<section id="S2.SS0.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Map representation.</h4>
+
+<div id="S2.SS0.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">Before modifying the probabilistic models, it is useful to briefly review how we represent maps in this chapter.
+We assume that the environment can be described by a collection of spatial entities—either discrete landmarks or volumetric cells—with associated properties.
+Formally, we denote the map as:</p>
+<table id="S2.Ex2" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex2.m1" class="ltx_Math" alttext="\bm{m}=\{m_{1},m_{2},\dots,m_{N}\}," display="block"><mrow><mrow><mi>𝒎</mi><mo>=</mo><mrow><mo stretchy="false">{</mo><msub><mi>m</mi><mn>1</mn></msub><mo>,</mo><msub><mi>m</mi><mn>2</mn></msub><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msub><mi>m</mi><mi>N</mi></msub><mo stretchy="false">}</mo></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where each element <math id="S2.SS0.SSS0.Px1.p1.m1" class="ltx_Math" alttext="m_{i}" display="inline"><msub><mi>m</mi><mi>i</mi></msub></math> describes a portion of the environment.</p>
+</div>
+<div id="S2.SS0.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">Depending on the application, <math id="S2.SS0.SSS0.Px1.p2.m1" class="ltx_Math" alttext="m_{i}" display="inline"><msub><mi>m</mi><mi>i</mi></msub></math> may represent the occupancy state of a grid cell (occupied/free/unknown), the position of a point landmark, <math id="S2.SS0.SSS0.Px1.p2.m2" class="ltx_Math" alttext="m_{i}=(m_{i,x},m_{i,y})" display="inline"><mrow><msub><mi>m</mi><mi>i</mi></msub><mo>=</mo><mrow><mo stretchy="false">(</mo><msub><mi>m</mi><mrow><mi>i</mi><mo>,</mo><mi>x</mi></mrow></msub><mo>,</mo><msub><mi>m</mi><mrow><mi>i</mi><mo>,</mo><mi>y</mi></mrow></msub><mo stretchy="false">)</mo></mrow></mrow></math> in a global frame, or more complex attributes such as semantic labels or reflectivity.
+We will use the generic term “map element” for <math id="S2.SS0.SSS0.Px1.p2.m3" class="ltx_Math" alttext="m_{i}" display="inline"><msub><mi>m</mi><mi>i</mi></msub></math>, and refer informally to these as “objects” or “cells” when helpful.</p>
+</div>
+<figure id="S2.F1" class="ltx_figure"><img style="width:75%;height:auto" src="/book-assets/robot-localization/figs__ch16_figs__location_based_maps.png" id="S2.F1.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 13.1</span>: </span><span class="ltx_text" style="font-size:90%;">Two examples of location-based maps.
+Both represent the map as a set of volumetric objects, which in these examples are cells.</span></figcaption>
+</figure>
+<figure id="S2.F2" class="ltx_figure"><img style="width:80%;height:auto" src="/book-assets/robot-localization/figs__ch16_figs__feature_based_maps.png" id="S2.F2.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 13.2</span>: </span><span class="ltx_text" style="font-size:90%;">Two examples of feature-based maps.
+One uses a collection of lines and the other uses a graph representation of the empty spaces.</span></figcaption>
+</figure>
+<div id="S2.SS0.SSS0.Px1.p3" class="ltx_para">
+<p class="ltx_p">Two important map families arise frequently in mobile robotics:</p>
+<ul id="S2.I1" class="ltx_itemize">
+<li id="S2.I1.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="S2.I1.i1.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Feature-based maps</em>, where each <math id="S2.I1.i1.p1.m1" class="ltx_Math" alttext="m_{i}" display="inline"><msub><mi>m</mi><mi>i</mi></msub></math> is a compact feature, such
+as a point landmark or line segment, with precisely defined geometry.
+Figure&#160;<a href="#S2.F2" title="Figure 13.2 ‣ Map representation. ‣ 13.2 Robot Localization via Bayesian Filtering" class="ltx_ref"><span class="ltx_text ltx_ref_tag">13.2</span></a> shows two examples of feature-based maps, one represented by lines and another by a graph of nodes and edges.<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.I1.i1.p1.p1" class="ltx_para">
+<span class="ltx_p">Graph-based maps are generally referred to as <em class="ltx_emph ltx_font_italic">topological maps</em>.</span>
+</span></span></span></span></span></p>
+</div>
+</li>
+<li id="S2.I1.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="S2.I1.i2.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Cell-based (occupancy grid) maps</em>, where the environment is
+discretized into a grid of cells, each with an associated occupancy
+probability.
+This is closely related to the grid-based motion planning representations discussed in <span class="ltx_ref">the referenced section</span>.
+Figure&#160;<a href="#S2.F1" title="Figure 13.1 ‣ Map representation. ‣ 13.2 Robot Localization via Bayesian Filtering" class="ltx_ref"><span class="ltx_text ltx_ref_tag">13.1</span></a> shows examples where the environment is represented by a set of volumetric cells.</p>
+</div>
+</li>
+</ul>
+</div>
+<div id="S2.SS0.SSS0.Px1.p4" class="ltx_para">
+<p class="ltx_p">Cell-based maps trade off resolution and computational cost: smaller cells provide finer spatial detail but increase memory usage and computation time, while larger cells reduce cost but blur detail and can misrepresent narrow passages.
+We refer back to the grid-based planning discussion in <span class="ltx_ref">the referenced section</span> for a deeper treatment of these trade-offs.
+In this chapter, we treat the choice of map representation as given, and focus on how the map enters the filtering equations.</p>
+</div>
+</section>
+</section>
+<section id="S3" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">13.3 </span>Map-Aware State Transition Model</h2>
+
+<div id="S3.p1" class="ltx_para">
+<p class="ltx_p">The map influences how the robot can move.
+For example, a mobile robot cannot pass through walls or leave the known workspace.
+A purely kinematic transition model <math id="S3.p1.m1" class="ltx_Math" alttext="p(\bm{x}_{t}\mid\bm{x}_{t-1},\bm{u}_{t})" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></math> does not capture these constraints: it might assign nonzero probability to states that lie inside obstacles or outside the mapped area.</p>
+</div>
+<div id="S3.p2" class="ltx_para">
+<p class="ltx_p">To incorporate the map, we consider the map-aware transition model <math id="S3.p2.m1" class="ltx_Math" alttext="p(\bm{x}_{t}\mid\bm{x}_{t-1},\bm{u}_{t},\bm{m})" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></math>.
+Directly modeling this distribution for arbitrary maps is difficult, so we adopt an approximation that reuses the original transition model and a separate, map-induced prior.
+Specifically, we define <math id="S3.p2.m2" class="ltx_Math" alttext="p(\bm{x}_{t}\mid\bm{m})" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mi>𝒎</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></math> as the probability of a pose given only the map.
+This term characterizes how consistent a pose is with the environment.
+For example, <math id="S3.p2.m3" class="ltx_Math" alttext="p(\bm{x}_{t}\mid\bm{m})=0" display="inline"><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mi>𝒎</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mn>0</mn></mrow></math> for a pose inside a wall or outside the mapped region.</p>
+</div>
+<div id="S3.p3" class="ltx_para">
+<p class="ltx_p">Using Bayes’ rule, we can approximate the map-aware transition model as:</p>
+<table id="S3.E2" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.E2.m1" class="ltx_Math" alttext="p(\bm{x}_{t}\mid\bm{x}_{t-1},\bm{u}_{t},\bm{m})\approx\eta\,\frac{p(\bm{x}_{t}%
+\mid\bm{x}_{t-1},\bm{u}_{t})\,p(\bm{x}_{t}\mid\bm{m})}{p(\bm{x}_{t})}," display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>≈</mo><mrow><mi>η</mi><mo lspace="0.170em">⁢</mo><mfrac><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub></mrow></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mi>𝒎</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mfrac></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(13.2)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S3.p3.m1" class="ltx_Math" alttext="\eta" display="inline"><mi>η</mi></math> is a normalization constant that ensures the left-hand side integrates to one.
+Equation&#160;<a href="#S3.E2" title="In 13.3 Map-Aware State Transition Model" class="ltx_ref"><span class="ltx_text ltx_ref_tag">13.2</span></a> can be derived step-by-step by starting from Bayes’ rule:</p>
+<table id="S3.Ex3" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex3.m1" class="ltx_Math" alttext="p(\bm{x}_{t}\mid\bm{x}_{t-1},\bm{u}_{t},\bm{m})=\frac{p(\bm{m}\mid\bm{x}_{t},%
+\bm{x}_{t-1},\bm{u}_{t})\,p(\bm{x}_{t}\mid\bm{x}_{t-1},\bm{u}_{t})}{p(\bm{m}%
+\mid\bm{x}_{t-1},\bm{u}_{t})}." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mfrac><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>𝒎</mi><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub></mrow></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>𝒎</mi><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mfrac></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Since <math id="S3.p3.m2" class="ltx_Math" alttext="p(\bm{m}\mid\bm{x}_{t-1},\bm{u}_{t})" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>𝒎</mi><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></math> does not depend on <math id="S3.p3.m3" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math>, we can absorb it into a constant <math id="S3.p3.m4" class="ltx_Math" alttext="\eta^{\prime}" display="inline"><msup><mi>η</mi><mo>′</mo></msup></math>:</p>
+<table id="S3.Ex4" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex4.m1" class="ltx_Math" alttext="p(\bm{x}_{t}\mid\bm{x}_{t-1},\bm{u}_{t},\bm{m})=\eta^{\prime}\,p(\bm{m}\mid\bm%
+{x}_{t},\bm{x}_{t-1},\bm{u}_{t})\,p(\bm{x}_{t}\mid\bm{x}_{t-1},\bm{u}_{t})." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><msup><mi>η</mi><mo>′</mo></msup><mo>⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>𝒎</mi><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub></mrow></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S3.p4" class="ltx_para">
+<p class="ltx_p">Next, we assume that the influence of the past on the map is captured entirely through the current pose <math id="S3.p4.m1" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math>:</p>
+<table id="S3.Ex5" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex5.m1" class="ltx_Math" alttext="p(\bm{m}\mid\bm{x}_{t},\bm{x}_{t-1},\bm{u}_{t})\approx p(\bm{m}\mid\bm{x}_{t})." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>𝒎</mi><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>≈</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>𝒎</mi><mo>∣</mo><msub><mi>𝒙</mi><mi>t</mi></msub></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S3.p5" class="ltx_para">
+<p class="ltx_p">Intuitively, once we know the current pose, the specific path taken to get there does not provide additional information about the static map.<span id="footnote1" class="ltx_note ltx_role_footnote"><sup class="ltx_note_mark">1</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">1</sup><span class="ltx_tag ltx_tag_note">1</span>This approximation becomes more accurate as the time step between <math id="footnote1.m1" class="ltx_Math" alttext="t-1" display="inline"><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></math> and <math id="footnote1.m2" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math> shrinks, so that the robot moves only a short distance between successive poses.</span></span></span>
+With this assumption:</p>
+<table id="S3.Ex6" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex6.m1" class="ltx_Math" alttext="p(\bm{x}_{t}\mid\bm{x}_{t-1},\bm{u}_{t},\bm{m})\approx\eta^{\prime}\,p(\bm{m}%
+\mid\bm{x}_{t})\,p(\bm{x}_{t}\mid\bm{x}_{t-1},\bm{u}_{t})." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>≈</mo><mrow><msup><mi>η</mi><mo>′</mo></msup><mo>⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>𝒎</mi><mo>∣</mo><msub><mi>𝒙</mi><mi>t</mi></msub></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Applying Bayes’ rule again to <math id="S3.p5.m1" class="ltx_Math" alttext="p(\bm{m}\mid\bm{x}_{t})" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>𝒎</mi><mo>∣</mo><msub><mi>𝒙</mi><mi>t</mi></msub></mrow><mo stretchy="false">)</mo></mrow></mrow></math> gives:</p>
+<table id="S3.Ex7" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex7.m1" class="ltx_Math" alttext="p(\bm{m}\mid\bm{x}_{t})=\frac{p(\bm{x}_{t}\mid\bm{m})p(\bm{m})}{p(\bm{x}_{t})}." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>𝒎</mi><mo>∣</mo><msub><mi>𝒙</mi><mi>t</mi></msub></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mfrac><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mi>𝒎</mi></mrow><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒎</mi><mo stretchy="false">)</mo></mrow></mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mfrac></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Substituting into the previous expression and absorbing constant factors that do not depend on <math id="S3.p5.m2" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math> into a new normalization constant <math id="S3.p5.m3" class="ltx_Math" alttext="\eta" display="inline"><mi>η</mi></math> yields:</p>
+<table id="S3.Ex8" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex8.m1" class="ltx_Math" alttext="p(\bm{x}_{t}\mid\bm{x}_{t-1},\bm{u}_{t},\bm{m})\approx\eta\,\frac{p(\bm{x}_{t}%
+\mid\bm{x}_{t-1},\bm{u}_{t})\,p(\bm{x}_{t}\mid\bm{m})}{p(\bm{x}_{t})}," display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>≈</mo><mrow><mi>η</mi><mo lspace="0.170em">⁢</mo><mfrac><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub></mrow></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mi>𝒎</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mfrac></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">which is Equation (Equation&#160;<a href="#S3.E2" title="In 13.3 Map-Aware State Transition Model" class="ltx_ref"><span class="ltx_text ltx_ref_tag">13.2</span></a>).</p>
+</div>
+<div id="S3.p6" class="ltx_para">
+<p class="ltx_p">In this approximation, <math id="S3.p6.m1" class="ltx_Math" alttext="p(\bm{x}_{t}\mid\bm{m})" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mi>𝒎</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></math> is the probability of a state given only the map and captures the <em class="ltx_emph ltx_font_italic">geometric consistency</em> of that state with respect to the environment<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S3.p6.p1" class="ltx_para">
+<span class="ltx_p">For example, <math id="S3.p6.p1.m1" class="ltx_Math" alttext="p(\bm{x}_{t}\mid\bm{m})=0" display="inline"><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mi>𝒎</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mn>0</mn></mrow></math> for a state <math id="S3.p6.p1.m2" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math> that lies inside a wall or outside the known map.</span>
+</span></span></span></span></span>.
+The factor <math id="S3.p6.m2" class="ltx_Math" alttext="p(\bm{x}_{t}\mid\bm{x}_{t-1},\bm{u}_{t})" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></math> encodes the motion model, and <math id="S3.p6.m3" class="ltx_Math" alttext="p(\bm{x}_{t}\mid\bm{m})" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mi>𝒎</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></math> acts as a map-based correction that suppresses physically implausible states.</p>
+</div>
+<div id="S3.p7" class="ltx_para">
+<p class="ltx_p">From a computational perspective, Equation (Equation&#160;<a href="#S3.E2" title="In 13.3 Map-Aware State Transition Model" class="ltx_ref"><span class="ltx_text ltx_ref_tag">13.2</span></a>) is attractive because it allows us to reuse existing implementations of the motion model and incorporate the map through a relatively inexpensive correction:</p>
+<ul id="S3.I1" class="ltx_itemize">
+<li id="S3.I1.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="S3.I1.i1.p1" class="ltx_para">
+<p class="ltx_p">We first generate a <em class="ltx_emph ltx_font_italic">kinematic prediction</em> of the new pose using
+<math id="S3.I1.i1.p1.m1" class="ltx_Math" alttext="p(\bm{x}_{t}\mid\bm{x}_{t-1},\bm{u}_{t})" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></math>, which depends only on the robot model and control.</p>
+</div>
+</li>
+<li id="S3.I1.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="S3.I1.i2.p1" class="ltx_para">
+<p class="ltx_p">We then reweight or prune these predictions using <math id="S3.I1.i2.p1.m1" class="ltx_Math" alttext="p(\bm{x}_{t}\mid\bm{m})" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mi>𝒎</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></math>,
+which often reduces to simple operations such as checking whether the pose
+lies in free space (for occupancy grids) or near a corridor (for semantic
+maps).</p>
+</div>
+</li>
+</ul>
+<p class="ltx_p">Thus, the map-aware transition model modifies the likelihood of proposed poses without requiring a complete redesign of the underlying motion model.</p>
+</div>
+<section id="S3.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">13.3.1 </span>Map-Aware Measurement Model</h3>
+
+<div id="S3.SS1.p1" class="ltx_para">
+<p class="ltx_p">The map also strongly influences sensor measurements.
+For instance, the range returned by a lidar beam depends on where that beam first intersects an obstacle in the map, and the bearing to a visual landmark depends on the landmark’s position in the global frame.
+To reflect this dependence, we introduce a map-aware measurement model:</p>
+<table id="S3.Ex9" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex9.m1" class="ltx_Math" alttext="p(\bm{z}_{t}\mid\bm{x}_{t},\bm{m})." display="block"><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S3.SS1.p2" class="ltx_para">
+<p class="ltx_p">In many systems, a measurement vector <math id="S3.SS1.p2.m1" class="ltx_Math" alttext="\bm{z}_{t}\in\mathbb{R}^{p}" display="inline"><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∈</mo><msup><mi>ℝ</mi><mi>p</mi></msup></mrow></math> consists of individual components, such as individual range beams or landmark observations.
+A common simplifying assumption is that the individual components of the measurement vector <math id="S3.SS1.p2.m2" class="ltx_Math" alttext="\bm{z}_{t}\in\mathbb{R}^{p}" display="inline"><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∈</mo><msup><mi>ℝ</mi><mi>p</mi></msup></mrow></math> are conditionally independent given the state and map.
+Under this assumption, we can factor the measurement model as:</p>
+<table id="S3.E3" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.E3.m1" class="ltx_Math" alttext="p(\bm{z}_{t}\mid\bm{x}_{t},\bm{m})=\prod_{i=1}^{p}p(\bm{z}_{t}^{i}\mid\bm{x}_{%
+t},\bm{m})." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.111em">=</mo><mrow><munderover><mo movablelimits="false">∏</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>p</mi></munderover><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msubsup><mi>𝒛</mi><mi>t</mi><mi>i</mi></msubsup><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(13.3)</span></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S3.SS1.p3" class="ltx_para">
+<p class="ltx_p">The conditional independence assumption is not exact.
+For example, nearby range beams may be correlated if they hit the same object.
+However, this assumption greatly simplifies inference and works well in many practical settings.
+It allows us to process multiple sensor readings either in a batch or sequentially, using the same underlying model <math id="S3.SS1.p3.m1" class="ltx_Math" alttext="p(\bm{z}_{t}^{i}\mid\bm{x}_{t},\bm{m})" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msubsup><mi>𝒛</mi><mi>t</mi><mi>i</mi></msubsup><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></math> for each component.</p>
+</div>
+</section>
+</section>
+<section id="S4" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">13.4 </span>Markov Localization</h2>
+
+<div id="S4.p1" class="ltx_para">
+<p class="ltx_p">The first map-based localization algorithm we introduce is <em class="ltx_emph ltx_font_italic">Markov localization</em>.
+Markov localization applies the Bayes filter from <a class="ltx_ref" href="/book/localization-filtering/">Chapter 11</a> to the map-aware models introduced above.
+The belief over robot pose at time <math id="S4.p1.m1" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math> is:</p>
+<table id="S4.Ex10" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S4.Ex10.m1" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t})\coloneqq p(\bm{x}_{t}\mid\bm{z}_{1:t},\bm{u}_{1:t},\bm{%
+m})," display="block"><mrow><mrow><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>≔</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">and the map <math id="S4.p1.m2" class="ltx_Math" alttext="\bm{m}" display="inline"><mi>𝒎</mi></math> is treated as known and fixed.</p>
+</div>
+<div id="S4.p2" class="ltx_para">
+<p class="ltx_p">Using the map-aware transition and measurement models <math id="S4.p2.m1" class="ltx_Math" alttext="p(\bm{x}_{t}\mid\bm{x}_{t-1},\bm{u}_{t},\bm{m})" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></math> and <math id="S4.p2.m2" class="ltx_Math" alttext="p(\bm{z}_{t}\mid\bm{x}_{t},\bm{m})" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></math>, the Bayes filter recursion becomes:</p>
+<table id="Sx2.EGx1" class="ltx_equationgroup ltx_eqn_align ltx_eqn_table">
+
+<tbody id="S4.Ex11"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S4.Ex11.m1" class="ltx_Math" alttext="\displaystyle\text{Prediction:}\qquad\overline{\text{bel}}(\bm{x}_{t})" display="inline"><mrow><mtext>Prediction:</mtext><mspace width="2em"></mspace><mrow><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S4.Ex11.m2" class="ltx_Math" alttext="\displaystyle=\int p(\bm{x}_{t}\mid\bm{x}_{t-1},\bm{u}_{t},\bm{m})\,\text{bel}%
+(\bm{x}_{t-1})\,d\bm{x}_{t-1}," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mstyle displaystyle="true"><mrow><mo>∫</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow></mrow></mrow></mstyle></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S4.Ex12"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S4.Ex12.m1" class="ltx_Math" alttext="\displaystyle\text{Correction:}\qquad\text{bel}(\bm{x}_{t})" display="inline"><mrow><mtext>Correction:</mtext><mspace width="2em"></mspace><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S4.Ex12.m2" class="ltx_Math" alttext="\displaystyle=\eta\,p(\bm{z}_{t}\mid\bm{x}_{t},\bm{m})\,\overline{\text{bel}}(%
+\bm{x}_{t})," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><mi>η</mi><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S4.p2.m3" class="ltx_Math" alttext="\overline{\text{bel}}(\bm{x}_{t})" display="inline"><mrow><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math> denotes the predicted belief and <math id="S4.p2.m4" class="ltx_Math" alttext="\eta" display="inline"><mi>η</mi></math> is a normalization constant chosen so that <math id="S4.p2.m5" class="ltx_Math" alttext="\int\text{bel}(\bm{x}_{t})\,d\bm{x}_{t}=1" display="inline"><mrow><mrow><mo>∫</mo><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><msub><mi>𝒙</mi><mi>t</mi></msub></mrow></mrow></mrow><mo>=</mo><mn>1</mn></mrow></math>.
+We summarize this recursion in Algorithm&#160;<a href="#algorithm1" title="In 13.4 Markov Localization" class="ltx_ref"><span class="ltx_text ltx_ref_tag">1</span></a>.</p>
+</div>
+<figure id="algorithm1" class="ltx_float ltx_algorithm">
+<div class="ltx_listing ltx_lst_numbers_left ltx_listing">
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Data:</span> <math id="algorithm1.m1" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t-1}),\bm{u}_{t},\bm{z}_{t},\bm{m}" display="inline"><mrow><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="false">)</mo></mrow></mrow><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒛</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Result:</span> <math id="algorithm1.m2" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t})" display="inline"><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">foreach</span> <em class="ltx_emph ltx_font_italic"><math id="algorithm1.m3" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝐱</mi><mi>t</mi></msub></math></em> <span class="ltx_text ltx_font_bold">do</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm1.m4" class="ltx_Math" alttext="\overline{\text{bel}}(\bm{x}_{t})=\int p(\bm{x}_{t}\mid\bm{x}_{t-1},\bm{u}_{t}%,\bm{m})\text{bel}(\bm{x}_{t-1})d\bm{x}_{t-1}" display="inline"><mrow><mrow><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.111em">=</mo><mrow><mo>∫</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="false">)</mo></mrow><mo lspace="0em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow></mrow></mrow></mrow></math> </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm1.m5" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t})=\eta p(\bm{z}_{t}\mid\bm{x}_{t},\bm{m})\overline{\text{%bel}}(\bm{x}_{t})" display="inline"><mrow><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>η</mi><mo>⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">return</span> <math id="algorithm1.m6" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t})" display="inline"><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math></div>
+</div>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_float"><span class="ltx_text ltx_font_bold">Algorithm 1</span> </span>Markov Localization</figcaption>
+</figure>
+<div id="S4.p3" class="ltx_para">
+<p class="ltx_p">Conceptually, Markov localization has the same structure as the Bayes filter from <a class="ltx_ref" href="/book/localization-filtering/">Chapter 11</a>: a prediction step that propagates the belief through the motion model, followed by a correction step that incorporates the latest measurement.
+The only difference is that both the prediction and correction now depend explicitly on the map <math id="S4.p3.m1" class="ltx_Math" alttext="\bm{m}" display="inline"><mi>𝒎</mi></math>.</p>
+</div>
+<div id="S4.p4" class="ltx_para">
+<p class="ltx_p">In its most general form, however, Markov localization is not directly computationally tractable.
+The integral over all possible poses and the need to maintain an arbitrary belief function are prohibitive in high-dimensional or continuous state spaces.
+As in <a class="ltx_ref" href="/book/approximate-filters/">Chapter 12</a>, the key to practicality is to choose a <em class="ltx_emph ltx_font_italic">representation</em> for the belief that is expressive enough for the problem at hand, yet structured enough to admit efficient computation.</p>
+</div>
+<div id="S4.p5" class="ltx_para">
+<p class="ltx_p">In Section&#160;<a href="#S5" title="13.5 EKF Localization" class="ltx_ref"><span class="ltx_text ltx_ref_tag">13.5</span></a>, we adopt a unimodal Gaussian belief and derive an EKF-based localization algorithm, which is well suited for pose tracking with moderate uncertainty.
+In Section&#160;<a href="#S6" title="13.6 Monte Carlo Localization (MCL)" class="ltx_ref"><span class="ltx_text ltx_ref_tag">13.6</span></a>, we adopt a particle-based representation and derive Monte Carlo Localization, capable of handling global localization and multimodal beliefs.</p>
+</div>
+</section>
+<section id="S5" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">13.5 </span>EKF Localization</h2>
+
+<div id="S5.p1" class="ltx_para">
+<p class="ltx_p">We now develop an EKF-based realization of Markov localization.
+The EKF localization algorithm assumes that the belief over the robot’s pose can be approximated by a single Gaussian:</p>
+<table id="S5.Ex13" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.Ex13.m1" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t})\sim\mathcal{N}(\bm{\mu}_{t},\Sigma_{t})," display="block"><mrow><mrow><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>∼</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒩</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝝁</mi><mi>t</mi></msub><mo>,</mo><msub><mi mathvariant="normal">Σ</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">and applies the EKF prediction and update equations from <a class="ltx_ref" href="/book/approximate-filters/">Chapter 12</a> using map-aware models.
+This Gaussian structure significantly improves computational efficiency relative to the full Markov localization algorithm, at the cost of not being able to represent multiple well-separated pose hypotheses.<span id="footnote2" class="ltx_note ltx_role_footnote"><sup class="ltx_note_mark">2</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">2</sup><span class="ltx_tag ltx_tag_note">2</span>As in <a class="ltx_ref" href="/book/approximate-filters/">Chapter 12</a>, this unimodality assumption is well suited to pose tracking but generally insufficient for global localization.</span></span></span></p>
+</div>
+<div id="S5.p2" class="ltx_para">
+<p class="ltx_p">We assume the same nonlinear state transition model as in <span class="ltx_ref">the referenced section</span>:</p>
+<table id="S5.Ex14" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.Ex14.m1" class="ltx_Math" alttext="\bm{x}_{t}=f(\bm{x}_{t-1},\bm{u}_{t})+\bm{\epsilon}_{t}," display="block"><mrow><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>=</mo><mrow><mrow><mi>f</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>+</mo><msub><mi class="ltx_mathvariant_bold-italic" mathvariant="bold-italic">ϵ</mi><mi>t</mi></msub></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S5.p2.m1" class="ltx_Math" alttext="\bm{\epsilon}_{t}\sim\mathcal{N}(\bm{0},Q_{t})" display="inline"><mrow><msub><mi class="ltx_mathvariant_bold-italic" mathvariant="bold-italic">ϵ</mi><mi>t</mi></msub><mo>∼</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒩</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>𝟎</mn><mo>,</mo><msub><mi>Q</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></math> is zero-mean Gaussian process noise.
+The corresponding state transition Jacobian is:</p>
+<table id="S5.E4" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.E4.m1" class="ltx_Math" alttext="F_{t}=\nabla_{\bm{x}}f(\bm{\mu}_{t-1},\bm{u}_{t})," display="block"><mrow><mrow><msub><mi>F</mi><mi>t</mi></msub><mo>=</mo><mrow><mrow><msub><mo rspace="0.167em">∇</mo><mi>𝒙</mi></msub><mi>f</mi></mrow><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝝁</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(13.4)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S5.p2.m2" class="ltx_Math" alttext="\bm{\mu}_{t-1}" display="inline"><msub><mi>𝝁</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math> is the mean of the previous belief <math id="S5.p2.m3" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t-1})" display="inline"><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="false">)</mo></mrow></mrow></math>.</p>
+</div>
+<div id="S5.p3" class="ltx_para">
+<p class="ltx_p">The main difference between the general EKF and EKF localization is the presence of a feature-based map and a measurement model that relates robot poses to observed landmarks.
+We assume we have a map <math id="S5.p3.m1" class="ltx_Math" alttext="\bm{m}" display="inline"><mi>𝒎</mi></math> of <math id="S5.p3.m2" class="ltx_Math" alttext="N" display="inline"><mi>N</mi></math> point landmarks:</p>
+<table id="S5.Ex15" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.Ex15.m1" class="ltx_Math" alttext="\bm{m}=\{m_{1},m_{2},\dots,m_{N}\},\quad m_{j}=(m_{j,x},m_{j,y})," display="block"><mrow><mrow><mrow><mi>𝒎</mi><mo>=</mo><mrow><mo stretchy="false">{</mo><msub><mi>m</mi><mn>1</mn></msub><mo>,</mo><msub><mi>m</mi><mn>2</mn></msub><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msub><mi>m</mi><mi>N</mi></msub><mo stretchy="false">}</mo></mrow></mrow><mo rspace="1.167em">,</mo><mrow><msub><mi>m</mi><mi>j</mi></msub><mo>=</mo><mrow><mo stretchy="false">(</mo><msub><mi>m</mi><mrow><mi>j</mi><mo>,</mo><mi>x</mi></mrow></msub><mo>,</mo><msub><mi>m</mi><mrow><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where each landmark <math id="S5.p3.m3" class="ltx_Math" alttext="m_{j}" display="inline"><msub><mi>m</mi><mi>j</mi></msub></math> is given by its two-dimensional location <math id="S5.p3.m4" class="ltx_Math" alttext="(m_{j,x},m_{j,y})" display="inline"><mrow><mo stretchy="false">(</mo><msub><mi>m</mi><mrow><mi>j</mi><mo>,</mo><mi>x</mi></mrow></msub><mo>,</mo><msub><mi>m</mi><mrow><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub><mo stretchy="false">)</mo></mrow></math> in the global coordinate frame.
+At time <math id="S5.p3.m5" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math> the robot obtains a set of landmark measurements:</p>
+<table id="S5.Ex16" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.Ex16.m1" class="ltx_Math" alttext="\bm{z}_{t}=\{\bm{z}_{t}^{1},\bm{z}_{t}^{2},\dots\}," display="block"><mrow><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>=</mo><mrow><mo stretchy="false">{</mo><msubsup><mi>𝒛</mi><mi>t</mi><mn>1</mn></msubsup><mo>,</mo><msubsup><mi>𝒛</mi><mi>t</mi><mn>2</mn></msubsup><mo>,</mo><mi mathvariant="normal">…</mi><mo stretchy="false">}</mo></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where each <math id="S5.p3.m6" class="ltx_Math" alttext="\bm{z}_{t}^{i}" display="inline"><msubsup><mi>𝒛</mi><mi>t</mi><mi>i</mi></msubsup></math> is associated (implicitly or explicitly) with one landmark.</p>
+</div>
+<div id="S5.p4" class="ltx_para">
+<p class="ltx_p">Given a pose <math id="S5.p4.m1" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math> and the index <math id="S5.p4.m2" class="ltx_Math" alttext="j" display="inline"><mi>j</mi></math> of the corresponding landmark, the measurement model is:</p>
+<table id="S5.Ex17" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.Ex17.m1" class="ltx_Math" alttext="\bm{z}_{t}^{i}=h(\bm{x}_{t},j,\bm{m})+\bm{\delta}_{t}," display="block"><mrow><mrow><msubsup><mi>𝒛</mi><mi>t</mi><mi>i</mi></msubsup><mo>=</mo><mrow><mrow><mi>h</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><mi>j</mi><mo>,</mo><mi>𝒎</mi><mo stretchy="false">)</mo></mrow></mrow><mo>+</mo><msub><mi>𝜹</mi><mi>t</mi></msub></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S5.p4.m3" class="ltx_Math" alttext="\bm{\delta}_{t}\sim\mathcal{N}(\bm{0},R_{t})" display="inline"><mrow><msub><mi>𝜹</mi><mi>t</mi></msub><mo>∼</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒩</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>𝟎</mn><mo>,</mo><msub><mi>R</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></math> models zero-mean Gaussian sensor noise, and <math id="S5.p4.m4" class="ltx_Math" alttext="h(\cdot)" display="inline"><mrow><mi>h</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mo lspace="0em" rspace="0em">⋅</mo><mo stretchy="false">)</mo></mrow></mrow></math> encodes the expected range, bearing, or other features to landmark <math id="S5.p4.m5" class="ltx_Math" alttext="m_{j}" display="inline"><msub><mi>m</mi><mi>j</mi></msub></math>.
+For each measurement, the Jacobian of the measurement model with respect to the state is:</p>
+<table id="S5.E5" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.E5.m1" class="ltx_Math" alttext="H^{c^{i}_{t}}_{t}=\nabla_{\bm{x}}h(\bar{\bm{\mu}}_{t},c^{i}_{t},\bm{m})," display="block"><mrow><mrow><msubsup><mi>H</mi><mi>t</mi><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup></msubsup><mo>=</mo><mrow><mrow><msub><mo rspace="0.167em">∇</mo><mi>𝒙</mi></msub><mi>h</mi></mrow><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mover accent="true"><mi>𝝁</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>,</mo><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup><mo>,</mo><mi>𝒎</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(13.5)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S5.p4.m6" class="ltx_Math" alttext="\bar{\bm{\mu}}_{t}" display="inline"><msub><mover accent="true"><mi>𝝁</mi><mo>¯</mo></mover><mi>t</mi></msub></math> is the predicted mean from the EKF prediction step, and <math id="S5.p4.m7" class="ltx_Math" alttext="c_{t}^{i}" display="inline"><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup></math> is the index of the map feature associated with measurement <math id="S5.p4.m8" class="ltx_Math" alttext="i" display="inline"><mi>i</mi></math>.</p>
+</div>
+<div id="S5.p5" class="ltx_para">
+<p class="ltx_p">A new challenge in feature-based localization is <em class="ltx_emph ltx_font_italic">data association</em>.
+Given a set of measurements <math id="S5.p5.m1" class="ltx_Math" alttext="\bm{z}_{t}" display="inline"><msub><mi>𝒛</mi><mi>t</mi></msub></math>, which landmark does each measurement correspond to?
+We denote the correspondence for measurement <math id="S5.p5.m2" class="ltx_Math" alttext="i" display="inline"><mi>i</mi></math> at time <math id="S5.p5.m3" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math> by <math id="S5.p5.m4" class="ltx_Math" alttext="c_{t}^{i}\in\{1,\dots,N+1\}" display="inline"><mrow><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup><mo>∈</mo><mrow><mo stretchy="false">{</mo><mn>1</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><mi>N</mi><mo>+</mo><mn>1</mn></mrow><mo stretchy="false">}</mo></mrow></mrow></math>, where <math id="S5.p5.m5" class="ltx_Math" alttext="c_{t}^{i}=j" display="inline"><mrow><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup><mo>=</mo><mi>j</mi></mrow></math> means that measurement <math id="S5.p5.m6" class="ltx_Math" alttext="i" display="inline"><mi>i</mi></math> corresponds to landmark <math id="S5.p5.m7" class="ltx_Math" alttext="m_{j}" display="inline"><msub><mi>m</mi><mi>j</mi></msub></math>, and <math id="S5.p5.m8" class="ltx_Math" alttext="c_{t}^{i}=N+1" display="inline"><mrow><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup><mo>=</mo><mrow><mi>N</mi><mo>+</mo><mn>1</mn></mrow></mrow></math> indicates that measurement <math id="S5.p5.m9" class="ltx_Math" alttext="i" display="inline"><mi>i</mi></math> does not correspond to any known landmark<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S5.p5.p1" class="ltx_para">
+<span class="ltx_p">For example, due to a spurious detection.</span>
+</span></span></span></span></span>.</p>
+</div>
+<div id="S5.p6" class="ltx_para">
+<p class="ltx_p">We first consider the simpler case where we assume the correspondences <math id="S5.p6.m1" class="ltx_Math" alttext="c_{t}^{i}" display="inline"><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup></math> are known.</p>
+</div>
+<section id="S5.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">13.5.1 </span>EKF Localization with Known Correspondences</h3>
+
+<div id="S5.SS1.p1" class="ltx_para">
+<p class="ltx_p">Assume for the moment that the correspondences <math id="S5.SS1.p1.m1" class="ltx_Math" alttext="\bm{c}_{t}=\{c_{t}^{1},c_{t}^{2},\dots\}" display="inline"><mrow><msub><mi>𝒄</mi><mi>t</mi></msub><mo>=</mo><mrow><mo stretchy="false">{</mo><msubsup><mi>c</mi><mi>t</mi><mn>1</mn></msubsup><mo>,</mo><msubsup><mi>c</mi><mi>t</mi><mn>2</mn></msubsup><mo>,</mo><mi mathvariant="normal">…</mi><mo stretchy="false">}</mo></mrow></mrow></math> are known.
+The EKF localization algorithm then resembles the standard EKF from <a class="ltx_ref" href="/book/approximate-filters/">Chapter 12</a>, with two key modifications:</p>
+<ol id="S5.I1" class="ltx_enumerate">
+<li id="S5.I1.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">1.</span> 
+<div id="S5.I1.i1.p1" class="ltx_para">
+<p class="ltx_p">The measurement model relates the pose to map features via <math id="S5.I1.i1.p1.m1" class="ltx_Math" alttext="h(\bm{x}_{t},j,\bm{m})" display="inline"><mrow><mi>h</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><mi>j</mi><mo>,</mo><mi>𝒎</mi><mo stretchy="false">)</mo></mrow></mrow></math>.</p>
+</div>
+</li>
+<li id="S5.I1.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">2.</span> 
+<div id="S5.I1.i2.p1" class="ltx_para">
+<p class="ltx_p">Multiple landmark measurements are processed at each time step.</p>
+</div>
+</li>
+</ol>
+</div>
+<div id="S5.SS1.p2" class="ltx_para">
+<p class="ltx_p">Given the pose <math id="S5.SS1.p2.m1" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math> and the map <math id="S5.SS1.p2.m2" class="ltx_Math" alttext="\bm{m}" display="inline"><mi>𝒎</mi></math>, and given known correspondences <math id="S5.SS1.p2.m3" class="ltx_Math" alttext="\bm{c}_{t}" display="inline"><msub><mi>𝒄</mi><mi>t</mi></msub></math>, the joint likelihood of the measurement set <math id="S5.SS1.p2.m4" class="ltx_Math" alttext="\bm{z}_{t}" display="inline"><msub><mi>𝒛</mi><mi>t</mi></msub></math> can be written as:</p>
+<table id="S5.Ex18" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.Ex18.m1" class="ltx_Math" alttext="p(\bm{z}_{t}\mid\bm{x}_{t},\bm{c}_{t},\bm{m})." display="block"><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒄</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Using the conditional independence assumption from Equation&#160;<a href="#S3.E3" title="In 13.3.1 Map-Aware Measurement Model ‣ 13.3 Map-Aware State Transition Model" class="ltx_ref"><span class="ltx_text ltx_ref_tag">13.3</span></a>—now applied at the level of individual landmark measurements—we have:</p>
+<table id="S5.Ex19" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.Ex19.m1" class="ltx_Math" alttext="p(\bm{z}_{t}\mid\bm{x}_{t},\bm{c}_{t},\bm{m})=\prod_{i}p(\bm{z}_{t}^{i}\mid\bm%
+{x}_{t},c_{t}^{i},\bm{m})." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒄</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.111em">=</mo><mrow><munder><mo movablelimits="false">∏</mo><mi>i</mi></munder><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msubsup><mi>𝒛</mi><mi>t</mi><mi>i</mi></msubsup><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Each factor <math id="S5.SS1.p2.m5" class="ltx_Math" alttext="p(\bm{z}_{t}^{i}\mid\bm{x}_{t},c_{t}^{i},\bm{m})" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msubsup><mi>𝒛</mi><mi>t</mi><mi>i</mi></msubsup><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></math> is a Gaussian distribution whose mean is given by <math id="S5.SS1.p2.m6" class="ltx_Math" alttext="h(\bm{x}_{t},c_{t}^{i},\bm{m})" display="inline"><mrow><mi>h</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup><mo>,</mo><mi>𝒎</mi><mo stretchy="false">)</mo></mrow></mrow></math> and whose covariance is <math id="S5.SS1.p2.m7" class="ltx_Math" alttext="R_{t}" display="inline"><msub><mi>R</mi><mi>t</mi></msub></math>.</p>
+</div>
+<div id="S5.SS1.p3" class="ltx_para">
+<p class="ltx_p">Because the prior over <math id="S5.SS1.p3.m1" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math> is Gaussian and each measurement likelihood term is Gaussian, the posterior remains Gaussian.
+Moreover, under the conditional independence assumption, we can apply the standard EKF measurement update sequentially for each <math id="S5.SS1.p3.m2" class="ltx_Math" alttext="\bm{z}_{t}^{i}" display="inline"><msubsup><mi>𝒛</mi><mi>t</mi><mi>i</mi></msubsup></math> and obtain the same result as if we had processed all measurements in a single stacked update.
+This is a consequence of the fact that, for Gaussian models, multiplication of likelihood terms can be carried out in any order.</p>
+</div>
+<figure id="algorithm2" class="ltx_float ltx_algorithm">
+<div class="ltx_listing ltx_lst_numbers_left ltx_listing">
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Data:</span> <math id="algorithm2.m1" class="ltx_Math" alttext="\bm{\mu}_{t-1},\Sigma_{t-1},\bm{u}_{t},\bm{z}_{t},\bm{c}_{t},\bm{m}" display="inline"><mrow><msub><mi>𝝁</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi mathvariant="normal">Σ</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒛</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒄</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Result:</span> <math id="algorithm2.m2" class="ltx_Math" alttext="\bm{\mu}_{t},\Sigma_{t}" display="inline"><mrow><msub><mi>𝝁</mi><mi>t</mi></msub><mo>,</mo><msub><mi mathvariant="normal">Σ</mi><mi>t</mi></msub></mrow></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_typewriter">// </span><span class="ltx_text ltx_font_typewriter">Prediction (motion update) </span></div>
+<div class="ltx_listingline"><math id="algorithm2.m3" class="ltx_Math" alttext="\bar{\bm{\mu}}_{t}=f(\bm{\mu}_{t-1},\bm{u}_{t})" display="inline"><mrow><msub><mover accent="true"><mi>𝝁</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>=</mo><mrow><mi>f</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝝁</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></math></div>
+<div class="ltx_listingline"><math id="algorithm2.m4" class="ltx_Math" alttext="\bar{\Sigma}_{t}=F_{t}\Sigma_{t-1}F_{t}^{\top}+Q_{t}" display="inline"><mrow><msub><mover accent="true"><mi mathvariant="normal">Σ</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>=</mo><mrow><mrow><msub><mi>F</mi><mi>t</mi></msub><mo>⁢</mo><msub><mi mathvariant="normal">Σ</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>⁢</mo><msubsup><mi>F</mi><mi>t</mi><mo>⊤</mo></msubsup></mrow><mo>+</mo><msub><mi>Q</mi><mi>t</mi></msub></mrow></mrow></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_typewriter">// </span><span class="ltx_text ltx_font_typewriter">Correction: loop over landmark measurements </span></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">foreach</span> <em class="ltx_emph ltx_font_italic"><math id="algorithm2.m5" class="ltx_Math" alttext="\bm{z}_{t}^{i}" display="inline"><msubsup><mi>𝐳</mi><mi>t</mi><mi>i</mi></msubsup></math></em> <span class="ltx_text ltx_font_bold">do</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm2.m6" class="ltx_Math" alttext="j=c_{t}^{i}" display="inline"><mrow><mi>j</mi><mo>=</mo><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup></mrow></math></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm2.m7" class="ltx_Math" alttext="S_{t}^{i}=H_{t}^{j}\bar{\Sigma}_{t}[H^{j}_{t}]^{\top}+R_{t}" display="inline"><mrow><msubsup><mi>S</mi><mi>t</mi><mi>i</mi></msubsup><mo>=</mo><mrow><mrow><msubsup><mi>H</mi><mi>t</mi><mi>j</mi></msubsup><mo>⁢</mo><msub><mover accent="true"><mi mathvariant="normal">Σ</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>⁢</mo><msup><mrow><mo stretchy="false">[</mo><msubsup><mi>H</mi><mi>t</mi><mi>j</mi></msubsup><mo stretchy="false">]</mo></mrow><mo>⊤</mo></msup></mrow><mo>+</mo><msub><mi>R</mi><mi>t</mi></msub></mrow></mrow></math></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm2.m8" class="ltx_Math" alttext="K^{i}_{t}=\bar{\Sigma}_{t}[H^{j}_{t}]^{\top}[S_{t}^{i}]^{-1}" display="inline"><mrow><msubsup><mi>K</mi><mi>t</mi><mi>i</mi></msubsup><mo>=</mo><mrow><msub><mover accent="true"><mi mathvariant="normal">Σ</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>⁢</mo><msup><mrow><mo stretchy="false">[</mo><msubsup><mi>H</mi><mi>t</mi><mi>j</mi></msubsup><mo stretchy="false">]</mo></mrow><mo>⊤</mo></msup><mo>⁢</mo><msup><mrow><mo stretchy="false">[</mo><msubsup><mi>S</mi><mi>t</mi><mi>i</mi></msubsup><mo stretchy="false">]</mo></mrow><mrow><mo>−</mo><mn>1</mn></mrow></msup></mrow></mrow></math></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm2.m9" class="ltx_Math" alttext="\bar{\bm{\mu}}_{t}=\bar{\bm{\mu}}_{t}+K^{i}_{t}(\bm{z}^{i}_{t}-h(\bar{\bm{\mu}%}_{t},j,\bm{m}))" display="inline"><mrow><msub><mover accent="true"><mi>𝝁</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>=</mo><mrow><msub><mover accent="true"><mi>𝝁</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>+</mo><mrow><msubsup><mi>K</mi><mi>t</mi><mi>i</mi></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msubsup><mi>𝒛</mi><mi>t</mi><mi>i</mi></msubsup><mo>−</mo><mrow><mi>h</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mover accent="true"><mi>𝝁</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>,</mo><mi>j</mi><mo>,</mo><mi>𝒎</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow></math></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm2.m10" class="ltx_Math" alttext="\bar{\Sigma}_{t}=(I-K^{i}_{t}H^{j}_{t})\bar{\Sigma}_{t}" display="inline"><mrow><msub><mover accent="true"><mi mathvariant="normal">Σ</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>=</mo><mrow><mrow><mo stretchy="false">(</mo><mrow><mi>I</mi><mo>−</mo><mrow><msubsup><mi>K</mi><mi>t</mi><mi>i</mi></msubsup><mo>⁢</mo><msubsup><mi>H</mi><mi>t</mi><mi>j</mi></msubsup></mrow></mrow><mo stretchy="false">)</mo></mrow><mo>⁢</mo><msub><mover accent="true"><mi mathvariant="normal">Σ</mi><mo>¯</mo></mover><mi>t</mi></msub></mrow></mrow></math></div>
+<div class="ltx_listingline">&#160;</div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_typewriter">// </span><span class="ltx_text ltx_font_typewriter">Final posterior </span></div>
+<div class="ltx_listingline"><math id="algorithm2.m11" class="ltx_Math" alttext="\bm{\mu}_{t}=\bar{\bm{\mu}}_{t}" display="inline"><mrow><msub><mi>𝝁</mi><mi>t</mi></msub><mo>=</mo><msub><mover accent="true"><mi>𝝁</mi><mo>¯</mo></mover><mi>t</mi></msub></mrow></math></div>
+<div class="ltx_listingline"><math id="algorithm2.m12" class="ltx_Math" alttext="\Sigma_{t}=\bar{\Sigma}_{t}" display="inline"><mrow><msub><mi mathvariant="normal">Σ</mi><mi>t</mi></msub><mo>=</mo><msub><mover accent="true"><mi mathvariant="normal">Σ</mi><mo>¯</mo></mover><mi>t</mi></msub></mrow></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">return</span> <math id="algorithm2.m13" class="ltx_Math" alttext="\bm{\mu}_{t},\Sigma_{t}" display="inline"><mrow><msub><mi>𝝁</mi><mi>t</mi></msub><mo>,</mo><msub><mi mathvariant="normal">Σ</mi><mi>t</mi></msub></mrow></math></div>
+</div>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_float"><span class="ltx_text ltx_font_bold">Algorithm 2</span> </span>EKF Localization with Known Correspondences</figcaption>
+</figure>
+<div id="S5.SS1.p4" class="ltx_para">
+<p class="ltx_p">Algorithm&#160;<a href="#algorithm2" title="In 13.5.1 EKF Localization with Known Correspondences ‣ 13.5 EKF Localization" class="ltx_ref"><span class="ltx_text ltx_ref_tag">2</span></a> summarizes the EKF localization recursion in the known-correspondence case.
+This algorithm provides a useful baseline: if we knew which measurement came from which landmark, EKF localization would be a straightforward specialization of the standard EKF.
+The main additional difficulty in practice is that the correspondences <math id="S5.SS1.p4.m1" class="ltx_Math" alttext="c_{t}^{i}" display="inline"><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup></math> are typically unknown and must be estimated jointly with the robot state.</p>
+</div>
+</section>
+<section id="S5.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">13.5.2 </span>EKF Localization with Unknown Correspondences</h3>
+
+<div id="S5.SS2.p1" class="ltx_para">
+<p class="ltx_p">In realistic scenarios, the correspondences <math id="S5.SS2.p1.m1" class="ltx_Math" alttext="c_{t}^{i}" display="inline"><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup></math> are not given and must be inferred from the data.
+One common approach is to estimate the correspondences using a maximum likelihood (MLE) criterion.
+At each time step, we choose <math id="S5.SS2.p1.m2" class="ltx_Math" alttext="\bm{c}_{t}=\{c_{t}^{i}\}" display="inline"><mrow><msub><mi>𝒄</mi><mi>t</mi></msub><mo>=</mo><mrow><mo stretchy="false">{</mo><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup><mo stretchy="false">}</mo></mrow></mrow></math> to maximize the likelihood of the current measurements:</p>
+<table id="S5.Ex20" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.Ex20.m1" class="ltx_Math" alttext="\hat{\bm{c}}_{t}=\arg\max_{\bm{c}_{t}}p(\bm{z}_{t}\mid\bm{c}_{1:t},\bm{m},\bm{%
+z}_{1:t-1},\bm{u}_{1:t})." display="block"><mrow><mrow><msub><mover accent="true"><mi>𝒄</mi><mo>^</mo></mover><mi>t</mi></msub><mo>=</mo><mrow><mrow><mi>arg</mi><mo lspace="0.167em">⁡</mo><mrow><munder><mi>max</mi><msub><mi>𝒄</mi><mi>t</mi></msub></munder><mo lspace="0.167em">⁡</mo><mi>p</mi></mrow></mrow><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒄</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub><mo>,</mo><mi>𝒎</mi><mo>,</mo><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">In words, we select the assignment of measurements to landmarks that makes the observed data most probable, given the map and the past history.</p>
+</div>
+<div id="S5.SS2.p2" class="ltx_para">
+<p class="ltx_p">To make this optimization tractable, we first marginalize over the unknown pose <math id="S5.SS2.p2.m1" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math>:</p>
+<table id="S5.Ex21" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.Ex21.m1" class="ltx_math_unparsed" alttext="\begin{split}p(\bm{z}_{t}\mid\bm{c}_{1:t},\bm{m},\bm{z}_{1:t-1},\bm{u}_{1:t})&amp;%
+=\int p(\bm{z}_{t}\mid\bm{x}_{t},\bm{c}_{1:t},\bm{m},\bm{z}_{1:t-1},\bm{u}_{1:%
+t})\,p(\bm{x}_{t}\mid\bm{c}_{1:t},\bm{m},\bm{z}_{1:t-1},\bm{u}_{1:t})d\bm{x}_{%
+t},\\
+&amp;=\int p(\bm{z}_{t}\mid\bm{x}_{t},\bm{c}_{t},\bm{m})\,\overline{\text{bel}}(%
+\bm{x}_{t})d\bm{x}_{t},\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒄</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub><mo>,</mo><mi>𝒎</mi><mo>,</mo><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo rspace="0.111em">=</mo><mrow><mo>∫</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒄</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub><mo>,</mo><mi>𝒎</mi><mo>,</mo><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒄</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub><mo>,</mo><mi>𝒎</mi><mo>,</mo><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><msub><mi>𝒙</mi><mi>t</mi></msub></mrow></mrow></mrow></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo rspace="0.111em">=</mo><mrow><mo>∫</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒄</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow><mo lspace="0em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><msub><mi>𝒙</mi><mi>t</mi></msub></mrow></mrow></mrow></mrow><mo>,</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where we used the Markov assumption to simplify <math id="S5.SS2.p2.m2" class="ltx_Math" alttext="p(\bm{z}_{t}\mid\bm{x}_{t},\bm{c}_{1:t},\bm{m},\bm{z}_{1:t-1},\bm{u}_{1:t})=p(%
+\bm{z}_{t}\mid\bm{x}_{t},\bm{c}_{t},\bm{m})" display="inline"><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒄</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub><mo>,</mo><mi>𝒎</mi><mo>,</mo><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒄</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></math>, and defined the predicted belief:</p>
+<table id="S5.Ex22" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.Ex22.m1" class="ltx_Math" alttext="\overline{\text{bel}}(\bm{x}_{t})\coloneqq p(\bm{x}_{t}\mid\bm{c}_{1:t},\bm{m}%
+,\bm{z}_{1:t-1},\bm{u}_{1:t})." display="block"><mrow><mrow><mrow><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>≔</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒄</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub><mo>,</mo><mi>𝒎</mi><mo>,</mo><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S5.SS2.p3" class="ltx_para">
+<p class="ltx_p">The term <math id="S5.SS2.p3.m1" class="ltx_Math" alttext="p(\bm{z}_{t}\mid\bm{x}_{t},\bm{c}_{t},\bm{m})" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒄</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></math> is the measurement model with known correspondences.
+Using the conditional independence assumption from Equation&#160;<a href="#S3.E3" title="In 13.3.1 Map-Aware Measurement Model ‣ 13.3 Map-Aware State Transition Model" class="ltx_ref"><span class="ltx_text ltx_ref_tag">13.3</span></a>, we can factor it as:</p>
+<table id="S5.Ex23" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.Ex23.m1" class="ltx_Math" alttext="p(\bm{z}_{t}\mid\bm{x}_{t},\bm{c}_{t},\bm{m})=\prod_{i}p(\bm{z}_{t}^{i}\mid\bm%
+{x}_{t},c_{t}^{i},\bm{m})." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒄</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.111em">=</mo><mrow><munder><mo movablelimits="false">∏</mo><mi>i</mi></munder><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msubsup><mi>𝒛</mi><mi>t</mi><mi>i</mi></msubsup><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Substituting into the integral, we obtain:</p>
+<table id="S5.Ex24" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.Ex24.m1" class="ltx_Math" alttext="p(\bm{z}_{t}\mid\bm{c}_{1:t},\bm{m},\bm{z}_{1:t-1},\bm{u}_{1:t})=\int\overline%
+{\text{bel}}(\bm{x}_{t})\prod_{i}p(\bm{z}_{t}^{i}\mid\bm{x}_{t},c_{t}^{i},\bm{%
+m})\,d\bm{x}_{t}." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒄</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub><mo>,</mo><mi>𝒎</mi><mo>,</mo><msub><mi>𝒛</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mn>1</mn><mo lspace="0.278em" rspace="0.278em">:</mo><mi>t</mi></mrow></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.111em">=</mo><mrow><mo>∫</mo><mrow><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mrow><munder><mo movablelimits="false">∏</mo><mi>i</mi></munder><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msubsup><mi>𝒛</mi><mi>t</mi><mi>i</mi></msubsup><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mi>d</mi><mo>⁢</mo><msub><mi>𝒙</mi><mi>t</mi></msub></mrow></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S5.SS2.p4" class="ltx_para">
+<p class="ltx_p">Although the measurements are conditionally independent given <math id="S5.SS2.p4.m1" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math>, they become coupled after marginalizing over <math id="S5.SS2.p4.m2" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math>.
+A common approximation is therefore to select correspondences independently by scoring each measurement-landmark pairing under the predicted belief:</p>
+</div>
+<div id="S5.SS2.p5" class="ltx_para">
+<table id="S5.Ex25" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.Ex25.m1" class="ltx_Math" alttext="\begin{split}\hat{c}^{i}_{t}=\arg\max_{c^{i}_{t}}\int p(\bm{z}^{i}_{t}\mid\bm{%
+x}_{t},c^{i}_{t},\bm{m})\,\overline{\text{bel}}(\bm{x}_{t})\,d\bm{x}_{t}.\end{split}" display="block"><mtable displaystyle="true"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><msubsup><mover accent="true"><mi>c</mi><mo>^</mo></mover><mi>t</mi><mi>i</mi></msubsup><mo>=</mo><mrow><mrow><mi>arg</mi><mo lspace="0.167em">⁡</mo><munder><mi>max</mi><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup></munder></mrow><mo>⁢</mo><mrow><mo>∫</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msubsup><mi>𝒛</mi><mi>t</mi><mi>i</mi></msubsup><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><msub><mi>𝒙</mi><mi>t</mi></msub></mrow></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S5.SS2.p6" class="ltx_para">
+<p class="ltx_p">Under the Gaussian assumptions on the belief and measurement model, the integral above is a Gaussian distribution with mean and covariance:</p>
+<table id="S5.Ex26" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.Ex26.m1" class="ltx_Math" alttext="\int p(\bm{z}_{t}^{i}\mid\bm{x}_{t},c_{t}^{i},\bm{m})\,\overline{\text{bel}}(%
+\bm{x}_{t})\,d\bm{x}_{t}\sim\mathcal{N}\bigl{(}\hat{\bm{z}}_{t}^{c_{t}^{i}},\,%
+S_{t}^{c_{t}^{i}}\bigr{)}," display="block"><mrow><mrow><mrow><mo>∫</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msubsup><mi>𝒛</mi><mi>t</mi><mi>i</mi></msubsup><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mover accent="true"><mtext>bel</mtext><mo>¯</mo></mover><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow><mo lspace="0.170em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><msub><mi>𝒙</mi><mi>t</mi></msub></mrow></mrow></mrow><mo>∼</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒩</mi><mo>⁢</mo><mrow><mo maxsize="120%" minsize="120%">(</mo><msubsup><mover accent="true"><mi>𝒛</mi><mo>^</mo></mover><mi>t</mi><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup></msubsup><mo rspace="0.337em">,</mo><msubsup><mi>S</mi><mi>t</mi><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup></msubsup><mo maxsize="120%" minsize="120%">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where:</p>
+<table id="S5.Ex27" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.Ex27.m1" class="ltx_Math" alttext="\hat{\bm{z}}_{t}^{j}=h(\bar{\bm{\mu}}_{t},j,\bm{m}),\qquad S_{t}^{j}=H_{t}^{j}%
+\bar{\Sigma}_{t}(H_{t}^{j})^{\top}+R_{t}." display="block"><mrow><mrow><mrow><msubsup><mover accent="true"><mi>𝒛</mi><mo>^</mo></mover><mi>t</mi><mi>j</mi></msubsup><mo>=</mo><mrow><mi>h</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mover accent="true"><mi>𝝁</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>,</mo><mi>j</mi><mo>,</mo><mi>𝒎</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo rspace="2.167em">,</mo><mrow><msubsup><mi>S</mi><mi>t</mi><mi>j</mi></msubsup><mo>=</mo><mrow><mrow><msubsup><mi>H</mi><mi>t</mi><mi>j</mi></msubsup><mo>⁢</mo><msub><mover accent="true"><mi mathvariant="normal">Σ</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>⁢</mo><msup><mrow><mo stretchy="false">(</mo><msubsup><mi>H</mi><mi>t</mi><mi>j</mi></msubsup><mo stretchy="false">)</mo></mrow><mo>⊤</mo></msup></mrow><mo>+</mo><msub><mi>R</mi><mi>t</mi></msub></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S5.SS2.p7" class="ltx_para">
+<p class="ltx_p">Maximizing the likelihood is therefore equivalent to choosing <math id="S5.SS2.p7.m1" class="ltx_Math" alttext="c_{t}^{i}" display="inline"><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup></math> to maximize the Gaussian density <math id="S5.SS2.p7.m2" class="ltx_Math" alttext="\mathcal{N}(\bm{z}_{t}^{i}\mid\hat{\bm{z}}_{t}^{j},S_{t}^{j})" display="inline"><mrow><mi class="ltx_font_mathcaligraphic">𝒩</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msubsup><mi>𝒛</mi><mi>t</mi><mi>i</mi></msubsup><mo>∣</mo><mrow><msubsup><mover accent="true"><mi>𝒛</mi><mo>^</mo></mover><mi>t</mi><mi>j</mi></msubsup><mo>,</mo><msubsup><mi>S</mi><mi>t</mi><mi>j</mi></msubsup></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></math>, or equivalently to minimize the associated Mahalanobis distance:</p>
+<table id="S5.E6" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.E6.m1" class="ltx_Math" alttext="\hat{c}_{t}^{i}=\arg\min_{c_{t}^{i}}d_{t}^{i,c_{t}^{i}}," display="block"><mrow><mrow><msubsup><mover accent="true"><mi>c</mi><mo>^</mo></mover><mi>t</mi><mi>i</mi></msubsup><mo>=</mo><mrow><mi>arg</mi><mo lspace="0.167em">⁡</mo><mrow><munder><mi>min</mi><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup></munder><mo lspace="0.167em">⁡</mo><msubsup><mi>d</mi><mi>t</mi><mrow><mi>i</mi><mo>,</mo><msubsup><mi>c</mi><mi>t</mi><mi>i</mi></msubsup></mrow></msubsup></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(13.6)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where:</p>
+<table id="S5.E7" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.E7.m1" class="ltx_Math" alttext="d_{t}^{ij}=(\bm{z}_{t}^{i}-\hat{\bm{z}}_{t}^{j})^{\top}(S_{t}^{j})^{-1}(\bm{z}%
+_{t}^{i}-\hat{\bm{z}}_{t}^{j})," display="block"><mrow><mrow><msubsup><mi>d</mi><mi>t</mi><mrow><mi>i</mi><mo>⁢</mo><mi>j</mi></mrow></msubsup><mo>=</mo><mrow><msup><mrow><mo stretchy="false">(</mo><mrow><msubsup><mi>𝒛</mi><mi>t</mi><mi>i</mi></msubsup><mo>−</mo><msubsup><mover accent="true"><mi>𝒛</mi><mo>^</mo></mover><mi>t</mi><mi>j</mi></msubsup></mrow><mo stretchy="false">)</mo></mrow><mo>⊤</mo></msup><mo>⁢</mo><msup><mrow><mo stretchy="false">(</mo><msubsup><mi>S</mi><mi>t</mi><mi>j</mi></msubsup><mo stretchy="false">)</mo></mrow><mrow><mo>−</mo><mn>1</mn></mrow></msup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msubsup><mi>𝒛</mi><mi>t</mi><mi>i</mi></msubsup><mo>−</mo><msubsup><mover accent="true"><mi>𝒛</mi><mo>^</mo></mover><mi>t</mi><mi>j</mi></msubsup></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(13.7)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">is the Mahalanobis distance between the actual measurement <math id="S5.SS2.p7.m3" class="ltx_Math" alttext="\bm{z}_{t}^{i}" display="inline"><msubsup><mi>𝒛</mi><mi>t</mi><mi>i</mi></msubsup></math> and its prediction <math id="S5.SS2.p7.m4" class="ltx_Math" alttext="\hat{\bm{z}}_{t}^{j}" display="inline"><msubsup><mover accent="true"><mi>𝒛</mi><mo>^</mo></mover><mi>t</mi><mi>j</mi></msubsup></math> under landmark <math id="S5.SS2.p7.m5" class="ltx_Math" alttext="j" display="inline"><mi>j</mi></math>.</p>
+</div>
+<div id="S5.SS2.p8" class="ltx_para">
+<p class="ltx_p">In practice, additional <em class="ltx_emph ltx_font_italic">validation gates</em> are often imposed: if the minimum distance <math id="S5.SS2.p8.m1" class="ltx_Math" alttext="d_{t}^{i\hat{c}_{t}^{i}}" display="inline"><msubsup><mi>d</mi><mi>t</mi><mrow><mi>i</mi><mo>⁢</mo><msubsup><mover accent="true"><mi>c</mi><mo>^</mo></mover><mi>t</mi><mi>i</mi></msubsup></mrow></msubsup></math> exceeds a threshold, the measurement is treated as unmatched (assigned to the “no landmark” index <math id="S5.SS2.p8.m2" class="ltx_Math" alttext="N+1" display="inline"><mrow><mi>N</mi><mo>+</mo><mn>1</mn></mrow></math>) and excluded from the EKF update.
+Once the correspondences <math id="S5.SS2.p8.m3" class="ltx_Math" alttext="\hat{\bm{c}}_{t}" display="inline"><msub><mover accent="true"><mi>𝒄</mi><mo>^</mo></mover><mi>t</mi></msub></math> have been determined, they are treated as known in Algorithm&#160;<a href="#algorithm3" title="In 13.5.2 EKF Localization with Unknown Correspondences ‣ 13.5 EKF Localization" class="ltx_ref"><span class="ltx_text ltx_ref_tag">3</span></a>, yielding the full EKF localization algorithm with unknown correspondences.</p>
+</div>
+<figure id="algorithm3" class="ltx_float ltx_algorithm">
+<div class="ltx_listing ltx_lst_numbers_left ltx_listing">
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Data:</span> <math id="algorithm3.m1" class="ltx_Math" alttext="\bm{\mu}_{t-1},\Sigma_{t-1},\bm{u}_{t},\bm{z}_{t},\bm{m}" display="inline"><mrow><msub><mi>𝝁</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi mathvariant="normal">Σ</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒛</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Result:</span> <math id="algorithm3.m2" class="ltx_Math" alttext="\bm{\mu}_{t},\Sigma_{t}" display="inline"><mrow><msub><mi>𝝁</mi><mi>t</mi></msub><mo>,</mo><msub><mi mathvariant="normal">Σ</mi><mi>t</mi></msub></mrow></math></div>
+<div class="ltx_listingline"><math id="algorithm3.m3" class="ltx_Math" alttext="\bar{\bm{\mu}}_{t}=f(\bm{\mu}_{t-1},\bm{u}_{t})" display="inline"><mrow><msub><mover accent="true"><mi>𝝁</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>=</mo><mrow><mi>f</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝝁</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></math></div>
+<div class="ltx_listingline"><math id="algorithm3.m4" class="ltx_Math" alttext="\bar{\Sigma}_{t}=F_{t}\Sigma_{t-1}F_{t}^{\top}+Q_{t}" display="inline"><mrow><msub><mover accent="true"><mi mathvariant="normal">Σ</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>=</mo><mrow><mrow><msub><mi>F</mi><mi>t</mi></msub><mo>⁢</mo><msub><mi mathvariant="normal">Σ</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>⁢</mo><msubsup><mi>F</mi><mi>t</mi><mo>⊤</mo></msubsup></mrow><mo>+</mo><msub><mi>Q</mi><mi>t</mi></msub></mrow></mrow></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">foreach</span> <em class="ltx_emph ltx_font_italic"><math id="algorithm3.m5" class="ltx_Math" alttext="\bm{z}_{t}^{i}" display="inline"><msubsup><mi>𝐳</mi><mi>t</mi><mi>i</mi></msubsup></math></em> <span class="ltx_text ltx_font_bold">do</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <span class="ltx_text ltx_font_bold">foreach</span> <em class="ltx_emph ltx_font_italic">landmark <math id="algorithm3.m6" class="ltx_Math" alttext="k" display="inline"><mi>k</mi></math> in the map</em> <span class="ltx_text ltx_font_bold">do</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>     <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm3.m7" class="ltx_Math" alttext="\hat{\bm{z}}_{t}^{k}=h(\bar{\bm{\mu}}_{t},k,\bm{m})" display="inline"><mrow><msubsup><mover accent="true"><mi>𝒛</mi><mo>^</mo></mover><mi>t</mi><mi>k</mi></msubsup><mo>=</mo><mrow><mi>h</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mover accent="true"><mi>𝝁</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>,</mo><mi>k</mi><mo>,</mo><mi>𝒎</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></math></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>     <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm3.m8" class="ltx_Math" alttext="S_{t}^{k}=H_{t}^{k}\bar{\Sigma}_{t}[H^{k}_{t}]^{\top}+R_{t}" display="inline"><mrow><msubsup><mi>S</mi><mi>t</mi><mi>k</mi></msubsup><mo>=</mo><mrow><mrow><msubsup><mi>H</mi><mi>t</mi><mi>k</mi></msubsup><mo>⁢</mo><msub><mover accent="true"><mi mathvariant="normal">Σ</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>⁢</mo><msup><mrow><mo stretchy="false">[</mo><msubsup><mi>H</mi><mi>t</mi><mi>k</mi></msubsup><mo stretchy="false">]</mo></mrow><mo>⊤</mo></msup></mrow><mo>+</mo><msub><mi>R</mi><mi>t</mi></msub></mrow></mrow></math></div>
+<div class="ltx_listingline">&#160;</div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm3.m9" class="ltx_math_unparsed" alttext="j=\arg\min_{k}\&gt;\&gt;(\bm{z}_{t}^{i}-\hat{\bm{z}}^{k}_{t})^{\top}[S_{t}^{k}]^{-1}%(\bm{z}_{t}^{i}-\hat{\bm{z}}^{k}_{t})" display="inline"><mrow><mi>j</mi><mo>=</mo><mi>arg</mi><msub><mi>min</mi><mi>k</mi></msub><msup><mrow><mo stretchy="false">(</mo><msubsup><mi>𝒛</mi><mi>t</mi><mi>i</mi></msubsup><mo>−</mo><msubsup><mover accent="true"><mi>𝒛</mi><mo>^</mo></mover><mi>t</mi><mi>k</mi></msubsup><mo stretchy="false">)</mo></mrow><mo>⊤</mo></msup><msup><mrow><mo stretchy="false">[</mo><msubsup><mi>S</mi><mi>t</mi><mi>k</mi></msubsup><mo stretchy="false">]</mo></mrow><mrow><mo>−</mo><mn>1</mn></mrow></msup><mrow><mo stretchy="false">(</mo><msubsup><mi>𝒛</mi><mi>t</mi><mi>i</mi></msubsup><mo>−</mo><msubsup><mover accent="true"><mi>𝒛</mi><mo>^</mo></mover><mi>t</mi><mi>k</mi></msubsup><mo stretchy="false">)</mo></mrow></mrow></math></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm3.m10" class="ltx_Math" alttext="K^{i}_{t}=\bar{\Sigma}_{t}[H^{j}_{t}]^{\top}[S_{t}^{j}]^{-1}" display="inline"><mrow><msubsup><mi>K</mi><mi>t</mi><mi>i</mi></msubsup><mo>=</mo><mrow><msub><mover accent="true"><mi mathvariant="normal">Σ</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>⁢</mo><msup><mrow><mo stretchy="false">[</mo><msubsup><mi>H</mi><mi>t</mi><mi>j</mi></msubsup><mo stretchy="false">]</mo></mrow><mo>⊤</mo></msup><mo>⁢</mo><msup><mrow><mo stretchy="false">[</mo><msubsup><mi>S</mi><mi>t</mi><mi>j</mi></msubsup><mo stretchy="false">]</mo></mrow><mrow><mo>−</mo><mn>1</mn></mrow></msup></mrow></mrow></math></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm3.m11" class="ltx_Math" alttext="\bar{\bm{\mu}}_{t}=\bar{\bm{\mu}}_{t}+K^{i}_{t}(\bm{z}^{i}_{t}-\hat{\bm{z}}_{t%}^{j})" display="inline"><mrow><msub><mover accent="true"><mi>𝝁</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>=</mo><mrow><msub><mover accent="true"><mi>𝝁</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>+</mo><mrow><msubsup><mi>K</mi><mi>t</mi><mi>i</mi></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msubsup><mi>𝒛</mi><mi>t</mi><mi>i</mi></msubsup><mo>−</mo><msubsup><mover accent="true"><mi>𝒛</mi><mo>^</mo></mover><mi>t</mi><mi>j</mi></msubsup></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow></math></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm3.m12" class="ltx_Math" alttext="\bar{\Sigma}_{t}=(I-K^{i}_{t}H^{j}_{t})\bar{\Sigma}_{t}" display="inline"><mrow><msub><mover accent="true"><mi mathvariant="normal">Σ</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>=</mo><mrow><mrow><mo stretchy="false">(</mo><mrow><mi>I</mi><mo>−</mo><mrow><msubsup><mi>K</mi><mi>t</mi><mi>i</mi></msubsup><mo>⁢</mo><msubsup><mi>H</mi><mi>t</mi><mi>j</mi></msubsup></mrow></mrow><mo stretchy="false">)</mo></mrow><mo>⁢</mo><msub><mover accent="true"><mi mathvariant="normal">Σ</mi><mo>¯</mo></mover><mi>t</mi></msub></mrow></mrow></math></div>
+<div class="ltx_listingline">&#160;</div>
+<div class="ltx_listingline"><math id="algorithm3.m13" class="ltx_Math" alttext="\bm{\mu}_{t}=\bar{\bm{\mu}}_{t}" display="inline"><mrow><msub><mi>𝝁</mi><mi>t</mi></msub><mo>=</mo><msub><mover accent="true"><mi>𝝁</mi><mo>¯</mo></mover><mi>t</mi></msub></mrow></math></div>
+<div class="ltx_listingline"><math id="algorithm3.m14" class="ltx_Math" alttext="\Sigma_{t}=\bar{\Sigma}_{t}" display="inline"><mrow><msub><mi mathvariant="normal">Σ</mi><mi>t</mi></msub><mo>=</mo><msub><mover accent="true"><mi mathvariant="normal">Σ</mi><mo>¯</mo></mover><mi>t</mi></msub></mrow></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">return</span> <math id="algorithm3.m15" class="ltx_Math" alttext="\bm{\mu}_{t},\Sigma_{t}" display="inline"><mrow><msub><mi>𝝁</mi><mi>t</mi></msub><mo>,</mo><msub><mi mathvariant="normal">Σ</mi><mi>t</mi></msub></mrow></math></div>
+</div>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_float"><span class="ltx_text ltx_font_bold">Algorithm 3</span> </span>EKF Localization with Unknown Correspondences</figcaption>
+</figure>
+<div id="S5.Thmexample1" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 13.5.1</span></span><span class="ltx_text ltx_font_bold"> </span>(Differential drive robot with range and bearing measurements)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S5.Thmexample1.p1" class="ltx_para">
+<p class="ltx_p">Consider a differential drive robot with state <math id="S5.Thmexample1.p1.m1" class="ltx_Math" alttext="\bm{x}=\left[{x,y,\theta}\right]^{\top}" display="inline"><mrow><mi>𝒙</mi><mo>=</mo><msup><mrow><mo>[</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo>,</mo><mi>θ</mi><mo>]</mo></mrow><mo>⊤</mo></msup></mrow></math> and a sensor that measures the range <math id="S5.Thmexample1.p1.m2" class="ltx_Math" alttext="r" display="inline"><mi>r</mi></math> and bearing <math id="S5.Thmexample1.p1.m3" class="ltx_Math" alttext="\phi" display="inline"><mi>ϕ</mi></math> to landmarks <math id="S5.Thmexample1.p1.m4" class="ltx_Math" alttext="m_{j}\in\bm{m}" display="inline"><mrow><msub><mi>m</mi><mi>j</mi></msub><mo>∈</mo><mi>𝒎</mi></mrow></math> in the robot’s local coordinate frame.
+We assume that at each time step the robot collects multiple measurements corresponding to different features:</p>
+<table id="S5.Ex28" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.Ex28.m1" class="ltx_Math" alttext="\bm{z}_{t}=\{[r_{t}^{1},\phi_{t}^{1}]^{\top},[r_{t}^{2},\phi_{t}^{2}]^{\top},%
+\dots\}," display="block"><mrow><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>=</mo><mrow><mo stretchy="false">{</mo><msup><mrow><mo stretchy="false">[</mo><msubsup><mi>r</mi><mi>t</mi><mn>1</mn></msubsup><mo>,</mo><msubsup><mi>ϕ</mi><mi>t</mi><mn>1</mn></msubsup><mo stretchy="false">]</mo></mrow><mo>⊤</mo></msup><mo>,</mo><msup><mrow><mo stretchy="false">[</mo><msubsup><mi>r</mi><mi>t</mi><mn>2</mn></msubsup><mo>,</mo><msubsup><mi>ϕ</mi><mi>t</mi><mn>2</mn></msubsup><mo stretchy="false">]</mo></mrow><mo>⊤</mo></msup><mo>,</mo><mi mathvariant="normal">…</mi><mo stretchy="false">}</mo></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where each measurement <math id="S5.Thmexample1.p1.m5" class="ltx_Math" alttext="\bm{z}_{t}^{i}" display="inline"><msubsup><mi>𝒛</mi><mi>t</mi><mi>i</mi></msubsup></math> contains the range <math id="S5.Thmexample1.p1.m6" class="ltx_Math" alttext="r_{t}^{i}" display="inline"><msubsup><mi>r</mi><mi>t</mi><mi>i</mi></msubsup></math> and bearing <math id="S5.Thmexample1.p1.m7" class="ltx_Math" alttext="\phi_{t}^{i}" display="inline"><msubsup><mi>ϕ</mi><mi>t</mi><mi>i</mi></msubsup></math>.</p>
+</div>
+<div id="S5.Thmexample1.p2" class="ltx_para">
+<p class="ltx_p">Assuming the correspondences are known, the measurement model for the range and bearing of landmark <math id="S5.Thmexample1.p2.m1" class="ltx_Math" alttext="j" display="inline"><mi>j</mi></math> is:</p>
+<table id="S5.E8" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.E8.m1" class="ltx_Math" alttext="h(\bm{x}_{t},j,\bm{m})=\begin{bmatrix}\sqrt{(m_{j,x}-x)^{2}+(m_{j,y}-y)^{2}}\\
+\text{atan2}(m_{j,y}-y,m_{j,x}-x)-\theta\end{bmatrix}." display="block"><mrow><mrow><mrow><mi>h</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><mi>j</mi><mo>,</mo><mi>𝒎</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mo>[</mo><mtable displaystyle="true" rowspacing="0pt"><mtr><mtd><msqrt><mrow><msup><mrow><mo stretchy="false">(</mo><mrow><msub><mi>m</mi><mrow><mi>j</mi><mo>,</mo><mi>x</mi></mrow></msub><mo>−</mo><mi>x</mi></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup><mo>+</mo><msup><mrow><mo stretchy="false">(</mo><mrow><msub><mi>m</mi><mrow><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>−</mo><mi>y</mi></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow></msqrt></mtd></mtr><mtr><mtd><mrow><mrow><mtext>atan2</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>m</mi><mrow><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>−</mo><mi>y</mi></mrow><mo>,</mo><mrow><msub><mi>m</mi><mrow><mi>j</mi><mo>,</mo><mi>x</mi></mrow></msub><mo>−</mo><mi>x</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>−</mo><mi>θ</mi></mrow></mtd></mtr></mtable><mo>]</mo></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(13.8)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">The measurement Jacobian <math id="S5.Thmexample1.p2.m2" class="ltx_Math" alttext="H^{j}_{t}" display="inline"><msubsup><mi>H</mi><mi>t</mi><mi>j</mi></msubsup></math> corresponding to a measurement from landmark <math id="S5.Thmexample1.p2.m3" class="ltx_Math" alttext="j" display="inline"><mi>j</mi></math> is therefore:</p>
+<table id="S5.E9" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.E9.m1" class="ltx_Math" alttext="H^{j}_{t}=\begin{bmatrix}-\frac{m_{j,x}-\bar{\mu}_{t,x}}{\sqrt{(m_{j,x}-\bar{%
+\mu}_{t,x})^{2}+(m_{j,y}-\bar{\mu}_{t,y})^{2}}}&amp;-\frac{m_{j,y}-\bar{\mu}_{t,y}%
+}{\sqrt{(m_{j,x}-\bar{\mu}_{t,x})^{2}+(m_{j,y}-\bar{\mu}_{t,y})^{2}}}&amp;0\\
+\frac{m_{j,y}-\bar{\mu}_{t,y}}{(m_{j,x}-\bar{\mu}_{t,x})^{2}+(m_{j,y}-\bar{\mu%
+}_{t,y})^{2}}&amp;-\frac{m_{j,x}-\bar{\mu}_{t,x}}{(m_{j,x}-\bar{\mu}_{t,x})^{2}+(m%
+_{j,y}-\bar{\mu}_{t,y})^{2}}&amp;-1\end{bmatrix}." display="block"><mrow><mrow><msubsup><mi>H</mi><mi>t</mi><mi>j</mi></msubsup><mo>=</mo><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true" rowspacing="0pt"><mtr><mtd><mrow><mo>−</mo><mstyle displaystyle="false"><mfrac><mrow><msub><mi>m</mi><mrow><mi>j</mi><mo>,</mo><mi>x</mi></mrow></msub><mo>−</mo><msub><mover accent="true"><mi>μ</mi><mo>¯</mo></mover><mrow><mi>t</mi><mo>,</mo><mi>x</mi></mrow></msub></mrow><msqrt><mrow><msup><mrow><mo stretchy="false">(</mo><mrow><msub><mi>m</mi><mrow><mi>j</mi><mo>,</mo><mi>x</mi></mrow></msub><mo>−</mo><msub><mover accent="true"><mi>μ</mi><mo>¯</mo></mover><mrow><mi>t</mi><mo>,</mo><mi>x</mi></mrow></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup><mo>+</mo><msup><mrow><mo stretchy="false">(</mo><mrow><msub><mi>m</mi><mrow><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>−</mo><msub><mover accent="true"><mi>μ</mi><mo>¯</mo></mover><mrow><mi>t</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow></msqrt></mfrac></mstyle></mrow></mtd><mtd><mrow><mo>−</mo><mstyle displaystyle="false"><mfrac><mrow><msub><mi>m</mi><mrow><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>−</mo><msub><mover accent="true"><mi>μ</mi><mo>¯</mo></mover><mrow><mi>t</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><msqrt><mrow><msup><mrow><mo stretchy="false">(</mo><mrow><msub><mi>m</mi><mrow><mi>j</mi><mo>,</mo><mi>x</mi></mrow></msub><mo>−</mo><msub><mover accent="true"><mi>μ</mi><mo>¯</mo></mover><mrow><mi>t</mi><mo>,</mo><mi>x</mi></mrow></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup><mo>+</mo><msup><mrow><mo stretchy="false">(</mo><mrow><msub><mi>m</mi><mrow><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>−</mo><msub><mover accent="true"><mi>μ</mi><mo>¯</mo></mover><mrow><mi>t</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow></msqrt></mfrac></mstyle></mrow></mtd><mtd><mn>0</mn></mtd></mtr><mtr><mtd><mstyle displaystyle="false"><mfrac><mrow><msub><mi>m</mi><mrow><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>−</mo><msub><mover accent="true"><mi>μ</mi><mo>¯</mo></mover><mrow><mi>t</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><mrow><msup><mrow><mo stretchy="false">(</mo><mrow><msub><mi>m</mi><mrow><mi>j</mi><mo>,</mo><mi>x</mi></mrow></msub><mo>−</mo><msub><mover accent="true"><mi>μ</mi><mo>¯</mo></mover><mrow><mi>t</mi><mo>,</mo><mi>x</mi></mrow></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup><mo>+</mo><msup><mrow><mo stretchy="false">(</mo><mrow><msub><mi>m</mi><mrow><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>−</mo><msub><mover accent="true"><mi>μ</mi><mo>¯</mo></mover><mrow><mi>t</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow></mfrac></mstyle></mtd><mtd><mrow><mo>−</mo><mstyle displaystyle="false"><mfrac><mrow><msub><mi>m</mi><mrow><mi>j</mi><mo>,</mo><mi>x</mi></mrow></msub><mo>−</mo><msub><mover accent="true"><mi>μ</mi><mo>¯</mo></mover><mrow><mi>t</mi><mo>,</mo><mi>x</mi></mrow></msub></mrow><mrow><msup><mrow><mo stretchy="false">(</mo><mrow><msub><mi>m</mi><mrow><mi>j</mi><mo>,</mo><mi>x</mi></mrow></msub><mo>−</mo><msub><mover accent="true"><mi>μ</mi><mo>¯</mo></mover><mrow><mi>t</mi><mo>,</mo><mi>x</mi></mrow></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup><mo>+</mo><msup><mrow><mo stretchy="false">(</mo><mrow><msub><mi>m</mi><mrow><mi>j</mi><mo>,</mo><mi>y</mi></mrow></msub><mo>−</mo><msub><mover accent="true"><mi>μ</mi><mo>¯</mo></mover><mrow><mi>t</mi><mo>,</mo><mi>y</mi></mrow></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow></mfrac></mstyle></mrow></mtd><mtd><mrow><mo>−</mo><mn>1</mn></mrow></mtd></mtr></mtable><mo>]</mo></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(13.9)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">It is also common to assume a diagonal covariance for the measurement noise:</p>
+<table id="S5.Ex29" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S5.Ex29.m1" class="ltx_Math" alttext="R_{t}=\begin{bmatrix}\sigma_{r}^{2}&amp;0\\
+0&amp;\sigma_{\phi}^{2}\end{bmatrix}," display="block"><mrow><mrow><msub><mi>R</mi><mi>t</mi></msub><mo>=</mo><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true" rowspacing="0pt"><mtr><mtd><msubsup><mi>σ</mi><mi>r</mi><mn>2</mn></msubsup></mtd><mtd><mn>0</mn></mtd></mtr><mtr><mtd><mn>0</mn></mtd><mtd><msubsup><mi>σ</mi><mi>ϕ</mi><mn>2</mn></msubsup></mtd></mtr></mtable><mo>]</mo></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S5.Thmexample1.p2.m4" class="ltx_Math" alttext="\sigma_{r}" display="inline"><msub><mi>σ</mi><mi>r</mi></msub></math> is the standard deviation of the range measurement noise and <math id="S5.Thmexample1.p2.m5" class="ltx_Math" alttext="\sigma_{\phi}" display="inline"><msub><mi>σ</mi><mi>ϕ</mi></msub></math> is the standard deviation of the bearing measurement noise.
+This reflects the assumption that range and bearing errors are uncorrelated.</p>
+</div>
+</div>
+</section>
+</section>
+<section id="S6" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">13.6 </span>Monte Carlo Localization (MCL)</h2>
+
+<div id="S6.p1" class="ltx_para">
+<p class="ltx_p">The second practical realization of Markov localization we consider is <em class="ltx_emph ltx_font_italic">Monte Carlo localization (MCL)</em>.
+This algorithm leverages the non-parametric particle filter framework from <a class="ltx_ref" href="/book/approximate-filters/">Chapter 12</a> and is particularly well suited to <em class="ltx_emph ltx_font_italic">global pose</em> localization and the kidnapped robot problem.<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S6.p1.p1" class="ltx_para">
+<span class="ltx_p">We can also use MCL to solve the kidnapped robot problem by injecting new randomly sampled particles at each step so that the filter remains sensitive to unexpected measurements.</span>
+</span></span></span></span></span></p>
+</div>
+<div id="S6.p2" class="ltx_para">
+<p class="ltx_p">Like the particle filter, MCL represents the belief distribution <math id="S6.p2.m1" class="ltx_Math" alttext="\text{bel}(\bm{x}_{t})" display="inline"><mrow><mtext>bel</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math> by a set of <math id="S6.p2.m2" class="ltx_Math" alttext="K" display="inline"><mi>K</mi></math> particles:</p>
+<table id="S6.Ex30" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S6.Ex30.m1" class="ltx_Math" alttext="\mathcal{P}_{t}\coloneqq\{\bm{x}_{t}^{[1]},\bm{x}_{t}^{[2]},...,\bm{x}_{t}^{[K%
+]}\}," display="block"><mrow><mrow><msub><mi class="ltx_font_mathcaligraphic">𝒫</mi><mi>t</mi></msub><mo>≔</mo><mrow><mo stretchy="false">{</mo><msubsup><mi>𝒙</mi><mi>t</mi><mrow><mo stretchy="false">[</mo><mn>1</mn><mo stretchy="false">]</mo></mrow></msubsup><mo>,</mo><msubsup><mi>𝒙</mi><mi>t</mi><mrow><mo stretchy="false">[</mo><mn>2</mn><mo stretchy="false">]</mo></mrow></msubsup><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msubsup><mi>𝒙</mi><mi>t</mi><mrow><mo stretchy="false">[</mo><mi>K</mi><mo stretchy="false">]</mo></mrow></msubsup><mo stretchy="false">}</mo></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where each particle <math id="S6.p2.m3" class="ltx_Math" alttext="\bm{x}_{t}^{[k]}" display="inline"><msubsup><mi>𝒙</mi><mi>t</mi><mrow><mo stretchy="false">[</mo><mi>k</mi><mo stretchy="false">]</mo></mrow></msubsup></math> represents a hypothesis about the true state <math id="S6.p2.m4" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math>.
+Regions of the state space with more particles correspond to higher belief.</p>
+</div>
+<div id="S6.p3" class="ltx_para">
+<p class="ltx_p">At each step of the algorithm, we:</p>
+<ol id="S6.I1" class="ltx_enumerate">
+<li id="S6.I1.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">1.</span> 
+<div id="S6.I1.i1.p1" class="ltx_para">
+<p class="ltx_p">propagate particles forward using the map-aware state transition model, and</p>
+</div>
+</li>
+<li id="S6.I1.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">2.</span> 
+<div id="S6.I1.i2.p1" class="ltx_para">
+<p class="ltx_p">weight and resample the particles using the map-aware measurement model.</p>
+</div>
+</li>
+</ol>
+<p class="ltx_p">This is summarized in Algorithm&#160;<a href="#algorithm4" title="In 13.6 Monte Carlo Localization (MCL)" class="ltx_ref"><span class="ltx_text ltx_ref_tag">4</span></a>, which is nearly identical to the particle filter algorithm in <span class="ltx_ref">the referenced algorithm</span>, the only difference being that the map <math id="S6.p3.m1" class="ltx_Math" alttext="\bm{m}" display="inline"><mi>𝒎</mi></math> now appears in the probabilistic state transition and measurement models.</p>
+</div>
+<figure id="algorithm4" class="ltx_float ltx_algorithm">
+<div class="ltx_listing ltx_lst_numbers_left ltx_listing">
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Data:</span> <math id="algorithm4.m1" class="ltx_Math" alttext="\mathcal{P}_{t-1},\bm{u}_{t},\bm{z}_{t},\bm{m}" display="inline"><mrow><msub><mi class="ltx_font_mathcaligraphic">𝒫</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒛</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Result:</span> <math id="algorithm4.m2" class="ltx_Math" alttext="\mathcal{P}_{t}" display="inline"><msub><mi class="ltx_font_mathcaligraphic">𝒫</mi><mi>t</mi></msub></math></div>
+<div class="ltx_listingline"><math id="algorithm4.m3" class="ltx_Math" alttext="\bar{\mathcal{P}}_{t}=\mathcal{P}_{t}=\emptyset" display="inline"><mrow><msub><mover accent="true"><mi class="ltx_font_mathcaligraphic">𝒫</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>=</mo><msub><mi class="ltx_font_mathcaligraphic">𝒫</mi><mi>t</mi></msub><mo>=</mo><mi mathvariant="normal">∅</mi></mrow></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">for</span> <em class="ltx_emph ltx_font_italic"><math id="algorithm4.m4" class="ltx_Math" alttext="k=1" display="inline"><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow></math> <span class="ltx_text ltx_font_bold ltx_font_upright">to</span> <math id="algorithm4.m5" class="ltx_Math" alttext="K" display="inline"><mi>K</mi></math></em> <span class="ltx_text ltx_font_bold">do</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Sample <math id="algorithm4.m6" class="ltx_Math" alttext="\bar{\bm{x}}_{t}^{[k]}\sim p(\bm{x}_{t}\mid\bm{x}_{t-1}^{[k]},\bm{u}_{t},\bm{m})" display="inline"><mrow><msubsup><mover accent="true"><mi>𝒙</mi><mo>¯</mo></mover><mi>t</mi><mrow><mo stretchy="false">[</mo><mi>k</mi><mo stretchy="false">]</mo></mrow></msubsup><mo>∼</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∣</mo><mrow><msubsup><mi>𝒙</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow><mrow><mo stretchy="false">[</mo><mi>k</mi><mo stretchy="false">]</mo></mrow></msubsup><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></math></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm4.m7" class="ltx_Math" alttext="w_{t}^{[k]}=p(\bm{z}_{t}\mid\bar{\bm{x}}_{t}^{[k]},\bm{m})" display="inline"><mrow><msubsup><mi>w</mi><mi>t</mi><mrow><mo stretchy="false">[</mo><mi>k</mi><mo stretchy="false">]</mo></mrow></msubsup><mo>=</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>∣</mo><mrow><msubsup><mover accent="true"><mi>𝒙</mi><mo>¯</mo></mover><mi>t</mi><mrow><mo stretchy="false">[</mo><mi>k</mi><mo stretchy="false">]</mo></mrow></msubsup><mo>,</mo><mi>𝒎</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></math></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm4.m8" class="ltx_Math" alttext="\bar{\mathcal{P}}_{t}=\bar{\mathcal{P}}_{t}\cup\big{(}\bar{\bm{x}}_{t}^{[k]},w%_{t}^{[k]}\big{)}" display="inline"><mrow><msub><mover accent="true"><mi class="ltx_font_mathcaligraphic">𝒫</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>=</mo><mrow><msub><mover accent="true"><mi class="ltx_font_mathcaligraphic">𝒫</mi><mo>¯</mo></mover><mi>t</mi></msub><mo>∪</mo><mrow><mo maxsize="120%" minsize="120%">(</mo><msubsup><mover accent="true"><mi>𝒙</mi><mo>¯</mo></mover><mi>t</mi><mrow><mo stretchy="false">[</mo><mi>k</mi><mo stretchy="false">]</mo></mrow></msubsup><mo>,</mo><msubsup><mi>w</mi><mi>t</mi><mrow><mo stretchy="false">[</mo><mi>k</mi><mo stretchy="false">]</mo></mrow></msubsup><mo maxsize="120%" minsize="120%">)</mo></mrow></mrow></mrow></math></div>
+<div class="ltx_listingline">&#160;</div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">for</span> <em class="ltx_emph ltx_font_italic"><math id="algorithm4.m9" class="ltx_Math" alttext="k=1" display="inline"><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow></math> <span class="ltx_text ltx_font_bold ltx_font_upright">to</span> <math id="algorithm4.m10" class="ltx_Math" alttext="K" display="inline"><mi>K</mi></math></em> <span class="ltx_text ltx_font_bold">do</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Draw <math id="algorithm4.m11" class="ltx_Math" alttext="i" display="inline"><mi>i</mi></math> with probability <math id="algorithm4.m12" class="ltx_Math" alttext="\propto w_{t}^{[i]}" display="inline"><mrow><mi></mi><mo>∝</mo><msubsup><mi>w</mi><mi>t</mi><mrow><mo stretchy="false">[</mo><mi>i</mi><mo stretchy="false">]</mo></mrow></msubsup></mrow></math></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Add <math id="algorithm4.m13" class="ltx_Math" alttext="\bar{\bm{x}}_{t}^{[i]}" display="inline"><msubsup><mover accent="true"><mi>𝒙</mi><mo>¯</mo></mover><mi>t</mi><mrow><mo stretchy="false">[</mo><mi>i</mi><mo stretchy="false">]</mo></mrow></msubsup></math> to <math id="algorithm4.m14" class="ltx_Math" alttext="\mathcal{P}_{t}" display="inline"><msub><mi class="ltx_font_mathcaligraphic">𝒫</mi><mi>t</mi></msub></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">return</span> <math id="algorithm4.m15" class="ltx_Math" alttext="\mathcal{P}_{t}" display="inline"><msub><mi class="ltx_font_mathcaligraphic">𝒫</mi><mi>t</mi></msub></math></div>
+</div>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_float"><span class="ltx_text ltx_font_bold">Algorithm 4</span> </span>Monte Carlo Localization</figcaption>
+</figure>
+<div id="S6.p4" class="ltx_para">
+<p class="ltx_p">In global localization, MCL typically starts from a broad prior, such as having particles spread over the entire map.
+As the robot moves and gathers measurements, inconsistent hypotheses are down-weighted and vanish during resampling, while particles near the true pose accumulate.
+This makes MCL a powerful tool for environments with strong ambiguities, repeated structures, or very uncertain initial conditions.</p>
+</div>
+</section>
+<section id="S7" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">13.7 </span>Summary</h2>
+
+<div id="S7.p1" class="ltx_para">
+<p class="ltx_p">In this chapter, we examined the fundamental concepts and algorithms underlying robot localization—the process of estimating a robot’s pose relative to a known map of the environment.
+We began with a taxonomy of localization problems, distinguishing between pose tracking and global localization, static and dynamic environments, active and passive strategies, and single-robot versus multi-robot settings.
+This taxonomy provides a conceptual checklist for matching real-world scenarios to appropriate algorithmic tools.</p>
+</div>
+<div id="S7.p2" class="ltx_para">
+<p class="ltx_p">Building on the Bayesian estimation framework introduced earlier, we extended the state transition and measurement models to explicitly incorporate map information.
+This led to the <em class="ltx_emph ltx_font_italic">Markov localization</em> algorithm, a general Bayesian filter that serves as a conceptual foundation for map-aware localization.</p>
+</div>
+<div id="S7.p3" class="ltx_para">
+<p class="ltx_p">We then explored two important realizations of this framework: EKF localization, which represents the belief as a unimodal Gaussian and is effective for pose tracking with moderate uncertainty; and MCL, which uses a particle-based, non-parametric representation suitable for multi-hypothesis and global localization problems.
+We discussed data association—the challenge of determining correspondences between sensor measurements and known map features—and techniques such as maximum-likelihood matching and validation gates to improve robustness.</p>
+</div>
+<div id="S7.p4" class="ltx_para">
+<p class="ltx_p">Together, these methods form the core of modern localization systems, enabling robots to estimate their position and orientation using noisy sensors, partial maps, and uncertain environments.
+In later chapters, these ideas will reappear in more complex settings such as simultaneous localization and mapping (SLAM), where the robot must estimate <em class="ltx_emph ltx_font_italic">both</em> its pose and the map at the same time.</p>
+</div>
+<section id="S7.SS0.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">To learn more.</h4>
+
+<div id="S7.SS0.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">For a detailed and foundational treatment of probabilistic localization, <span class="ltx_cite">Thrun et al. (2005)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">1</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">1.</span> Thrun, S., Burgard, W., Fox, D. <em>Probabilistic Robotics</em>. MIT Press, 2005.</span></span></span> remains the canonical reference.
+The original formulation of the Monte Carlo Localization algorithm is presented by <span class="ltx_cite">Dellaert et al. (1999)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">2</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">2.</span> Dellaert, Frank, Fox, Dieter, Burgard, Wolfram, Thrun, Sebastian. “Monte carlo localization for mobile robots.” In <em>Proceedings 1999 IEEE international conference on robotics and automation (Cat. No. 99CH36288C)</em>, 1322–1328, 1999.</span></span></span>, while <span class="ltx_cite">Leonard and Durrant-Whyte (1991)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">3</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">3.</span> Leonard, John J, Durrant-Whyte, Hugh F. “Simultaneous map building and localization for an autonomous mobile robot..” In <em>IROS</em>, 1442–1447, 1991.</span></span></span> provide an early and influential treatment of EKF-based localization with geometric landmarks.
+Readers interested in recent advances and the connection between localization and SLAM may refer to <span class="ltx_cite">Cadena et al. (2017)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">4</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">4.</span> Cadena, Cesar, Carlone, Luca, Carrillo, Henry, Latif, Yasir, Scaramuzza, Davide, Neira, José, Reid, Ian, Leonard, John J. “Past, present, and future of simultaneous localization and mapping: Toward the robust-perception age.” <em>IEEE Transactions on robotics</em> 32(6), 1309–1332, 2017.</span></span></span> and the comprehensive modern text by <span class="ltx_cite">SLAM Handbook. From Localization and Mapping to Spatial Intelligence</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">5</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">5.</span> <em>SLAM Handbook. From Localization and Mapping to Spatial Intelligence</em>. Cambridge University Press, 2026.</span></span></span>, which unify localization and mapping under a common probabilistic and optimization-based framework.</p>
+</div>
+</section>
+</section>
+<section id="S8" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">13.8 </span>Exercises</h2>
+
+<div id="S8.p1" class="ltx_para">
+<p class="ltx_p">The starter code for the exercises provided below is available online through GitHub.
+To get started, download the code by running in a terminal window:</p>
+</div>
+<div id="S8.p2" class="ltx_para ltx_noindent">
+<div class="ltx_listing ltx_lst_language_bash ltx_lstlisting ltx_listing">
+<div class="ltx_listing_data"><a href="data:text/plain;base64,ICAgIGdpdCBjbG9uZSBodHRwczovL2dpdGh1Yi5jb20vU3RhbmZvcmRBU0wvcG9yYS1leGVyY2lzZXMuZ2l0" download="">⬇</a></div>
+<div id="lstnumberx1" class="ltx_listingline"><span class="ltx_text ltx_lst_space ltx_font_typewriter">    </span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">git</span><span class="ltx_text ltx_lst_space ltx_font_typewriter"> </span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">clone</span><span class="ltx_text ltx_lst_space ltx_font_typewriter"> </span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">https</span><span class="ltx_text ltx_font_typewriter">://</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">github</span><span class="ltx_text ltx_font_typewriter">.</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">com</span><span class="ltx_text ltx_font_typewriter">/</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">StanfordASL</span><span class="ltx_text ltx_font_typewriter">/</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">pora</span><span class="ltx_text ltx_font_typewriter">-</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">exercises</span><span class="ltx_text ltx_font_typewriter">.</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">git</span></div>
+</div>
+</div>
+<div id="S8.p3" class="ltx_para">
+<p class="ltx_p">We denote Problems requiring hand-written solutions and coding in Python with <img src="/book-assets/robot-localization/figs__write.png" id="S8.p3.g1" class="ltx_graphics ltx_img_square" width="26" height="28" alt="[Uncaptioned image]"> and <img src="/book-assets/robot-localization/figs__code.png" id="S8.p3.g2" class="ltx_graphics ltx_img_square" width="25" height="25" alt="[Uncaptioned image]">, respectively.</p>
+</div>
+</section>
+<section id="Sx1" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<img src="/book-assets/robot-localization/figs__code.png" id="Sx1.g1" class="ltx_graphics ltx_img_square" width="25" height="25" alt="[Uncaptioned image]"> Problem 1: Extended Kalman Filter Localization</h2>
+
+<div id="Sx1.p1" class="ltx_para">
+<p class="ltx_p">In this problem, you will implement an extended Kalman filter (EKF) for robot localization in an environment where the robot can collect relative position measurements to a set of four landmarks.
+We will consider a robot with a discrete-time dynamics model <math id="Sx1.p1.m1" class="ltx_Math" alttext="\bm{x}_{t+1}=f(\bm{x}_{t},\bm{u}_{t})+\bm{\epsilon}_{t}" display="inline"><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>=</mo><mrow><mrow><mi>f</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>+</mo><msub><mi class="ltx_mathvariant_bold-italic" mathvariant="bold-italic">ϵ</mi><mi>t</mi></msub></mrow></mrow></math> defined by:</p>
+<table id="Sx1.Ex31" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="Sx1.Ex31.m1" class="ltx_Math" alttext="\begin{split}x_{t+1}&amp;=x_{t}+V_{t}\cos(\theta_{t})\Delta t+\epsilon_{t}^{x},\\
+y_{t+1}&amp;=y_{t}+V_{t}\sin(\theta_{t})\Delta t+\epsilon_{t}^{y},\\
+\theta_{t+1}&amp;=\theta_{t}+\omega_{t}\Delta t+\epsilon_{t}^{\theta},\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><msub><mi>x</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msub></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mrow><msub><mi>x</mi><mi>t</mi></msub><mo>+</mo><mrow><msub><mi>V</mi><mi>t</mi></msub><mo lspace="0.167em">⁢</mo><mrow><mi>cos</mi><mo>⁡</mo><mrow><mo stretchy="false">(</mo><msub><mi>θ</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>⁢</mo><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>t</mi></mrow><mo>+</mo><msubsup><mi>ϵ</mi><mi>t</mi><mi>x</mi></msubsup></mrow></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><msub><mi>y</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msub></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mrow><msub><mi>y</mi><mi>t</mi></msub><mo>+</mo><mrow><msub><mi>V</mi><mi>t</mi></msub><mo lspace="0.167em">⁢</mo><mrow><mi>sin</mi><mo>⁡</mo><mrow><mo stretchy="false">(</mo><msub><mi>θ</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>⁢</mo><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>t</mi></mrow><mo>+</mo><msubsup><mi>ϵ</mi><mi>t</mi><mi>y</mi></msubsup></mrow></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><msub><mi>θ</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msub></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mrow><msub><mi>θ</mi><mi>t</mi></msub><mo>+</mo><mrow><msub><mi>ω</mi><mi>t</mi></msub><mo>⁢</mo><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>t</mi></mrow><mo>+</mo><msubsup><mi>ϵ</mi><mi>t</mi><mi>θ</mi></msubsup></mrow></mrow><mo>,</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">and the goal is to estimate the unknown robot pose, <math id="Sx1.p1.m2" class="ltx_Math" alttext="\bm{x}_{t}=[x_{t},y_{t},\theta_{t}]^{\top}" display="inline"><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>=</mo><msup><mrow><mo stretchy="false">[</mo><msub><mi>x</mi><mi>t</mi></msub><mo>,</mo><msub><mi>y</mi><mi>t</mi></msub><mo>,</mo><msub><mi>θ</mi><mi>t</mi></msub><mo stretchy="false">]</mo></mrow><mo>⊤</mo></msup></mrow></math>.
+The noise vector <math id="Sx1.p1.m3" class="ltx_Math" alttext="\bm{\epsilon}_{t}=[\epsilon_{t}^{x},\epsilon_{t}^{y},\epsilon_{t}^{\theta}]^{\top}" display="inline"><mrow><msub><mi class="ltx_mathvariant_bold-italic" mathvariant="bold-italic">ϵ</mi><mi>t</mi></msub><mo>=</mo><msup><mrow><mo stretchy="false">[</mo><msubsup><mi>ϵ</mi><mi>t</mi><mi>x</mi></msubsup><mo>,</mo><msubsup><mi>ϵ</mi><mi>t</mi><mi>y</mi></msubsup><mo>,</mo><msubsup><mi>ϵ</mi><mi>t</mi><mi>θ</mi></msubsup><mo stretchy="false">]</mo></mrow><mo>⊤</mo></msup></mrow></math> is a random variable with a zero mean Gaussian distribution <math id="Sx1.p1.m4" class="ltx_Math" alttext="\bm{\epsilon}_{t}\sim\mathcal{N}(\bm{0},Q)" display="inline"><mrow><msub><mi class="ltx_mathvariant_bold-italic" mathvariant="bold-italic">ϵ</mi><mi>t</mi></msub><mo>∼</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒩</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>𝟎</mn><mo>,</mo><mi>Q</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></math>, where <math id="Sx1.p1.m5" class="ltx_Math" alttext="Q=0.1\Delta t^{2}I" display="inline"><mrow><mi>Q</mi><mo>=</mo><mrow><mn>0.1</mn><mo>⁢</mo><mi mathvariant="normal">Δ</mi><mo>⁢</mo><msup><mi>t</mi><mn>2</mn></msup><mo>⁢</mo><mi>I</mi></mrow></mrow></math>.
+In this problem, we assume the global ground truth positions of the four landmarks are known.
+The landmarks are stationary objects in the environment, and their combined state vector is:</p>
+<table id="Sx1.Ex32" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="Sx1.Ex32.m1" class="ltx_Math" alttext="\begin{split}\bm{m}=\begin{bmatrix}m_{1,x}&amp;m_{1,y}&amp;m_{2,x}&amp;m_{2,y}&amp;m_{3,x}&amp;m_{%
+3,y}&amp;m_{4,x}&amp;m_{4,y}\end{bmatrix}^{\top}.\end{split}" display="block"><mtable displaystyle="true"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mi>𝒎</mi><mo>=</mo><msup><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true"><mtr><mtd><msub><mi>m</mi><mrow><mn>1</mn><mo>,</mo><mi>x</mi></mrow></msub></mtd><mtd><msub><mi>m</mi><mrow><mn>1</mn><mo>,</mo><mi>y</mi></mrow></msub></mtd><mtd><msub><mi>m</mi><mrow><mn>2</mn><mo>,</mo><mi>x</mi></mrow></msub></mtd><mtd><msub><mi>m</mi><mrow><mn>2</mn><mo>,</mo><mi>y</mi></mrow></msub></mtd><mtd><msub><mi>m</mi><mrow><mn>3</mn><mo>,</mo><mi>x</mi></mrow></msub></mtd><mtd><msub><mi>m</mi><mrow><mn>3</mn><mo>,</mo><mi>y</mi></mrow></msub></mtd><mtd><msub><mi>m</mi><mrow><mn>4</mn><mo>,</mo><mi>x</mi></mrow></msub></mtd><mtd><msub><mi>m</mi><mrow><mn>4</mn><mo>,</mo><mi>y</mi></mrow></msub></mtd></mtr></mtable><mo>]</mo></mrow><mo>⊤</mo></msup></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">As the robot navigates through its environment, it receives noisy measurements of the positions of four landmarks in the environment relative to the robot’s current pose.
+The measurement for landmark <math id="Sx1.p1.m6" class="ltx_Math" alttext="i" display="inline"><mi>i</mi></math> is the relative position with the measurement model:</p>
+<table id="Sx1.Ex33" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="Sx1.Ex33.m1" class="ltx_Math" alttext="\begin{split}\bm{z}_{t}^{i}=h(\bm{x}_{t},i,\bm{m})+\bm{\delta}_{t}=\begin{%
+bmatrix}\cos(\theta_{t})&amp;\sin(\theta_{t})\\
+-\sin(\theta_{t})&amp;\cos(\theta_{t})\end{bmatrix}\Big{(}\begin{bmatrix}m_{i,x}\\
+m_{i,y}\end{bmatrix}-\begin{bmatrix}x_{t}\\
+y_{t}\end{bmatrix}\Big{)}+\bm{\delta}_{t},\end{split}" display="block"><mtable displaystyle="true"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><msubsup><mi>𝒛</mi><mi>t</mi><mi>i</mi></msubsup><mo>=</mo><mrow><mrow><mi>h</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><mi>i</mi><mo>,</mo><mi>𝒎</mi><mo stretchy="false">)</mo></mrow></mrow><mo>+</mo><msub><mi>𝜹</mi><mi>t</mi></msub></mrow><mo>=</mo><mrow><mrow><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true" rowspacing="0pt"><mtr><mtd><mrow><mi>cos</mi><mo>⁡</mo><mrow><mo stretchy="false">(</mo><msub><mi>θ</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd><mrow><mi>sin</mi><mo>⁡</mo><mrow><mo stretchy="false">(</mo><msub><mi>θ</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mtd></mtr><mtr><mtd><mrow><mo rspace="0.167em">−</mo><mrow><mi>sin</mi><mo>⁡</mo><mrow><mo stretchy="false">(</mo><msub><mi>θ</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></mtd><mtd><mrow><mi>cos</mi><mo>⁡</mo><mrow><mo stretchy="false">(</mo><msub><mi>θ</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mtd></mtr></mtable><mo>]</mo></mrow><mo>⁢</mo><mrow><mo maxsize="160%" minsize="160%">(</mo><mrow><mrow><mo>[</mo><mtable displaystyle="true" rowspacing="0pt"><mtr><mtd><msub><mi>m</mi><mrow><mi>i</mi><mo>,</mo><mi>x</mi></mrow></msub></mtd></mtr><mtr><mtd><msub><mi>m</mi><mrow><mi>i</mi><mo>,</mo><mi>y</mi></mrow></msub></mtd></mtr></mtable><mo>]</mo></mrow><mo>−</mo><mrow><mo>[</mo><mtable displaystyle="true" rowspacing="0pt"><mtr><mtd><msub><mi>x</mi><mi>t</mi></msub></mtd></mtr><mtr><mtd><msub><mi>y</mi><mi>t</mi></msub></mtd></mtr></mtable><mo>]</mo></mrow></mrow><mo maxsize="160%" minsize="160%">)</mo></mrow></mrow><mo>+</mo><msub><mi>𝜹</mi><mi>t</mi></msub></mrow></mrow><mo>,</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where the measurements have an associated measurement noise with <math id="Sx1.p1.m7" class="ltx_Math" alttext="\bm{\delta}_{t}\sim\mathcal{N}(\bm{0},R)" display="inline"><mrow><msub><mi>𝜹</mi><mi>t</mi></msub><mo>∼</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒩</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>𝟎</mn><mo>,</mo><mi>R</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></math>, where <math id="Sx1.p1.m8" class="ltx_Math" alttext="R=0.25I" display="inline"><mrow><mi>R</mi><mo>=</mo><mrow><mn>0.25</mn><mo>⁢</mo><mi>I</mi></mrow></mrow></math>.
+The full measurement vector of all landmarks is:</p>
+<table id="Sx1.Ex34" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="Sx1.Ex34.m1" class="ltx_Math" alttext="\begin{split}\bm{z}_{t}=\begin{bmatrix}\bm{z}_{t}^{1}\\
+\bm{z}_{t}^{2}\\
+\bm{z}_{t}^{3}\\
+\bm{z}_{t}^{4}\end{bmatrix}.\end{split}" display="block"><mtable displaystyle="true"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><msub><mi>𝒛</mi><mi>t</mi></msub><mo>=</mo><mrow><mo>[</mo><mtable displaystyle="true" rowspacing="0pt"><mtr><mtd><msubsup><mi>𝒛</mi><mi>t</mi><mn>1</mn></msubsup></mtd></mtr><mtr><mtd><msubsup><mi>𝒛</mi><mi>t</mi><mn>2</mn></msubsup></mtd></mtr><mtr><mtd><msubsup><mi>𝒛</mi><mi>t</mi><mn>3</mn></msubsup></mtd></mtr><mtr><mtd><msubsup><mi>𝒛</mi><mi>t</mi><mn>4</mn></msubsup></mtd></mtr></mtable><mo>]</mo></mrow></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="Sx1.p2" class="ltx_para">
+<p class="ltx_p">In the file <span class="ltx_text ltx_font_typewriter">ch13/exercises/ekf_localization.ipynb</span>, complete the following:</p>
+<ol id="Sx1.I1" class="ltx_enumerate">
+<li id="Sx1.I1.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">1.</span> 
+<div id="Sx1.I1.i1.p1" class="ltx_para">
+<p class="ltx_p">Implement the functions <span class="ltx_text ltx_font_typewriter">robot_dynamics</span> and <span class="ltx_text ltx_font_typewriter">robot_measurement</span> to match the dynamics and measurement models described above.</p>
+</div>
+</li>
+<li id="Sx1.I1.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">2.</span> 
+<div id="Sx1.I1.i2.p1" class="ltx_para">
+<p class="ltx_p">Implement the function <span class="ltx_text ltx_font_typewriter">dynamics_jacobian</span> to compute the dynamics Jacobian <math id="Sx1.I1.i2.p1.m1" class="ltx_Math" alttext="F_{t}=\nabla_{\bm{x}}f(\bm{x}_{t},\bm{u}_{t})" display="inline"><mrow><msub><mi>F</mi><mi>t</mi></msub><mo>=</mo><mrow><mrow><msub><mo rspace="0.167em">∇</mo><mi>𝒙</mi></msub><mi>f</mi></mrow><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></math>.</p>
+</div>
+</li>
+<li id="Sx1.I1.i3" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">3.</span> 
+<div id="Sx1.I1.i3.p1" class="ltx_para">
+<p class="ltx_p">Implement the function <span class="ltx_text ltx_font_typewriter">measurement_jacobian</span> to compute the measurement model Jacobian <math id="Sx1.I1.i3.p1.m1" class="ltx_Math" alttext="H_{t}=\nabla_{\bm{x}}h(\bm{x}_{t},\bm{m})" display="inline"><mrow><msub><mi>H</mi><mi>t</mi></msub><mo>=</mo><mrow><mrow><msub><mo rspace="0.167em">∇</mo><mi>𝒙</mi></msub><mi>h</mi></mrow><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><mi>𝒎</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></math> for the model that computes the full measurement vector <math id="Sx1.I1.i3.p1.m2" class="ltx_Math" alttext="\bm{z}_{t}" display="inline"><msub><mi>𝒛</mi><mi>t</mi></msub></math>.</p>
+</div>
+</li>
+<li id="Sx1.I1.i4" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">4.</span> 
+<div id="Sx1.I1.i4.p1" class="ltx_para">
+<p class="ltx_p">Implement the function <span class="ltx_text ltx_font_typewriter">ekf_localization_update</span> to implement the EKF localization update described in Algorithm&#160;<a href="#algorithm2" title="In 13.5.1 EKF Localization with Known Correspondences ‣ 13.5 EKF Localization" class="ltx_ref"><span class="ltx_text ltx_ref_tag">2</span></a>.
+Note that you won’t need to explicitly have a for loop in this function for each measurement since we have defined the update to be vectorized for all measurements at once.</p>
+</div>
+</li>
+<li id="Sx1.I1.i5" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">5.</span> 
+<div id="Sx1.I1.i5.p1" class="ltx_para">
+<p class="ltx_p">Run the provided code to see how the algorithm performs for the simulated robot.</p>
+</div>
+</li>
+</ol>
+</div>
+</section>
+<section id="Sx2" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<img src="/book-assets/robot-localization/figs__code.png" id="Sx2.g1" class="ltx_graphics ltx_img_square" width="25" height="25" alt="[Uncaptioned image]"> Problem 2: Particle Filter Localization</h2>
+
+<div id="Sx2.p1" class="ltx_para">
+<p class="ltx_p">In this problem, we consider the same problem setup defined in Problem 1, where we are localizing a robot given relative position measurements to a set of four known landmarks.
+In the file <span class="ltx_text ltx_font_typewriter">ch13/exercises/particle_filter_localization.ipynb</span>, complete the following:</p>
+<ol id="Sx2.I2" class="ltx_enumerate">
+<li id="Sx2.I2.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">1.</span> 
+<div id="Sx2.I2.i1.p1" class="ltx_para">
+<p class="ltx_p">Implement the functions <span class="ltx_text ltx_font_typewriter">robot_dynamics</span> and <span class="ltx_text ltx_font_typewriter">robot_measurement</span> to match the dynamics and measurement models described above. Note: you can reuse your solution from the previous problem.</p>
+</div>
+</li>
+<li id="Sx2.I2.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">2.</span> 
+<div id="Sx2.I2.i2.p1" class="ltx_para">
+<p class="ltx_p">Implement the particle filter algorithm update function <span class="ltx_text ltx_font_typewriter">particle_filter_update</span> as described in Algorithm&#160;<a href="#algorithm4" title="In 13.6 Monte Carlo Localization (MCL)" class="ltx_ref"><span class="ltx_text ltx_ref_tag">4</span></a>.</p>
+</div>
+</li>
+<li id="Sx2.I2.i3" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">3.</span> 
+<div id="Sx2.I2.i3.p1" class="ltx_para">
+<p class="ltx_p">Run the provided code to see how the algorithm performs for the simulated robot.</p>
+</div>
+</li>
+</ol>
+</div>
+</section>

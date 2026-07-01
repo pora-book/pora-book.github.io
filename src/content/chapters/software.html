@@ -1,0 +1,224 @@
+
+<div id="p1" class="ltx_para">
+<p class="ltx_p">Modern autonomous robots are built as collections of interacting software components that perceive the environment, reason about goals, and execute actions in real time.
+As discussed in the <em class="ltx_emph ltx_font_italic">Preface</em>, autonomy is not defined by any single algorithm, but by the integration of many components across the <em class="ltx_emph ltx_font_italic">See–Think–Act</em> cycle.
+Turning that conceptual paradigm into a functioning robotic system requires a practical software substrate through which sensing, estimation, planning, and control modules can communicate and operate together.
+These components must operate concurrently, exchange information reliably, and adapt to changing conditions, all while meeting real-world constraints on timing, safety, and robustness.
+Coordinating such systems is as much a software challenge as it is an algorithmic or mechanical one.</p>
+</div>
+<div id="p2" class="ltx_para">
+<p class="ltx_p">In practice, most contemporary robotic systems are developed on top of a shared software infrastructure that helps manage this complexity.
+In this brief note, we provide a high-level overview of the <em class="ltx_emph ltx_font_italic">Robot Operating System (ROS)</em><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">1</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">1.</span> Joseph, L. <em>Robot Operating System (ROS) for Absolute Beginners: Robotics Programming Made Easy</em>. Apress, 2018.</span></span></span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">2</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">2.</span> Quigley, M., Gerkey, B., Smart, W. D. <em>Programming Robots with ROS: A Practical Introduction to the Robot Operating System</em>. O'Reilly Media, 2015.</span></span></span>, which has emerged as the de facto standard software framework for robotics research, education, and many industrial applications.
+Despite its name, ROS is not an operating system in the traditional sense.
+Rather, it is a <em class="ltx_emph ltx_font_italic">middleware</em> framework: a collection of tools, libraries, and design conventions that support modular, distributed robot software development.</p>
+</div>
+<div id="p3" class="ltx_para">
+<p class="ltx_p">ROS is best understood as a common language and ecosystem for robotics software rather than a fixed or complete solution.
+It provides abstractions for communication, data sharing, configuration, and system integration that allow developers to focus on higher-level autonomy and control algorithms.
+At the same time, the robotics software landscape is evolving rapidly, and ROS itself continues to change, with new versions, extensions, and alternatives appearing regularly.
+As such, this chapter is not intended as a comprehensive guide or tutorial, but rather as an orienting overview of the dominant software paradigms in modern robotics.
+Readers are encouraged to view this material as a snapshot of current practice and to supplement it with the extensive and continually updated resources available online.</p>
+</div>
+<section id="Sx1" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">Why Robot Software Is Different</h2>
+
+<div id="Sx1.p1" class="ltx_para">
+<p class="ltx_p">At first glance, robot programming may appear to be a straightforward application of classical software engineering.
+However, robots impose a unique set of constraints that distinguish them from most conventional software systems.
+A robot must simultaneously interface with numerous hardware devices, process streaming sensor data, make decisions under uncertainty, and generate real-time control signals, all while operating in a physical world that is only partially observable and constantly changing.</p>
+</div>
+<div id="Sx1.p2" class="ltx_para">
+<p class="ltx_p">Unlike many traditional software applications, robot software must coordinate many heterogeneous components operating concurrently.
+A single robot may include cameras, lidars, inertial sensors, encoders, motors, and communication interfaces, each producing or consuming data at different rates.
+As a result, robot software must support:</p>
+<ul id="Sx1.I1" class="ltx_itemize">
+<li id="Sx1.I1.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="Sx1.I1.i1.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Multitasking:</em> autonomous robots inherently require concurrent execution.
+Multiple sensing, estimation, planning, and control processes must run in parallel, often at different frequencies, while exchanging data in a timely and reliable manner.</p>
+</div>
+</li>
+<li id="Sx1.I1.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="Sx1.I1.i2.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Low-level device control:</em> robots must interface directly with a wide variety of hardware devices using communication protocols such as GPIO, USB, SPI, and others.
+This requires being able to support multiple programming languages, such as C++ and Python.</p>
+</div>
+</li>
+<li id="Sx1.I1.i3" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="Sx1.I1.i3.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">High-level object-oriented abstractions:</em> as autonomy stacks grow in size and complexity, software modularity becomes essential.
+Encapsulation, inheritance, and code reuse enable developers to build complex robotic systems from reusable components.</p>
+</div>
+</li>
+<li id="Sx1.I1.i4" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="Sx1.I1.i4.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Community libraries and shared infrastructure:</em> given the breadth of robotics as a field, it is impractical for every developer to reimplement common algorithms from scratch.
+Access to third-party libraries and an active user community dramatically accelerates development and encourages standardization.</p>
+</div>
+</li>
+</ul>
+</div>
+<div id="Sx1.p3" class="ltx_para">
+<p class="ltx_p">These requirements motivate the need for a software middleware specifically designed for robotics, one that bridges the gap between hardware-level control and high-level autonomy algorithms.</p>
+</div>
+</section>
+<section id="Sx2" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">A Brief History of ROS</h2>
+
+<div id="Sx2.p1" class="ltx_para">
+<p class="ltx_p">Before the development of ROS, robotics software was largely fragmented.
+Code written for one robot or laboratory was often difficult to reuse elsewhere, hindering collaboration and slowing progress across the field.
+In 2007, early versions of ROS emerged from the Stanford AI Robot (STAIR) project, motivated by the vision of a free and open-source robotics framework that would promote collaboration, reuse, and rapid experimentation.</p>
+</div>
+<div id="Sx2.p2" class="ltx_para">
+<p class="ltx_p">This vision was further realized when the startup company Willow Garage, led by Scott Hassan, assumed stewardship of the project.
+Under this guidance, ROS evolved into a standardized development platform featuring a rich set of tools, libraries, and conventions.
+The release of ROS 0.4 in 2009 coincided with the deployment of the PR2 mobile manipulation robot, several units of which were distributed to universities to catalyze collaborative development.
+ROS 1.0 followed in 2010.</p>
+</div>
+<figure id="Sx2.F1" class="ltx_figure"><img style="width:90%;height:auto" src="/book-assets/software/figs__ch24_figs__pr2.png" id="Sx2.F1.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 1</span>: </span><span class="ltx_text" style="font-size:90%;">The PR2 robot, one of the first platforms to be widely supported by ROS.</span></figcaption>
+</figure>
+<div id="Sx2.p3" class="ltx_para">
+<p class="ltx_p">Oversight of ROS transitioned in 2012 to the Open Source Robotics Foundation (OSRF), supporting its development, distribution, and adoption.
+The first long-term support release, ROS Indigo Igloo, appeared in 2014.
+In 2017, OSRF was rebranded as Open Robotics, reflecting its broader mission of supporting open-source robotics software beyond ROS itself.
+Today, ROS is widely regarded as the closest thing to an industry standard for robot software, underpinning systems ranging from research prototypes to commercial autonomous platforms.</p>
+</div>
+<div id="Sx2.p4" class="ltx_para">
+<p class="ltx_p">As robotics applications expanded beyond research settings into safety-critical and real-time domains, important limitations of ROS 1 became apparent.
+In particular, ROS 1 was not designed with real-time guarantees, deterministic communication, or multi-robot deployments over unreliable networks as first-class concerns.
+These challenges motivated the development of ROS 2, a major architectural redesign that builds on modern middleware standards such as the Data Distribution Service (DDS).</p>
+</div>
+<div id="Sx2.p5" class="ltx_para">
+<p class="ltx_p">ROS 2 introduces native support for real-time communication, improved security, better handling of distributed and multi-robot systems, and more explicit control over quality-of-service parameters.
+As such, ROS 2 reflects the evolving needs of the robotics community and is increasingly adopted in applications where reliability, scalability, and real-time performance are critical.</p>
+</div>
+</section>
+<section id="Sx3" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">Design Philosophy of ROS</h2>
+
+<div id="Sx3.p1" class="ltx_para">
+<p class="ltx_p">The architectural choices embodied in ROS reflect a deliberate set of design goals shaped by the practical realities of building large-scale robotic systems.
+Rather than attempting to provide a monolithic, all-encompassing framework, ROS adopts a minimalist philosophy that emphasizes flexibility, reuse, and composability.
+ROS’ philosophy can be summarized in the following main principles:</p>
+</div>
+<section id="Sx3.SS0.SSS0.Px1" class="ltx_paragraph">
+<h3 class="ltx_title ltx_title_paragraph">Peer-to-peer.</h3>
+
+<div id="Sx3.SS0.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">At its core, ROS is designed around a <em class="ltx_emph ltx_font_italic">peer-to-peer</em> communication model.
+Computation is distributed across multiple processes, potentially running on different machines, which discover and connect to one another dynamically at runtime.
+This approach avoids centralized bottlenecks and allows robotic systems to scale naturally across heterogeneous computing resources, such as embedded controllers, edge devices, and cloud servers.</p>
+</div>
+</section>
+<section id="Sx3.SS0.SSS0.Px2" class="ltx_paragraph">
+<h3 class="ltx_title ltx_title_paragraph">Multi-language.</h3>
+
+<div id="Sx3.SS0.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">Another key design principle is <em class="ltx_emph ltx_font_italic">language neutrality</em>.
+Robotic systems often benefit from combining high-performance compiled code for time-critical components with higher-level scripting languages for rapid development and experimentation.
+ROS supports this hybrid approach by defining communication interfaces independently of any specific programming language, allowing components written in different languages to interoperate seamlessly.</p>
+</div>
+</section>
+<section id="Sx3.SS0.SSS0.Px3" class="ltx_paragraph">
+<h3 class="ltx_title ltx_title_paragraph">Tools-based.</h3>
+
+<div id="Sx3.SS0.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">ROS is also explicitly <em class="ltx_emph ltx_font_italic">tools-based</em>.
+Instead of embedding all functionality within a single runtime environment, ROS provides a collection of command-line tools and graphical utilities for tasks such as launching systems, inspecting communication graphs, logging data, replaying experiments, and visualizing internal state.
+This modular tooling approach simplifies debugging and experimentation, enabling developers to inspect and modify a running system without recompilation or redeployment.</p>
+</div>
+</section>
+<section id="Sx3.SS0.SSS0.Px4" class="ltx_paragraph">
+<h3 class="ltx_title ltx_title_paragraph">Thin.</h3>
+
+<div id="Sx3.SS0.SSS0.Px4.p1" class="ltx_para">
+<p class="ltx_p">Finally, ROS is intentionally <em class="ltx_emph ltx_font_italic">thin</em>.
+The middleware itself provides communication, configuration, and coordination mechanisms, but encourages core algorithms and device drivers to be implemented as standalone libraries with minimal dependence on ROS-specific infrastructure.
+This separation improves testability, promotes code reuse outside of ROS, and reduces long-term maintenance costs as software systems evolve.</p>
+</div>
+</section>
+<section id="Sx3.SS0.SSS0.Px5" class="ltx_paragraph">
+<h3 class="ltx_title ltx_title_paragraph">Free and open-source.</h3>
+
+<div id="Sx3.SS0.SSS0.Px5.p1" class="ltx_para">
+<p class="ltx_p">ROS is released under the BSD license, which allows nearly unrestricted use, modification, and distribution, making it freely available for both academic and commercial use.
+As such, ROS has fostered a vibrant ecosystem of users and contributors who share code, documentation, and best practices.</p>
+</div>
+<div id="Sx3.SS0.SSS0.Px5.p2" class="ltx_para">
+<p class="ltx_p">Taken together, these principles position ROS not as a rigid framework, but as an enabling substrate upon which diverse robotic architectures can be constructed.</p>
+</div>
+</section>
+</section>
+<section id="Sx4" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">Core ROS Concepts</h2>
+
+<div id="Sx4.p1" class="ltx_para">
+<p class="ltx_p">To reason effectively about ROS-based systems, it is helpful to understand a set of foundational abstractions that recur throughout the ecosystem.</p>
+</div>
+<section id="Sx4.SS0.SSS0.Px1" class="ltx_paragraph">
+<h3 class="ltx_title ltx_title_paragraph">Nodes.</h3>
+
+<div id="Sx4.SS0.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">A <em class="ltx_emph ltx_font_italic">node</em> is a single executable process that performs computation.
+Nodes are intended to be lightweight and focused, each responsible for a well-defined function.
+For example, a mobile robot might have separate nodes for processing camera images, fusing sensor data into a state estimate, generating motion plans, and sending commands to the motors.
+A complete robotic system typically consists of many nodes executing concurrently.</p>
+</div>
+</section>
+<section id="Sx4.SS0.SSS0.Px2" class="ltx_paragraph">
+<h3 class="ltx_title ltx_title_paragraph">Messages and Topics.</h3>
+
+<div id="Sx4.SS0.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">Nodes communicate by exchanging <em class="ltx_emph ltx_font_italic">messages</em>, which are data structures defined by user-specified types.
+Messages are transmitted over named <em class="ltx_emph ltx_font_italic">topics</em> using a publisher and subscriber model, shown schematically in Figure&#160;<a href="#Sx4.F2" title="Figure 2 ‣ Messages and Topics. ‣ Core ROS Concepts" class="ltx_ref"><span class="ltx_text ltx_ref_tag">2</span></a>.
+A node that produces data publishes messages to a topic, while any number of other nodes may subscribe to that topic to receive the data.
+Publishers and subscribers are decoupled, meaning that they do not need to be aware of each other’s existence or lifecycle, only the topic name and message type.
+This communication pattern naturally supports streaming data flows, such as sensor measurements, state estimates, and control commands, and enables flexible one-to-many and many-to-many information sharing.</p>
+</div>
+<figure id="Sx4.F2" class="ltx_figure"><img style="width:90%;height:auto" src="/book-assets/software/figs__ch24_figs__pub_sub.png" id="Sx4.F2.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 2</span>: </span><span class="ltx_text" style="font-size:90%;">Publish/Subscribe Communication Model in ROS.
+Topics are best used for unidirectional streaming communication, where a publisher continuously sends messages to one or more subscribers.</span></figcaption>
+</figure>
+</section>
+<section id="Sx4.SS0.SSS0.Px3" class="ltx_paragraph">
+<h3 class="ltx_title ltx_title_paragraph">Services.</h3>
+
+<div id="Sx4.SS0.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">In addition to asynchronous message passing, ROS also supports synchronous request-response interactions through <em class="ltx_emph ltx_font_italic">services</em>.
+A service defines a pair of message types, one for the request and one for the response.
+Nodes can advertise services that other nodes can call, allowing for more structured interactions such as parameter queries, configuration changes, or one-off computations.
+For example, a node might request an updated map, or portion of a map, from a mapping node.</p>
+</div>
+<figure id="Sx4.F3" class="ltx_figure">
+<p class="ltx_p ltx_align_center"><img class="ltx_graphics ltx_centering" src="/book-assets/software/_tikz__software-1.svg" alt="diagram"></p>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 3</span>: </span><span class="ltx_text" style="font-size:90%;">Example structure of a mobile robot software framework in ROS.
+Each white box represents a <em class="ltx_emph ltx_font_italic">package</em> that contains multiple <em class="ltx_emph ltx_font_italic">nodes</em> (red boxes) responsible for specific functionality.
+The arrows indicate communication pathways between different packages.</span></figcaption>
+</figure>
+</section>
+<section id="Sx4.SS0.SSS0.Px4" class="ltx_paragraph">
+<h3 class="ltx_title ltx_title_paragraph">Packages.</h3>
+
+<div id="Sx4.SS0.SSS0.Px4.p1" class="ltx_para">
+<p class="ltx_p">A <em class="ltx_emph ltx_font_italic">package</em> is a directory that contains related ROS nodes, libraries, datasets, configuration files, and any other resources needed to build and run a particular piece of functionality.
+Packages are the primary unit of code organization and distribution in ROS, and can be shared and reused across different projects and robots.
+An example of this modular structure is illustrated in Figure&#160;<a href="#Sx4.F3" title="Figure 3 ‣ Services. ‣ Core ROS Concepts" class="ltx_ref"><span class="ltx_text ltx_ref_tag">3</span></a>.
+By separating functionality into well-defined components, ROS enables scalable development, testing, and maintenance of complex robotic systems.</p>
+</div>
+</section>
+</section>
+<section id="Sx5" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">Software as the Glue of Autonomy</h2>
+
+<div id="Sx5.p1" class="ltx_para">
+<p class="ltx_p">While the algorithms presented in this book form the intellectual core of robot autonomy, their practical realization depends critically on software infrastructure.
+In real robotic systems, autonomy is not executed as a single loop but as a distributed graph of asynchronously updating components operating at different rates and exchanging information continuously.
+Throughout this text, we focus on the core algorithms and their mathematical foundations, but it is important to recognize that software engineering is the glue that holds these components together in a functioning system.</p>
+</div>
+</section>

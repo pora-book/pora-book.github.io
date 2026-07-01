@@ -1,0 +1,100 @@
+% PoRA math macros, consolidated from the book's preamble.tex + utils/symbols.tex
+% for LaTeXML conversion. Print-only macros (colors, tikz styles, listings,
+% title formatting, citation-as-sidenote) are intentionally omitted; those are
+% handled in latexml-preamble.tex. The two malformed \maximize[1]/\minimize[1]
+% definitions in the original symbols.tex are fixed here.
+
+% ---- operators ----
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator{\Exp}{Exp}
+
+% ---- paired delimiters (mathtools) ----
+\DeclarePairedDelimiter{\norm}{\lVert}{\rVert}
+\DeclarePairedDelimiter{\rbr}{(}{)}
+
+% ---- misc math shorthands (from preamble.tex) ----
+\newcommand{\defn}{\coloneqq}
+\newcommand{\inv}[1]{#1^{-1}}
+\newcommand{\pd}[3][]{\frac{\partial^{#1}#2}{{\partial#3}^{#1}}}
+\newcommand{\mytilde}{\raise.17ex\hbox{$\scriptstyle\mathtt{\sim}$}}
+\newcommand{\tran}[1]{#1^\mathsf{T}}
+\newcommand{\bmx}[2][1]{\begin{bmatrix}#2\end{bmatrix}}
+
+% ---- bold/vector symbols ----
+\newcommand{\bxi}{\bm{\xi}}
+\renewcommand{\a}{\bm{a}}
+\renewcommand{\v}{\bm{v}}
+\newcommand{\e}{\bm{e}}
+\newcommand{\x}{\bm{x}}
+\newcommand{\bX}{\bm{X}}
+\newcommand{\y}{\bm{y}}
+\newcommand{\ac}{\bm{u}}
+\newcommand{\z}{\bm{z}}
+\newcommand{\p}{\bm{p}}
+\newcommand{\blam}{\bm{\lambda}}
+\newcommand{\bnu}{\bm{\nu}}
+\newcommand{\bu}{\bm{u}}
+\newcommand{\bg}{\bm{g}}
+\newcommand{\q}{\bm{q}}
+\newcommand{\bv}{\bm{v}}
+\newcommand{\bmu}{\bm{\mu}}
+\newcommand{\bSigma}{\bm{\Sigma}}
+\newcommand{\m}{\bm{m}}
+\newcommand{\w}{\bm{w}}
+\newcommand{\bc}{\bm{c}}
+\newcommand{\btheta}{\bm{\theta}}
+\newcommand{\bphi}{\bm{\phi}}
+\newcommand{\btau}{\bm{\tau}}
+\newcommand{\f}{f}
+\newcommand{\bd}{\bm{d}}
+
+% ---- sets / blackboard / calligraphic ----
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathcal{C}}
+\newcommand{\graph}{\mathcal{G}}
+\newcommand{\edge}{\mathcal{E}}
+\newcommand{\node}{\mathcal{V}}
+\newcommand{\startnode}{q_{\mathrm{S}}}
+\newcommand{\goalnode}{q_{\mathrm{G}}}
+\newcommand{\Space}{\mathcal{S}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\X}{\mathcal{X}}
+\newcommand{\U}{\mathcal{U}}
+\newcommand{\dagname}{\text{DA\footnotesize{GGER}}}
+\newcommand{\stateNoise}{Q}
+\newcommand{\measNoise}{R}
+
+% ---- from utils/symbols.tex ----
+\newcommand{\bel}{\text{bel}}
+\newcommand{\belpred}{\overline{\bel}}
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\controldim}{m}
+\newcommand{\dynmodel}{f}
+\newcommand{\dynJac}{F}
+\renewcommand{\d}{d}
+\newcommand{\definedas}{\coloneqq}
+\newcommand{\expected}[2]{\mathbb{E}_{#1}\left[#2 \right]}
+\newcommand{\genCa}{\bxi}
+\newcommand{\given}{\mid}
+\newcommand{\hamiltonian}{H}
+\newcommand{\controlspace}{\mathcal{U}}
+\newcommand{\lagrangian}{L}
+\newcommand{\measmodel}{h}
+\newcommand{\measJac}{H}
+% fixed (originally malformed \maximize[1]/\minimize[1]):
+\newcommand{\maximize}[1]{\underset{#1}{\text{maximize}}\quad}
+\newcommand{\minimize}[1]{\underset{#1}{\text{minimize}}\:\quad}
+\newcommand{\Oc}{\mathcal{O}}
+\newcommand{\outputdim}{p}
+\newcommand{\particleset}{\mathcal{P}}
+\newcommand{\posreals}{\mathbb{R}_{\geq 0}}
+\newcommand{\pluseq}{\mathrel{+}=}
+\newcommand{\reals}{\mathbb{R}}
+\newcommand{\statespace}{\mathcal{X}}
+\newcommand{\statedim}{n}
+\newcommand{\setof}[1]{\left\{ #1\right\}}
+\newcommand{\subjectto}{\text{subject to} \quad}
+\newcommand{\tup}[1]{\left(#1\right)}
+\renewcommand{\u}{\bm{u}}
+\newcommand{\vCol}[1]{\left[{#1}\right]^\top}

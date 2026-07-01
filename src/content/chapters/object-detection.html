@@ -1,0 +1,1085 @@
+
+<div id="p1" class="ltx_para">
+<p class="ltx_p">For a robot to safely navigate and interact with the world around it, it needs visual understanding capabilities beyond simple image classification—not only identifying what objects are present in an image, but also determining where they are located.
+Consider an autonomous vehicle navigating a busy intersection that must detect multiple pedestrians, vehicles, and cyclists while simultaneously understanding which pixels belong to the drivable road surface versus sidewalks or building facades.
+A household robot organizing a cluttered kitchen must not only detect individual objects like cups and plates, but also understand their precise boundaries to enable careful grasping and placement.
+These scenarios require three visual understanding tasks essential for robotics.
+<span class="ltx_text ltx_font_italic">Object detection</span> identifies what objects are present and where they are located using bounding boxes. <span class="ltx_text ltx_font_italic">Semantic segmentation</span> classifies every pixel into scene categories like “road” or “vegetation”. <span class="ltx_text ltx_font_italic">Instance segmentation</span> combines both capabilities, identifying individual object instances and their precise boundaries.
+Furthermore, many robotics applications require reasoning about full 3D structures, motivating the extension of detection and segmentation to 3D sensor data, using the point cloud and voxel processing architectures from the previous chapter.</p>
+</div>
+<div id="p2" class="ltx_para">
+<p class="ltx_p">In this chapter, we will explore methodological developments that tackle these robotics perception tasks. The progression from expensive two-stage detectors to real-time one-stage approaches addresses the need for low-latency decisions in dynamic environments, while efficient 3D processing methods address computational challenges of real-time LiDAR processing. We will demonstrate how the CNN, PointNet, and voxel-based architectures from the previous chapter can be extended to enable robust visual understanding for autonomous robotic systems. In Section <a href="#S1" title="10.1 2D Object Detection Foundations" class="ltx_ref"><span class="ltx_text ltx_ref_tag">10.1</span></a>, we will cover the foundations of 2D object detection, including the evolution from two-stage to one-stage detectors. In Section <a href="#S2" title="10.2 3D Object Detection" class="ltx_ref"><span class="ltx_text ltx_ref_tag">10.2</span></a>, we will discuss how to extend these detection paradigms to 3D sensor data. Finally, in Section <a href="#S3" title="10.3 Semantic and Instance Segmentation" class="ltx_ref"><span class="ltx_text ltx_ref_tag">10.3</span></a>, we will explore semantic and instance segmentation methods for both 2D and 3D data.</p>
+</div>
+<section id="S1" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">10.1 </span>2D Object Detection Foundations</h2>
+
+<div id="S1.p1" class="ltx_para">
+<p class="ltx_p">Object detection extends beyond image classification by not only identifying what objects are present in an image, but also determining where they are located. This dual requirement—classification and localization—fundamentally shapes the architectural design of detection systems. Unlike classification networks that output a single prediction per image, detection networks must handle varying numbers of objects at different scales and positions, requiring specialized architectures that can efficiently process these challenges.</p>
+</div>
+<div id="S1.Thmtheorem1" class="ltx_theorem ltx_theorem_definition">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Definition 10.1</span></span><span class="ltx_text ltx_font_bold"> </span>(Object detection)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmtheorem1.p1" class="ltx_para">
+<p class="ltx_p">Given an input image <math id="S1.Thmtheorem1.p1.m1" class="ltx_Math" alttext="I" display="inline"><mi>I</mi></math>, object detection aims to identify all instances of objects from a predefined set of classes <math id="S1.Thmtheorem1.p1.m2" class="ltx_Math" alttext="\mathcal{C}=\{c_{1},c_{2},\ldots,c_{K}\}" display="inline"><mrow><mi class="ltx_font_mathcaligraphic">𝒞</mi><mo>=</mo><mrow><mo stretchy="false">{</mo><msub><mi>c</mi><mn>1</mn></msub><mo>,</mo><msub><mi>c</mi><mn>2</mn></msub><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msub><mi>c</mi><mi>K</mi></msub><mo stretchy="false">}</mo></mrow></mrow></math> and localize each instance with a bounding box. Formally, the output is a set of detections <math id="S1.Thmtheorem1.p1.m3" class="ltx_Math" alttext="\mathcal{D}=\{(b_{i},c_{i},s_{i})\}_{i=1}^{N}" display="inline"><mrow><mi class="ltx_font_mathcaligraphic">𝒟</mi><mo>=</mo><msubsup><mrow><mo stretchy="false">{</mo><mrow><mo stretchy="false">(</mo><msub><mi>b</mi><mi>i</mi></msub><mo>,</mo><msub><mi>c</mi><mi>i</mi></msub><mo>,</mo><msub><mi>s</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow><mo stretchy="false">}</mo></mrow><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></msubsup></mrow></math> where <math id="S1.Thmtheorem1.p1.m4" class="ltx_Math" alttext="b_{i}=(x_{i},y_{i},w_{i},h_{i})" display="inline"><mrow><msub><mi>b</mi><mi>i</mi></msub><mo>=</mo><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>y</mi><mi>i</mi></msub><mo>,</mo><msub><mi>w</mi><mi>i</mi></msub><mo>,</mo><msub><mi>h</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math> represents the bounding box coordinates, <math id="S1.Thmtheorem1.p1.m5" class="ltx_Math" alttext="c_{i}\in\mathcal{C}" display="inline"><mrow><msub><mi>c</mi><mi>i</mi></msub><mo>∈</mo><mi class="ltx_font_mathcaligraphic">𝒞</mi></mrow></math> is the predicted class, and <math id="S1.Thmtheorem1.p1.m6" class="ltx_Math" alttext="s_{i}\in[0,1]" display="inline"><mrow><msub><mi>s</mi><mi>i</mi></msub><mo>∈</mo><mrow><mo stretchy="false">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false">]</mo></mrow></mrow></math> is the confidence score.</p>
+</div>
+</div>
+<div id="S1.p2" class="ltx_para">
+<p class="ltx_p">The evolution of object detection architectures can be broadly categorized into two paradigms: two-stage detectors that separate object localization from classification, and one-stage detectors that perform both tasks simultaneously. Additionally, the choice between anchor-based and anchor-free methods represents a fundamental design decision that affects both training dynamics and inference efficiency. Understanding these foundational concepts provides the framework for extending detection principles to 3D scenarios and multi-modal sensor fusion, which we will explore in subsequent sections.</p>
+</div>
+<section id="S1.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">10.1.1 </span>Two-Stage Detection: R-CNN to Fast R-CNN</h3>
+
+<div id="S1.SS1.p1" class="ltx_para">
+<p class="ltx_p">The two-stage detection paradigm emerged as a natural approach to the object detection problem by decomposing it into two sequential sub-problems: first generating a set of object proposals that likely contain objects, then classifying these proposals while refining their locations. This divide-and-conquer strategy proved highly effective, establishing the foundation for many subsequent detection architectures.</p>
+</div>
+<section id="S1.SS1.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">R-CNN: establishing the two-stage paradigm.</h4>
+
+<div id="S1.SS1.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">The original R-CNN (Regions with CNN features) architecture<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS1.SSS0.Px1.p1.p1" class="ltx_para">
+<span class="ltx_p">Proposed by Girshick et al. (2014), R-CNN demonstrated that CNN features could dramatically improve object detection performance when combined with traditional region proposal methods.</span>
+</span></span></span></span></span> established the two-stage paradigm through a three-step process that combined classical computer vision techniques with modern deep learning. The architecture begins with selective search<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS1.SSS0.Px1.p1.p2" class="ltx_para">
+<span class="ltx_p">Selective search is a graph-based segmentation algorithm that generates object proposals by hierarchically grouping superpixels based on color, texture, size, and shape compatibility.</span>
+</span></span></span></span></span>, which generates approximately 2,000 region proposals per image by identifying regions likely to contain objects based on low-level visual cues. The process is illustrated in Figure&#160;<a href="#S1.F1" title="Figure 10.1 ‣ R-CNN: establishing the two-stage paradigm. ‣ 10.1.1 Two-Stage Detection: R-CNN to Fast R-CNN ‣ 10.1 2D Object Detection Foundations" class="ltx_ref"><span class="ltx_text ltx_ref_tag">10.1</span></a>.</p>
+</div>
+<figure id="S1.F1" class="ltx_figure"><img style="width:75%;height:auto" src="/book-assets/object-detection/figs__ch12_figs__selective_search.png" id="S1.F1.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 10.1</span>: </span><span class="ltx_text" style="font-size:90%;">Selective search hierarchical grouping process figure from Uijlings et al. (2013). Starting from initial superpixel segmentation (left), regions are progressively merged based on color, texture, size, and shape compatibility, ultimately generating diverse object proposals of varying scales and locations (right).</span></figcaption>
+</figure>
+<div id="S1.SS1.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">Each proposed region is then warped to a fixed size of <math id="S1.SS1.SSS0.Px1.p2.m1" class="ltx_Math" alttext="227\times 227" display="inline"><mrow><mn>227</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>227</mn></mrow></math> pixels and processed independently through a pre-trained CNN (originally AlexNet) to extract a 4096-dimensional feature vector. This feature extraction step leverages the powerful representations learned by CNNs on large-scale image classification datasets, transferring this knowledge to the detection task. Finally, these CNN features are fed to class-specific Support Vector Machine (SVM) classifiers for object classification and linear regressors for bounding box refinement.</p>
+</div>
+<div id="S1.SS1.SSS0.Px1.p3" class="ltx_para">
+<p class="ltx_p">Mathematically, for a region proposal <math id="S1.SS1.SSS0.Px1.p3.m1" class="ltx_Math" alttext="r" display="inline"><mi>r</mi></math> with extracted CNN features <math id="S1.SS1.SSS0.Px1.p3.m2" class="ltx_Math" alttext="\phi(r)" display="inline"><mrow><mi>ϕ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>r</mi><mo stretchy="false">)</mo></mrow></mrow></math>, the classification score for class <math id="S1.SS1.SSS0.Px1.p3.m3" class="ltx_Math" alttext="c" display="inline"><mi>c</mi></math> is computed as:</p>
+<table id="S1.Ex1" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex1.m1" class="ltx_Math" alttext="s_{c}(r)=w_{c}^{T}\phi(r)+b_{c}," display="block"><mrow><mrow><mrow><msub><mi>s</mi><mi>c</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>r</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mrow><msubsup><mi>w</mi><mi>c</mi><mi>T</mi></msubsup><mo>⁢</mo><mi>ϕ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>r</mi><mo stretchy="false">)</mo></mrow></mrow><mo>+</mo><msub><mi>b</mi><mi>c</mi></msub></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S1.SS1.SSS0.Px1.p3.m4" class="ltx_Math" alttext="w_{c}" display="inline"><msub><mi>w</mi><mi>c</mi></msub></math> and <math id="S1.SS1.SSS0.Px1.p3.m5" class="ltx_Math" alttext="b_{c}" display="inline"><msub><mi>b</mi><mi>c</mi></msub></math> are the learned SVM parameters for class <math id="S1.SS1.SSS0.Px1.p3.m6" class="ltx_Math" alttext="c" display="inline"><mi>c</mi></math>. The bounding box regression predicts corrections <math id="S1.SS1.SSS0.Px1.p3.m7" class="ltx_Math" alttext="(\Delta x,\Delta y,\Delta w,\Delta h)" display="inline"><mrow><mo stretchy="false">(</mo><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>x</mi></mrow><mo>,</mo><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>y</mi></mrow><mo>,</mo><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>w</mi></mrow><mo>,</mo><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>h</mi></mrow><mo stretchy="false">)</mo></mrow></math> to transform the proposal coordinates <math id="S1.SS1.SSS0.Px1.p3.m8" class="ltx_Math" alttext="(x,y,w,h)" display="inline"><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo>,</mo><mi>w</mi><mo>,</mo><mi>h</mi><mo stretchy="false">)</mo></mrow></math> to better align with the ground truth:</p>
+<table id="S1.Ex2" class="ltx_equationgroup ltx_eqn_table">
+
+<tbody id="S1.Ex2X"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S1.Ex2X.m2" class="ltx_Math" alttext="\displaystyle\Delta x" display="inline"><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>x</mi></mrow></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex2X.m3" class="ltx_Math" alttext="\displaystyle=w_{x}^{T}\phi(r)+b_{x}," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><mrow><msubsup><mi>w</mi><mi>x</mi><mi>T</mi></msubsup><mo>⁢</mo><mi>ϕ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>r</mi><mo stretchy="false">)</mo></mrow></mrow><mo>+</mo><msub><mi>b</mi><mi>x</mi></msub></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S1.Ex2Xa"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S1.Ex2Xa.m2" class="ltx_Math" alttext="\displaystyle\Delta y" display="inline"><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>y</mi></mrow></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex2Xa.m3" class="ltx_Math" alttext="\displaystyle=w_{y}^{T}\phi(r)+b_{y}," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><mrow><msubsup><mi>w</mi><mi>y</mi><mi>T</mi></msubsup><mo>⁢</mo><mi>ϕ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>r</mi><mo stretchy="false">)</mo></mrow></mrow><mo>+</mo><msub><mi>b</mi><mi>y</mi></msub></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S1.Ex2Xb"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S1.Ex2Xb.m2" class="ltx_Math" alttext="\displaystyle\Delta w" display="inline"><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>w</mi></mrow></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex2Xb.m3" class="ltx_Math" alttext="\displaystyle=w_{w}^{T}\phi(r)+b_{w}," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><mrow><msubsup><mi>w</mi><mi>w</mi><mi>T</mi></msubsup><mo>⁢</mo><mi>ϕ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>r</mi><mo stretchy="false">)</mo></mrow></mrow><mo>+</mo><msub><mi>b</mi><mi>w</mi></msub></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S1.Ex2Xc"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S1.Ex2Xc.m2" class="ltx_Math" alttext="\displaystyle\Delta h" display="inline"><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>h</mi></mrow></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex2Xc.m3" class="ltx_Math" alttext="\displaystyle=w_{h}^{T}\phi(r)+b_{h}." display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><mrow><msubsup><mi>w</mi><mi>h</mi><mi>T</mi></msubsup><mo>⁢</mo><mi>ϕ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>r</mi><mo stretchy="false">)</mo></mrow></mrow><mo>+</mo><msub><mi>b</mi><mi>h</mi></msub></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S1.SS1.SSS0.Px1.p4" class="ltx_para">
+<p class="ltx_p">While R-CNN achieved breakthrough detection performance on benchmark datasets, it suffered from significant computational inefficiencies and training complexity. Each of the  2,000 proposals required a separate forward pass through the CNN, making both training and inference extremely slow—processing a single image could take minutes. The multi-stage training process required pre-training the CNN on ImageNet, training SVMs for classification, and training linear regressors for bounding box refinement, making the pipeline complex and difficult to optimize end-to-end.</p>
+</div>
+</section>
+<section id="S1.SS1.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Fast R-CNN: shared computation breakthrough.</h4>
+
+<div id="S1.SS1.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">Fast R-CNN<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS1.SSS0.Px2.p1.p1" class="ltx_para">
+<span class="ltx_p">Introduced by Girshick (2015), Fast R-CNN addressed the computational bottlenecks of R-CNN while maintaining the two-stage paradigm and improving detection accuracy.</span>
+</span></span></span></span></span> addressed these limitations through a key architectural innovation: shared computation across all proposals. Instead of processing each proposal independently through the CNN, Fast R-CNN processes the entire input image once through a convolutional backbone to generate a feature map, then extracts proposal-specific features from this shared representation.
+This process is illustrated in <span class="ltx_ref">the referenced figure</span>.</p>
+</div>
+<div id="S1.SS1.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">The central innovation is the Region of Interest (RoI) pooling layer, which extracts fixed-size feature representations from variable-sized proposal regions on the shared feature map. For a proposal with coordinates <math id="S1.SS1.SSS0.Px2.p2.m1" class="ltx_Math" alttext="(x,y,w,h)" display="inline"><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo>,</mo><mi>w</mi><mo>,</mo><mi>h</mi><mo stretchy="false">)</mo></mrow></math> on a feature map <math id="S1.SS1.SSS0.Px2.p2.m2" class="ltx_Math" alttext="F" display="inline"><mi>F</mi></math> with spatial dimensions <math id="S1.SS1.SSS0.Px2.p2.m3" class="ltx_Math" alttext="H\times W" display="inline"><mrow><mi>H</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>W</mi></mrow></math>, RoI pooling divides the proposal region into a regular <math id="S1.SS1.SSS0.Px2.p2.m4" class="ltx_Math" alttext="k\times k" display="inline"><mrow><mi>k</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>k</mi></mrow></math> grid (typically <math id="S1.SS1.SSS0.Px2.p2.m5" class="ltx_Math" alttext="7\times 7" display="inline"><mrow><mn>7</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>7</mn></mrow></math>) and applies max pooling within each grid cell, as shown in Figure&#160;<a href="#S1.F2" title="Figure 10.2 ‣ Fast R-CNN: shared computation breakthrough. ‣ 10.1.1 Two-Stage Detection: R-CNN to Fast R-CNN ‣ 10.1 2D Object Detection Foundations" class="ltx_ref"><span class="ltx_text ltx_ref_tag">10.2</span></a>.</p>
+</div>
+<figure id="S1.F2" class="ltx_figure"><img style="width:60%;height:auto" src="/book-assets/object-detection/figs__ch12_figs__roi_pooling.png" id="S1.F2.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 10.2</span>: </span><span class="ltx_text" style="font-size:90%;">RoI pooling mechanism. A region of interest proposal of arbitrary size (left) is used to apply max pooling within the feature map (right) to produce a fixed-size feature representation per region (top) for subsequent classification and regression layers.</span></figcaption>
+</figure>
+<div id="S1.SS1.SSS0.Px2.p3" class="ltx_para">
+<table id="S1.Ex3" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex3.m1" class="ltx_math_unparsed" alttext="\text{RoI}_{i,j}=\underset{[}{\text{maximize}}\quad(x^{\prime},y^{\prime})\in%
+\text{bin}_{i,j}]F_{x^{\prime},y^{\prime}}," display="block"><mrow><msub><mtext>RoI</mtext><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>=</mo><munder accentunder="true"><mtext>maximize</mtext><mo fence="false">[</mo></munder><mspace width="1em"></mspace><mrow><mo stretchy="false">(</mo><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><msup><mi>y</mi><mo>′</mo></msup><mo stretchy="false">)</mo></mrow><mo>∈</mo><msub><mtext>bin</mtext><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mo stretchy="false">]</mo><mi>F</mi><msub><mi></mi><mrow><msup><mi>x</mi><mo>′</mo></msup><mo>,</mo><msup><mi>y</mi><mo>′</mo></msup></mrow></msub><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S1.SS1.SSS0.Px2.p3.m1" class="ltx_Math" alttext="\text{bin}_{i,j}" display="inline"><msub><mtext>bin</mtext><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub></math> represents the spatial extent of the <math id="S1.SS1.SSS0.Px2.p3.m2" class="ltx_Math" alttext="(i,j)" display="inline"><mrow><mo stretchy="false">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo stretchy="false">)</mo></mrow></math>-th grid cell. This operation ensures that regardless of the input proposal size, the output is always a fixed <math id="S1.SS1.SSS0.Px2.p3.m3" class="ltx_Math" alttext="k\times k\times d" display="inline"><mrow><mi>k</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>k</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>d</mi></mrow></math> feature tensor, where <math id="S1.SS1.SSS0.Px2.p3.m4" class="ltx_Math" alttext="d" display="inline"><mi>d</mi></math> is the number of feature channels.</p>
+</div>
+<div id="S1.SS1.SSS0.Px2.p4" class="ltx_para">
+<p class="ltx_p">Fast R-CNN also unified the training process through a multi-task loss function that jointly optimizes classification and bounding box regression:</p>
+<table id="S1.Ex4" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex4.m1" class="ltx_Math" alttext="L=L_{\text{cls}}(p,u)+\lambda[u\geq 1]L_{\text{bbox}}(t^{u},v)," display="block"><mrow><mrow><mi>L</mi><mo>=</mo><mrow><mrow><msub><mi>L</mi><mtext>cls</mtext></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>p</mi><mo>,</mo><mi>u</mi><mo stretchy="false">)</mo></mrow></mrow><mo>+</mo><mrow><mi>λ</mi><mo>⁢</mo><mrow><mo stretchy="false">[</mo><mrow><mi>u</mi><mo>≥</mo><mn>1</mn></mrow><mo stretchy="false">]</mo></mrow><mo>⁢</mo><msub><mi>L</mi><mtext>bbox</mtext></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msup><mi>t</mi><mi>u</mi></msup><mo>,</mo><mi>v</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S1.SS1.SSS0.Px2.p4.m1" class="ltx_Math" alttext="L_{\text{cls}}(p,u)=-\log p_{u}" display="inline"><mrow><mrow><msub><mi>L</mi><mtext>cls</mtext></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>p</mi><mo>,</mo><mi>u</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mo rspace="0.167em">−</mo><mrow><mi>log</mi><mo lspace="0.167em">⁡</mo><msub><mi>p</mi><mi>u</mi></msub></mrow></mrow></mrow></math> is the log loss for true class <math id="S1.SS1.SSS0.Px2.p4.m2" class="ltx_Math" alttext="u" display="inline"><mi>u</mi></math> with predicted class probabilities <math id="S1.SS1.SSS0.Px2.p4.m3" class="ltx_Math" alttext="p" display="inline"><mi>p</mi></math>, and <math id="S1.SS1.SSS0.Px2.p4.m4" class="ltx_Math" alttext="L_{\text{bbox}}" display="inline"><msub><mi>L</mi><mtext>bbox</mtext></msub></math> is the smooth L1 loss for bounding box regression. The indicator function <math id="S1.SS1.SSS0.Px2.p4.m5" class="ltx_Math" alttext="[u\geq 1]" display="inline"><mrow><mo stretchy="false">[</mo><mrow><mi>u</mi><mo>≥</mo><mn>1</mn></mrow><mo stretchy="false">]</mo></mrow></math> ensures that bounding box loss is only computed for positive examples (background class has <math id="S1.SS1.SSS0.Px2.p4.m6" class="ltx_Math" alttext="u=0" display="inline"><mrow><mi>u</mi><mo>=</mo><mn>0</mn></mrow></math>), and <math id="S1.SS1.SSS0.Px2.p4.m7" class="ltx_Math" alttext="\lambda" display="inline"><mi>λ</mi></math> balances the two loss terms.</p>
+</div>
+<div id="S1.SS1.SSS0.Px2.p5" class="ltx_para">
+<p class="ltx_p">This architectural change provided substantial improvements in both computational efficiency and detection accuracy. By sharing CNN computation across all proposals, Fast R-CNN reduced training time by an order of magnitude while achieving higher mean Average Precision (mAP) on standard benchmarks. The end-to-end training also eliminated the complex multi-stage optimization procedure, making the system more practical for real-world deployment.
+However, Fast R-CNN still relied on external region proposal algorithms like selective search, which remained a computational bottleneck and prevented the entire detection pipeline from being truly end-to-end learnable. This limitation motivated the development of learnable region proposal methods, which we will explore in the next section.</p>
+</div>
+</section>
+</section>
+<section id="S1.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">10.1.2 </span>Learnable Proposals: RPN and Faster R-CNN</h3>
+
+<div id="S1.SS2.p1" class="ltx_para">
+<p class="ltx_p">While Fast R-CNN significantly improved computational efficiency through shared CNN computation, it still relies on external region proposal algorithms like selective search. These traditional methods suffered from several fundamental limitations: they were computationally expensive, requiring seconds per image; they were not learned from data and thus could not adapt to specific datasets or tasks; and they created a bottleneck that prevented the entire detection pipeline from being optimized end-to-end. The Region Proposal Network (RPN) innovation addressed these limitations by making region proposal generation a learnable component within the detection framework.</p>
+</div>
+<section id="S1.SS2.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Limitations of selective search.</h4>
+
+<div id="S1.SS2.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">Selective search and similar traditional proposal methods operate using hand-crafted features and heuristics that remain fixed regardless of the detection task or dataset. These algorithms typically generate thousands of proposals per image using expensive graph-based operations, with processing times often exceeding the CNN inference itself. More critically, since these methods are not learnable, they cannot benefit from the supervision available during detection training—they cannot learn which types of regions are most likely to contain objects for a specific application domain.</p>
+</div>
+</section>
+<section id="S1.SS2.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Region proposal network innovation.</h4>
+
+<div id="S1.SS2.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">The Region Proposal Network (RPN) represents a paradigm shift by treating proposal generation as a learned prediction task. The RPN is essentially a fully convolutional network that slides a small network over the convolutional feature map produced by the backbone CNN. At each sliding window position, the RPN simultaneously predicts multiple region proposals using a set of reference boxes called anchors.</p>
+</div>
+</section>
+<section id="S1.SS2.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Anchor box design principles.</h4>
+
+<div id="S1.SS2.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">Anchors serve as reference templates that cover different scales and aspect ratios at each spatial location in the feature map. For a feature map of size <math id="S1.SS2.SSS0.Px3.p1.m1" class="ltx_Math" alttext="H\times W" display="inline"><mrow><mi>H</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>W</mi></mrow></math>, the RPN generates <math id="S1.SS2.SSS0.Px3.p1.m2" class="ltx_Math" alttext="H\times W\times k" display="inline"><mrow><mi>H</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>W</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>k</mi></mrow></math> potential proposals, where <math id="S1.SS2.SSS0.Px3.p1.m3" class="ltx_Math" alttext="k" display="inline"><mi>k</mi></math> is the number of anchor templates per location. Common anchor designs use 3 scales (e.g., <math id="S1.SS2.SSS0.Px3.p1.m4" class="ltx_Math" alttext="128^{2}" display="inline"><msup><mn>128</mn><mn>2</mn></msup></math>, <math id="S1.SS2.SSS0.Px3.p1.m5" class="ltx_Math" alttext="256^{2}" display="inline"><msup><mn>256</mn><mn>2</mn></msup></math>, <math id="S1.SS2.SSS0.Px3.p1.m6" class="ltx_Math" alttext="512^{2}" display="inline"><msup><mn>512</mn><mn>2</mn></msup></math> pixels) and 3 aspect ratios (e.g., 1:1, 1:2, 2:1), resulting in <math id="S1.SS2.SSS0.Px3.p1.m7" class="ltx_Math" alttext="k=9" display="inline"><mrow><mi>k</mi><mo>=</mo><mn>9</mn></mrow></math> anchors per location.</p>
+</div>
+<div id="S1.SS2.SSS0.Px3.p2" class="ltx_para">
+<p class="ltx_p">Mathematically, for an anchor centered at position <math id="S1.SS2.SSS0.Px3.p2.m1" class="ltx_Math" alttext="(x_{a},y_{a})" display="inline"><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>a</mi></msub><mo>,</mo><msub><mi>y</mi><mi>a</mi></msub><mo stretchy="false">)</mo></mrow></math> with width <math id="S1.SS2.SSS0.Px3.p2.m2" class="ltx_Math" alttext="w_{a}" display="inline"><msub><mi>w</mi><mi>a</mi></msub></math> and height <math id="S1.SS2.SSS0.Px3.p2.m3" class="ltx_Math" alttext="h_{a}" display="inline"><msub><mi>h</mi><mi>a</mi></msub></math>, the RPN predicts refinements <math id="S1.SS2.SSS0.Px3.p2.m4" class="ltx_Math" alttext="(\Delta x,\Delta y,\Delta w,\Delta h)" display="inline"><mrow><mo stretchy="false">(</mo><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>x</mi></mrow><mo>,</mo><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>y</mi></mrow><mo>,</mo><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>w</mi></mrow><mo>,</mo><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>h</mi></mrow><mo stretchy="false">)</mo></mrow></math> to produce a final proposal:</p>
+<table id="S1.Ex5" class="ltx_equationgroup ltx_eqn_table">
+
+<tbody id="S1.Ex5X"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S1.Ex5X.m2" class="ltx_Math" alttext="\displaystyle x" display="inline"><mi>x</mi></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex5X.m3" class="ltx_Math" alttext="\displaystyle=\Delta x\cdot w_{a}+x_{a}," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><mrow><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>x</mi></mrow><mo lspace="0.222em" rspace="0.222em">⋅</mo><msub><mi>w</mi><mi>a</mi></msub></mrow><mo>+</mo><msub><mi>x</mi><mi>a</mi></msub></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S1.Ex5Xa"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S1.Ex5Xa.m2" class="ltx_Math" alttext="\displaystyle y" display="inline"><mi>y</mi></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex5Xa.m3" class="ltx_Math" alttext="\displaystyle=\Delta y\cdot h_{a}+y_{a}," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><mrow><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>y</mi></mrow><mo lspace="0.222em" rspace="0.222em">⋅</mo><msub><mi>h</mi><mi>a</mi></msub></mrow><mo>+</mo><msub><mi>y</mi><mi>a</mi></msub></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S1.Ex5Xb"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S1.Ex5Xb.m2" class="ltx_Math" alttext="\displaystyle w" display="inline"><mi>w</mi></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex5Xb.m3" class="ltx_Math" alttext="\displaystyle=w_{a}\cdot\exp(\Delta w)," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><msub><mi>w</mi><mi>a</mi></msub><mo lspace="0.222em" rspace="0.222em">⋅</mo><mrow><mi>exp</mi><mo>⁡</mo><mrow><mo stretchy="false">(</mo><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>w</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S1.Ex5Xc"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S1.Ex5Xc.m2" class="ltx_Math" alttext="\displaystyle h" display="inline"><mi>h</mi></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex5Xc.m3" class="ltx_Math" alttext="\displaystyle=h_{a}\cdot\exp(\Delta h)." display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><msub><mi>h</mi><mi>a</mi></msub><mo lspace="0.222em" rspace="0.222em">⋅</mo><mrow><mi>exp</mi><mo>⁡</mo><mrow><mo stretchy="false">(</mo><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>h</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S1.SS2.SSS0.Px3.p3" class="ltx_para">
+<p class="ltx_p">The exponential transformation for width and height ensures positive values and provides scale-invariant parameterization.</p>
+</div>
+</section>
+<section id="S1.SS2.SSS0.Px4" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Objectness scoring.</h4>
+
+<div id="S1.SS2.SSS0.Px4.p1" class="ltx_para">
+<p class="ltx_p">Unlike traditional proposal methods that use complex heuristics, the RPN performs binary classification to determine “objectness”—whether each anchor location contains an object of any class versus background. This objectness score <math id="S1.SS2.SSS0.Px4.p1.m1" class="ltx_Math" alttext="p^{*}" display="inline"><msup><mi>p</mi><mo>∗</mo></msup></math> is simpler than full multi-class classification but captures the essential information needed for proposal generation. The RPN learns to distinguish object-like regions from background using the same convolutional features that will later be used for detailed classification.</p>
+</div>
+</section>
+<section id="S1.SS2.SSS0.Px5" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">RPN loss function.</h4>
+
+<div id="S1.SS2.SSS0.Px5.p1" class="ltx_para">
+<p class="ltx_p">The RPN is trained using a multi-task loss that combines objectness classification and bounding box regression:</p>
+<table id="S1.Ex6" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex6.m1" class="ltx_Math" alttext="L_{\text{RPN}}=\frac{1}{N_{\text{cls}}}\sum_{i}L_{\text{cls}}(p_{i},p_{i}^{*})%
++\lambda\frac{1}{N_{\text{box}}}\sum_{i}p_{i}^{*}L_{\text{box}}(t_{i},t_{i}^{*%
+})," display="block"><mrow><mrow><msub><mi>L</mi><mtext>RPN</mtext></msub><mo>=</mo><mrow><mrow><mfrac><mn>1</mn><msub><mi>N</mi><mtext>cls</mtext></msub></mfrac><mo>⁢</mo><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder><mrow><msub><mi>L</mi><mtext>cls</mtext></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>p</mi><mi>i</mi></msub><mo>,</mo><msubsup><mi>p</mi><mi>i</mi><mo>∗</mo></msubsup><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo>+</mo><mrow><mi>λ</mi><mo>⁢</mo><mfrac><mn>1</mn><msub><mi>N</mi><mtext>box</mtext></msub></mfrac><mo>⁢</mo><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder><mrow><msubsup><mi>p</mi><mi>i</mi><mo>∗</mo></msubsup><mo>⁢</mo><msub><mi>L</mi><mtext>box</mtext></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>t</mi><mi>i</mi></msub><mo>,</mo><msubsup><mi>t</mi><mi>i</mi><mo>∗</mo></msubsup><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S1.SS2.SSS0.Px5.p1.m1" class="ltx_Math" alttext="L_{\text{cls}}" display="inline"><msub><mi>L</mi><mtext>cls</mtext></msub></math> is the log loss for binary classification, <math id="S1.SS2.SSS0.Px5.p1.m2" class="ltx_Math" alttext="L_{\text{box}}" display="inline"><msub><mi>L</mi><mtext>box</mtext></msub></math> is the smooth L1 loss for box regression, <math id="S1.SS2.SSS0.Px5.p1.m3" class="ltx_Math" alttext="N_{\text{cls}}" display="inline"><msub><mi>N</mi><mtext>cls</mtext></msub></math> and <math id="S1.SS2.SSS0.Px5.p1.m4" class="ltx_Math" alttext="N_{\text{box}}" display="inline"><msub><mi>N</mi><mtext>box</mtext></msub></math> are normalization terms, and <math id="S1.SS2.SSS0.Px5.p1.m5" class="ltx_Math" alttext="\lambda" display="inline"><mi>λ</mi></math> balances the two losses. The box regression loss is only computed for positive anchors (those with <math id="S1.SS2.SSS0.Px5.p1.m6" class="ltx_Math" alttext="p_{i}^{*}=1" display="inline"><mrow><msubsup><mi>p</mi><mi>i</mi><mo>∗</mo></msubsup><mo>=</mo><mn>1</mn></mrow></math>), indicated by the multiplication with <math id="S1.SS2.SSS0.Px5.p1.m7" class="ltx_Math" alttext="p_{i}^{*}" display="inline"><msubsup><mi>p</mi><mi>i</mi><mo>∗</mo></msubsup></math>.</p>
+</div>
+<div id="S1.SS2.SSS0.Px5.p2" class="ltx_para">
+<p class="ltx_p">During training, anchors are assigned positive labels if they have Intersection over Union (IoU) ¿ 0.7 with any ground truth box, or if they are the highest IoU anchor for a ground truth box. Anchors with IoU ¡ 0.3 are assigned negative labels, while those with intermediate IoU values are ignored to avoid ambiguous supervision.</p>
+</div>
+</section>
+<section id="S1.SS2.SSS0.Px6" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Faster R-CNN: integration with Fast R-CNN.</h4>
+
+<div id="S1.SS2.SSS0.Px6.p1" class="ltx_para">
+<p class="ltx_p">Faster R-CNN combines the RPN with Fast R-CNN into a single, unified network that shares convolutional features between proposal generation and detection. The architecture consists of a shared CNN backbone (e.g., VGG-16 or ResNet), followed by two sibling branches: the RPN for generating proposals and the Fast R-CNN detection head for classifying proposals and refining their locations.</p>
+</div>
+<div id="S1.SS2.SSS0.Px6.p2" class="ltx_para">
+<p class="ltx_p">The shared backbone is crucial for computational efficiency—rather than running separate CNNs for proposal generation and detection, both tasks operate on the same feature representation. This sharing also enables the network to learn features that are beneficial for both tasks simultaneously.</p>
+</div>
+</section>
+<section id="S1.SS2.SSS0.Px7" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Training strategies.</h4>
+
+<div id="S1.SS2.SSS0.Px7.p1" class="ltx_para">
+<p class="ltx_p">Training Faster R-CNN requires careful coordination between the RPN and detection components. Initial approaches alternated between training the RPN and the detection network. First, the RPN is trained using ImageNet-pretrained features. Then, the detection network is trained using proposals from the trained RPN, fine-tuning the shared convolutional layers. This process can be repeated, though diminishing returns are typically observed after the first iteration.</p>
+</div>
+<div id="S1.SS2.SSS0.Px7.p2" class="ltx_para">
+<p class="ltx_p">Today, most training of both components is done simultaneously, using a combined loss function:</p>
+<table id="S1.Ex7" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex7.m1" class="ltx_Math" alttext="L_{\text{total}}=L_{\text{RPN}}+L_{\text{Fast R-CNN}}." display="block"><mrow><mrow><msub><mi>L</mi><mtext>total</mtext></msub><mo>=</mo><mrow><msub><mi>L</mi><mtext>RPN</mtext></msub><mo>+</mo><msub><mi>L</mi><mtext>Fast R-CNN</mtext></msub></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S1.SS2.SSS0.Px7.p3" class="ltx_para">
+<p class="ltx_p">Joint training is more efficient and often achieves better performance, as it allows the RPN and detection network to adapt to each other during learning.</p>
+</div>
+</section>
+<section id="S1.SS2.SSS0.Px8" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Non-maximum suppression and post-processing.</h4>
+
+<div id="S1.SS2.SSS0.Px8.p1" class="ltx_para">
+<p class="ltx_p">After the RPN generates proposals, Non-Maximum Suppression (NMS) removes redundant detections. The algorithm sorts proposals by objectness score and iteratively removes proposals that have high IoU (typically ¿ 0.7) with higher-scored proposals. This reduces the number of proposals fed to the detection stage from thousands to hundreds, improving computational efficiency while maintaining detection quality.</p>
+</div>
+<div id="S1.SS2.SSS0.Px8.p2" class="ltx_para">
+<p class="ltx_p">The complete Faster R-CNN pipeline processes an image through the shared backbone, generates scored proposals via RPN with NMS post-processing, extracts RoI features for the top proposals, and produces final classifications and refined bounding boxes. This end-to-end learnable system achieved significant improvements in both speed and accuracy over previous two-stage methods, establishing the foundation for modern object detection architectures.</p>
+</div>
+</section>
+</section>
+<section id="S1.SS3" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">10.1.3 </span>One-Stage Detection: YOLO</h3>
+
+<div id="S1.SS3.p1" class="ltx_para">
+<p class="ltx_p">The Region Proposal Network represented a major breakthrough by making proposal generation learnable, but it still required a two-stage pipeline where proposals were generated first and then classified separately. This sequential approach, while effective, created computational bottlenecks that limited real-time performance in robotics applications. As autonomous vehicles, drones, and mobile robots demanded faster detection systems for dynamic environments, a fundamental question emerged: could object detection be reformulated to predict bounding boxes and classes directly from image features in a single forward pass?</p>
+</div>
+<div id="S1.SS3.p2" class="ltx_para">
+<p class="ltx_p">You Only Look Once (YOLO)<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS3.p2.p1" class="ltx_para">
+<span class="ltx_p">Introduced by Redmon et al. (2016), YOLO revolutionized object detection by demonstrating that competitive detection performance could be achieved through direct single-stage prediction, enabling real-time performance for robotics applications.</span>
+</span></span></span></span></span> provided a radical answer to this question. Rather than decomposing detection into proposal generation followed by classification, YOLO treats object detection as a single regression problem, directly predicting bounding box coordinates and class probabilities from image pixels in one evaluation of the network. This paradigm shift eliminated the computational overhead of generating and processing thousands of proposals, enabling genuine real-time object detection suitable for robotics systems operating in dynamic environments.</p>
+</div>
+<section id="S1.SS3.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Core YOLO innovation: grid-based direct detection.</h4>
+
+<div id="S1.SS3.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">YOLO’s central innovation lies in its spatial decomposition of the detection problem through a grid-based approach. The method divides the input image into an <math id="S1.SS3.SSS0.Px1.p1.m1" class="ltx_Math" alttext="S\times S" display="inline"><mrow><mi>S</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>S</mi></mrow></math> grid (typically <math id="S1.SS3.SSS0.Px1.p1.m2" class="ltx_Math" alttext="7\times 7" display="inline"><mrow><mn>7</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>7</mn></mrow></math> for the original YOLO), where each grid cell becomes responsible for detecting objects whose center points fall within that cell’s spatial region. This responsibility assignment creates a natural spatial organization that eliminates the need for separate proposal generation.</p>
+</div>
+<div id="S1.SS3.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">Each grid cell simultaneously predicts multiple bounding boxes along with their associated confidence scores and class probabilities. The key insight is that this grid-based spatial division provides sufficient spatial coverage while maintaining computational tractability—rather than evaluating thousands of potential object locations as in proposal-based methods, YOLO evaluates a fixed number of predictions per grid cell, resulting in a manageable total number of predictions regardless of scene complexity.
+The elimination of the proposal generation stage represents more than just a computational optimization; it fundamentally changes how the network approaches object detection. Rather than learning to generate good proposals and then classify them, the network must learn to directly map from image features to final detection outputs. This end-to-end learning enables the network to optimize the entire detection pipeline jointly, potentially leading to better coordination between localization and classification components.</p>
+</div>
+</section>
+<section id="S1.SS3.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">YOLO architecture and predictions.</h4>
+
+<div id="S1.SS3.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">The YOLO architecture consists of a single CNN backbone followed by fully connected layers that produce the final detection tensor. The original implementation used a modified GoogLeNet architecture as the backbone, processing input images of size <math id="S1.SS3.SSS0.Px2.p1.m1" class="ltx_Math" alttext="448\times 448" display="inline"><mrow><mn>448</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>448</mn></mrow></math> pixels through convolutional layers that progressively reduce spatial resolution while increasing feature depth. The final convolutional features are flattened and processed through fully connected layers to produce a structured output tensor.</p>
+</div>
+<div id="S1.SS3.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">The network’s output is a tensor of size <math id="S1.SS3.SSS0.Px2.p2.m1" class="ltx_Math" alttext="S\times S\times(B\times 5+C)" display="inline"><mrow><mi>S</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>S</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mrow><mo stretchy="false">(</mo><mrow><mrow><mi>B</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mn>5</mn></mrow><mo>+</mo><mi>C</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></math>, where <math id="S1.SS3.SSS0.Px2.p2.m2" class="ltx_Math" alttext="S" display="inline"><mi>S</mi></math> is the grid size, <math id="S1.SS3.SSS0.Px2.p2.m3" class="ltx_Math" alttext="B" display="inline"><mi>B</mi></math> is the number of bounding boxes predicted per cell, and <math id="S1.SS3.SSS0.Px2.p2.m4" class="ltx_Math" alttext="C" display="inline"><mi>C</mi></math> is the number of object classes. For the original YOLO trained on PASCAL VOC, this results in a <math id="S1.SS3.SSS0.Px2.p2.m5" class="ltx_Math" alttext="7\times 7\times 30" display="inline"><mrow><mn>7</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>7</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>30</mn></mrow></math> tensor, with <math id="S1.SS3.SSS0.Px2.p2.m6" class="ltx_Math" alttext="B=2" display="inline"><mrow><mi>B</mi><mo>=</mo><mn>2</mn></mrow></math> bounding boxes and <math id="S1.SS3.SSS0.Px2.p2.m7" class="ltx_Math" alttext="C=20" display="inline"><mrow><mi>C</mi><mo>=</mo><mn>20</mn></mrow></math> classes. Each bounding box prediction consists of five values: <math id="S1.SS3.SSS0.Px2.p2.m8" class="ltx_Math" alttext="(x,y,w,h,\text{confidence})" display="inline"><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo>,</mo><mi>w</mi><mo>,</mo><mi>h</mi><mo>,</mo><mtext>confidence</mtext><mo stretchy="false">)</mo></mrow></math>, where <math id="S1.SS3.SSS0.Px2.p2.m9" class="ltx_Math" alttext="(x,y)" display="inline"><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></math> represents the box center relative to the grid cell boundaries, <math id="S1.SS3.SSS0.Px2.p2.m10" class="ltx_Math" alttext="(w,h)" display="inline"><mrow><mo stretchy="false">(</mo><mi>w</mi><mo>,</mo><mi>h</mi><mo stretchy="false">)</mo></mrow></math> represents the box dimensions relative to the entire image, and confidence represents the model’s certainty that the box contains an object.
+The class predictions are formulated as conditional probabilities <math id="S1.SS3.SSS0.Px2.p2.m11" class="ltx_Math" alttext="P(\text{Class}_{i}|\text{Object})" display="inline"><mrow><mi>P</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mtext>Class</mtext><mi>i</mi></msub><mo fence="false">|</mo><mtext>Object</mtext></mrow><mo stretchy="false">)</mo></mrow></mrow></math>, representing the probability of each class given that an object is present in the cell. This conditional formulation is crucial—each grid cell predicts only one set of class probabilities regardless of the number of bounding boxes, reflecting the assumption that each cell is responsible for at most one object class.</p>
+</div>
+<div id="S1.SS3.SSS0.Px2.p3" class="ltx_para">
+<p class="ltx_p">The final detection confidence for each bounding box is computed by multiplying the conditional class probabilities with the bounding box confidence scores:</p>
+<table id="S1.Ex8" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex8.m1" class="ltx_Math" alttext="\text{Detection Confidence}=P(\text{Class}_{i}|\text{Object})\times P(\text{%
+Object})\times\text{IoU}(\text{pred},\text{truth})." display="block"><mrow><mrow><mtext>Detection Confidence</mtext><mo>=</mo><mrow><mrow><mrow><mrow><mrow><mi>P</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mtext>Class</mtext><mi>i</mi></msub><mo fence="false">|</mo><mtext>Object</mtext></mrow><mo rspace="0.055em" stretchy="false">)</mo></mrow></mrow><mo rspace="0.222em">×</mo><mi>P</mi></mrow><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mtext>Object</mtext><mo rspace="0.055em" stretchy="false">)</mo></mrow></mrow><mo rspace="0.222em">×</mo><mtext>IoU</mtext></mrow><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mtext>pred</mtext><mo>,</mo><mtext>truth</mtext><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">This formulation ensures that high detection scores require both confident object presence and accurate localization.</p>
+</div>
+</section>
+<section id="S1.SS3.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Loss function and training.</h4>
+
+<div id="S1.SS3.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">YOLO’s loss function addresses the multi-task nature of the detection problem by combining coordinate regression, confidence prediction, and classification into a unified objective. The loss function consists of several components with different weights to balance their relative importance:</p>
+<table id="S1.Ex9" class="ltx_equationgroup ltx_eqn_table">
+
+<tbody id="S1.Ex9X"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S1.Ex9X.m2" class="ltx_Math" alttext="\displaystyle L" display="inline"><mi>L</mi></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex9X.m3" class="ltx_Math" alttext="\displaystyle=\underbrace{\lambda_{\text{coord}}\sum_{i=0}^{S^{2}}\sum_{j=0}^{%
+B}\mathbb{1}_{ij}^{\text{obj}}[(x_{i}-\hat{x}_{i})^{2}+(y_{i}-\hat{y}_{i})^{2}%
+]}_{\text{bounding box center coordinates}}" display="inline"><mrow><mi></mi><mo>=</mo><munder><munder accentunder="true"><mrow><msub><mi>λ</mi><mtext>coord</mtext></msub><mo>⁢</mo><mrow><mstyle displaystyle="true"><munderover><mo movablelimits="false">∑</mo><mrow><mi>i</mi><mo>=</mo><mn>0</mn></mrow><msup><mi>S</mi><mn>2</mn></msup></munderover></mstyle><mrow><mstyle displaystyle="true"><munderover><mo movablelimits="false">∑</mo><mrow><mi>j</mi><mo>=</mo><mn>0</mn></mrow><mi>B</mi></munderover></mstyle><mrow><msubsup><mn>𝟙</mn><mrow><mi>i</mi><mo>⁢</mo><mi>j</mi></mrow><mtext>obj</mtext></msubsup><mo>⁢</mo><mrow><mo stretchy="false">[</mo><mrow><msup><mrow><mo stretchy="false">(</mo><mrow><msub><mi>x</mi><mi>i</mi></msub><mo>−</mo><msub><mover accent="true"><mi>x</mi><mo>^</mo></mover><mi>i</mi></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup><mo>+</mo><msup><mrow><mo stretchy="false">(</mo><mrow><msub><mi>y</mi><mi>i</mi></msub><mo>−</mo><msub><mover accent="true"><mi>y</mi><mo>^</mo></mover><mi>i</mi></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow><mo stretchy="false">]</mo></mrow></mrow></mrow></mrow></mrow><mo>⏟</mo></munder><mtext>bounding box center coordinates</mtext></munder></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S1.Ex9Xa"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_eqn_cell"></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex9Xa.m2" class="ltx_Math" alttext="\displaystyle\quad+\underbrace{\lambda_{\text{coord}}\sum_{i=0}^{S^{2}}\sum_{j%
+=0}^{B}\mathbb{1}_{ij}^{\text{obj}}[(\sqrt{w_{i}}-\sqrt{\hat{w}_{i}})^{2}+(%
+\sqrt{h_{i}}-\sqrt{\hat{h}_{i}})^{2}]}_{\text{bounding box dimensions}}" display="inline"><mrow><mo>+</mo><munder><munder accentunder="true"><mrow><msub><mi>λ</mi><mtext>coord</mtext></msub><mo>⁢</mo><mrow><mstyle displaystyle="true"><munderover><mo movablelimits="false">∑</mo><mrow><mi>i</mi><mo>=</mo><mn>0</mn></mrow><msup><mi>S</mi><mn>2</mn></msup></munderover></mstyle><mrow><mstyle displaystyle="true"><munderover><mo movablelimits="false">∑</mo><mrow><mi>j</mi><mo>=</mo><mn>0</mn></mrow><mi>B</mi></munderover></mstyle><mrow><msubsup><mn>𝟙</mn><mrow><mi>i</mi><mo>⁢</mo><mi>j</mi></mrow><mtext>obj</mtext></msubsup><mo>⁢</mo><mrow><mo stretchy="false">[</mo><mrow><msup><mrow><mo stretchy="false">(</mo><mrow><msqrt><msub><mi>w</mi><mi>i</mi></msub></msqrt><mo>−</mo><msqrt><msub><mover accent="true"><mi>w</mi><mo>^</mo></mover><mi>i</mi></msub></msqrt></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup><mo>+</mo><msup><mrow><mo stretchy="false">(</mo><mrow><msqrt><msub><mi>h</mi><mi>i</mi></msub></msqrt><mo>−</mo><msqrt><msub><mover accent="true"><mi>h</mi><mo>^</mo></mover><mi>i</mi></msub></msqrt></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow><mo stretchy="false">]</mo></mrow></mrow></mrow></mrow></mrow><mo>⏟</mo></munder><mtext>bounding box dimensions</mtext></munder></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S1.Ex9Xb"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_eqn_cell"></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex9Xb.m2" class="ltx_Math" alttext="\displaystyle\quad+\underbrace{\sum_{i=0}^{S^{2}}\sum_{j=0}^{B}\mathbb{1}_{ij}%
+^{\text{obj}}(C_{i}-\hat{C}_{i})^{2}}_{\text{confidence for cells with objects}}" display="inline"><mrow><mo>+</mo><munder><munder accentunder="true"><mrow><mstyle displaystyle="true"><munderover><mo movablelimits="false">∑</mo><mrow><mi>i</mi><mo>=</mo><mn>0</mn></mrow><msup><mi>S</mi><mn>2</mn></msup></munderover></mstyle><mrow><mstyle displaystyle="true"><munderover><mo movablelimits="false">∑</mo><mrow><mi>j</mi><mo>=</mo><mn>0</mn></mrow><mi>B</mi></munderover></mstyle><mrow><msubsup><mn>𝟙</mn><mrow><mi>i</mi><mo>⁢</mo><mi>j</mi></mrow><mtext>obj</mtext></msubsup><mo>⁢</mo><msup><mrow><mo stretchy="false">(</mo><mrow><msub><mi>C</mi><mi>i</mi></msub><mo>−</mo><msub><mover accent="true"><mi>C</mi><mo>^</mo></mover><mi>i</mi></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow></mrow></mrow><mo>⏟</mo></munder><mtext>confidence for cells with objects</mtext></munder></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S1.Ex9Xc"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_eqn_cell"></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex9Xc.m2" class="ltx_Math" alttext="\displaystyle\quad+\underbrace{\lambda_{\text{no-obj}}\sum_{i=0}^{S^{2}}\sum_{%
+j=0}^{B}\mathbb{1}_{ij}^{\text{no-obj}}(C_{i}-\hat{C}_{i})^{2}}_{\text{%
+confidence for cells without objects}}" display="inline"><mrow><mo>+</mo><munder><munder accentunder="true"><mrow><msub><mi>λ</mi><mtext>no-obj</mtext></msub><mo>⁢</mo><mrow><mstyle displaystyle="true"><munderover><mo movablelimits="false">∑</mo><mrow><mi>i</mi><mo>=</mo><mn>0</mn></mrow><msup><mi>S</mi><mn>2</mn></msup></munderover></mstyle><mrow><mstyle displaystyle="true"><munderover><mo movablelimits="false">∑</mo><mrow><mi>j</mi><mo>=</mo><mn>0</mn></mrow><mi>B</mi></munderover></mstyle><mrow><msubsup><mn>𝟙</mn><mrow><mi>i</mi><mo>⁢</mo><mi>j</mi></mrow><mtext>no-obj</mtext></msubsup><mo>⁢</mo><msup><mrow><mo stretchy="false">(</mo><mrow><msub><mi>C</mi><mi>i</mi></msub><mo>−</mo><msub><mover accent="true"><mi>C</mi><mo>^</mo></mover><mi>i</mi></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow></mrow></mrow></mrow><mo>⏟</mo></munder><mtext>confidence for cells without objects</mtext></munder></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S1.Ex9Xd"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_eqn_cell"></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S1.Ex9Xd.m2" class="ltx_Math" alttext="\displaystyle\quad+\underbrace{\sum_{i=0}^{S^{2}}\mathbb{1}_{i}^{\text{obj}}%
+\sum_{c\in\text{classes}}(p_{i}(c)-\hat{p}_{i}(c))^{2}}_{\text{class %
+probabilities}}." display="inline"><mrow><mrow><mo>+</mo><munder><munder accentunder="true"><mrow><mstyle displaystyle="true"><munderover><mo movablelimits="false">∑</mo><mrow><mi>i</mi><mo>=</mo><mn>0</mn></mrow><msup><mi>S</mi><mn>2</mn></msup></munderover></mstyle><mrow><msubsup><mn>𝟙</mn><mi>i</mi><mtext>obj</mtext></msubsup><mo>⁢</mo><mrow><mstyle displaystyle="true"><munder><mo movablelimits="false">∑</mo><mrow><mi>c</mi><mo>∈</mo><mtext>classes</mtext></mrow></munder></mstyle><msup><mrow><mo stretchy="false">(</mo><mrow><mrow><msub><mi>p</mi><mi>i</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>c</mi><mo stretchy="false">)</mo></mrow></mrow><mo>−</mo><mrow><msub><mover accent="true"><mi>p</mi><mo>^</mo></mover><mi>i</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>c</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow></mrow></mrow><mo>⏟</mo></munder><mtext>class probabilities</mtext></munder></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">The loss function uses different weights for different components: <math id="S1.SS3.SSS0.Px3.p1.m1" class="ltx_Math" alttext="\lambda_{\text{coord}}=5" display="inline"><mrow><msub><mi>λ</mi><mtext>coord</mtext></msub><mo>=</mo><mn>5</mn></mrow></math> increases the importance of coordinate predictions, while <math id="S1.SS3.SSS0.Px3.p1.m2" class="ltx_Math" alttext="\lambda_{\text{no-obj}}=0.5" display="inline"><mrow><msub><mi>λ</mi><mtext>no-obj</mtext></msub><mo>=</mo><mn>0.5</mn></mrow></math> decreases the weight of confidence predictions for cells without objects. The square root transformation for width and height helps the loss function treat errors in small and large boxes more equally, since a small absolute error in a small box represents a larger relative error than the same absolute error in a large box.</p>
+</div>
+<div id="S1.SS3.SSS0.Px3.p2" class="ltx_para">
+<p class="ltx_p">The indicator function <math id="S1.SS3.SSS0.Px3.p2.m1" class="ltx_Math" alttext="\mathbb{1}_{ij}^{\text{obj}}" display="inline"><msubsup><mn>𝟙</mn><mrow><mi>i</mi><mo>⁢</mo><mi>j</mi></mrow><mtext>obj</mtext></msubsup></math> denotes whether cell <math id="S1.SS3.SSS0.Px3.p2.m2" class="ltx_Math" alttext="i" display="inline"><mi>i</mi></math> contains an object and bounding box <math id="S1.SS3.SSS0.Px3.p2.m3" class="ltx_Math" alttext="j" display="inline"><mi>j</mi></math> is responsible for that prediction (determined by which predicted box has the highest IoU with the ground truth). This responsibility assignment is crucial for training stability, as it ensures each ground truth object is associated with exactly one predicted bounding box.
+Training YOLO follows a two-stage approach: the convolutional layers are first pre-trained on ImageNet for classification, then the entire network is fine-tuned on detection data. The classification pre-training provides the network with strong feature representations that are then adapted for the detection task. During detection training, the learning rate is carefully adjusted to balance the different loss components and ensure stable convergence.</p>
+</div>
+</section>
+<section id="S1.SS3.SSS0.Px4" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Speed versus accuracy trade-offs and robotics impact.</h4>
+
+<div id="S1.SS3.SSS0.Px4.p1" class="ltx_para">
+<p class="ltx_p">YOLO’s architectural design prioritizes computational efficiency, achieving detection speeds that were unprecedented at the time of its introduction. The original YOLO processes images at 45 frames per second (FPS) on contemporary GPU hardware, while a faster variant (Fast YOLO) achieved 155 FPS by using a smaller network architecture. These speeds represent order-of-magnitude improvements over contemporary two-stage methods like Fast R-CNN, which operated at approximately 7 FPS.
+However, this speed comes with accuracy trade-offs. YOLO’s grid-based approach struggles with small objects, since multiple small objects within the same grid cell cannot be detected independently. The method also has difficulty with objects that appear in unusual aspect ratios, as the fixed number of bounding box predictors per cell limits the diversity of detectable shapes. Additionally, the coarse spatial quantization imposed by the grid structure can lead to less precise localization compared to methods that can place proposals at arbitrary locations.</p>
+</div>
+<div id="S1.SS3.SSS0.Px4.p2" class="ltx_para">
+<p class="ltx_p">For robotics applications, these trade-offs often represent acceptable compromises. Autonomous vehicles operating in real-time require detection systems that can process sensor data fast enough to support control decisions, even if absolute detection accuracy is somewhat reduced. The “good enough” detection philosophy embodied by YOLO aligns well with robotics applications where timely decisions often matter more than perfect perception.
+The impact of YOLO on the robotics field extends beyond its specific technical contributions. By demonstrating that real-time object detection was achievable with modest computational resources, YOLO democratized object detection for resource-constrained robotics platforms. Mobile robots, drones, and embedded systems could now incorporate sophisticated visual understanding capabilities without requiring expensive computational hardware.</p>
+</div>
+<div id="S1.SS3.SSS0.Px4.p3" class="ltx_para">
+<p class="ltx_p">The evolution of YOLO through subsequent versions (YOLOv2, YOLOv3, YOLOv4, YOLOv5, and beyond) has addressed many of the original accuracy limitations while maintaining the core computational advantages. Modern YOLO variants incorporate multi-scale feature processing, improved loss functions, and architectural refinements that close much of the accuracy gap with two-stage methods while preserving real-time performance. This progression demonstrates the enduring value of the single-stage detection paradigm for robotics applications where speed and efficiency are paramount.</p>
+</div>
+</section>
+</section>
+<section id="S1.SS4" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">10.1.4 </span>Transformer-Based Object Detection</h3>
+
+<div id="S1.SS4.p1" class="ltx_para">
+<p class="ltx_p">Transformers have recently been adapted to tackle object detection, and their performance shows several benefits over CNN-based models. Detection Transformers (DETR)<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">1</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">1.</span> Carion, Nicolas, Massa, Francisco, Synnaeve, Gabriel, Usunier, Nicolas, Kirillov, Alexander, Zagoruyko, Sergey. “End-to-End Object Detection with Transformers.” In <em>Computer Vision – ECCV 2020</em>, 213–229. Springer International Publishing, 2020.</span></span></span>, illustrated in Figure&#160;<a href="#S1.F3" title="Figure 10.3 ‣ 10.1.4 Transformer-Based Object Detection ‣ 10.1 2D Object Detection Foundations" class="ltx_ref"><span class="ltx_text ltx_ref_tag">10.3</span></a>, propose to formulate the object detection problem as a direct set prediction problem, largely streamlining the detection pipeline through its end-to-end structure. In its most basic form, DETR is an end-to-end Transformer model that takes in images as inputs and predicts a fixed set of potential bounding boxes. DETR removes many hand-designed components, including “region proposal” and “non-maximum suppression” that are commonly used in CNN-based models.</p>
+</div>
+<figure id="S1.F3" class="ltx_figure"><img style="width:100%;height:auto" src="/book-assets/object-detection/figs__ch12_figs__detr.png" id="S1.F3.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 10.3</span>: </span><span class="ltx_text" style="font-size:90%;">Detection Transformers (DETR) from Carion, Massa, et al. (2020)</span></figcaption>
+</figure>
+<div id="S1.SS4.p2" class="ltx_para">
+<p class="ltx_p">Specifically, DETR uses a conventional CNN backbone to learn 2D feature maps from an input image, as shown on the left side of Figure&#160;<a href="#S1.F4" title="Figure 10.4 ‣ 10.1.4 Transformer-Based Object Detection ‣ 10.1 2D Object Detection Foundations" class="ltx_ref"><span class="ltx_text ltx_ref_tag">10.4</span></a>. The model then converts the 2D feature maps into a sequence of feature tokens, similarly to Vision Transformers. These tokenized features are further fed into a Transformer encoder, comprised of a stack of self-attention mechanisms and multi-layer perceptrons, for further feature encoding. The encoded sequence is processed by a Transformer decoder that relates the feature sequence with a set of “learnable object queries”. These object queries encode the distribution of object information, including size, location, and category, over an image.</p>
+</div>
+<div id="S1.SS4.p3" class="ltx_para">
+<p class="ltx_p">Note that Transformer decoders have some key differences from encoders. For example, they can use what we refer to as <em class="ltx_emph ltx_font_italic">cross-attention layers</em> and <em class="ltx_emph ltx_font_italic">masked attention layers</em>. We use cross-attention layers to allow a sequence to get contextual information from another sequence, unlike self-attention layers which gather contextual information from within a single sequence. In the context of DETR, this allows the decoder to relate the encoder’s feature embeddings to the object queries, which are two different input sets.</p>
+</div>
+<figure id="S1.F4" class="ltx_figure"><img style="width:100%;height:auto" src="/book-assets/object-detection/figs__ch12_figs__detr_details.png" id="S1.F4.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 10.4</span>: </span><span class="ltx_text" style="font-size:90%;">Detailed DETR architecture, from Carion, Massa, et al. (2020).</span></figcaption>
+</figure>
+<div id="S1.SS4.p4" class="ltx_para">
+<p class="ltx_p">Finally, each object query, after absorbing image features, is processed by shared fully connected layers to predict class labels, bounding box centers, and bounding box sizes. A “no object” label is assigned to queries without true objects detected, allowing the model to handle a variable number of objects in an image.
+In contrast to CNN-based object detectors, Transformer-based object detectors do not have one-to-one matching between the prediction set and the ground-truth set. Therefore, a set-based loss is used to produce an optimal bipartite matching between predicted and ground-truth objects, followed by optimizing object-centric (bounding box) losses.</p>
+</div>
+</section>
+</section>
+<section id="S2" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">10.2 </span>3D Object Detection</h2>
+
+<div id="S2.p1" class="ltx_para">
+<p class="ltx_p">While 2D object detection provides valuable information about what objects are present and their approximate locations in images, many robotics applications require understanding the full 3D structure and pose of objects in the physical world. Consider a robotic arm performing pick-and-place operations—knowing that a cup appears in a specific region of an image is insufficient for grasping; the robot needs the cup’s precise 3D location, orientation, and dimensions to plan a successful grasp trajectory. Similarly, autonomous vehicles must understand the 3D positions and velocities of surrounding cars, pedestrians, and obstacles to make safe navigation decisions in real-world coordinates rather than image pixels.
+The transition from 2D to 3D detection introduces changes in problem formulation, data representation, and evaluation metrics while preserving many of the core architectural principles developed for 2D detection. Understanding these extensions provides the foundation for building robust 3D detection systems using the point cloud and voxel processing architectures from the previous chapter.</p>
+</div>
+<section id="S2.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">10.2.1 </span>Extending Object Detection to 3D</h3>
+
+<div id="S2.SS1.p1" class="ltx_para">
+<p class="ltx_p">3D object detection extends the 2D formulation by instead predicting 3D bounding boxes to represent objects in three-dimensional space. While 2D detection outputs bounding boxes parameterized by <math id="S2.SS1.p1.m1" class="ltx_Math" alttext="(x,y,w,h)" display="inline"><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo>,</mo><mi>w</mi><mo>,</mo><mi>h</mi><mo stretchy="false">)</mo></mrow></math> in image coordinates, 3D detection requires additional parameters to specify the object’s full pose and extent.
+Examples of 3D object detection in autonomous driving scenarios are shown in Figure&#160;<a href="#S2.F5" title="Figure 10.5 ‣ 10.2.1 Extending Object Detection to 3D ‣ 10.2 3D Object Detection" class="ltx_ref"><span class="ltx_text ltx_ref_tag">10.5</span></a>.</p>
+</div>
+<figure id="S2.F5" class="ltx_figure"><img style="width:80%;height:auto" src="/book-assets/object-detection/figs__ch12_figs__3d_object_detection.png" id="S2.F5.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 10.5</span>: </span><span class="ltx_text" style="font-size:90%;">3D object detection in a self-driving scene with 3D bounding boxes overlaid on LiDAR point cloud and camera inputs.</span></figcaption>
+</figure>
+<div id="S2.Thmtheorem1" class="ltx_theorem ltx_theorem_definition">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Definition 10.1</span></span><span class="ltx_text ltx_font_bold"> </span>(3D object detection)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S2.Thmtheorem1.p1" class="ltx_para">
+<p class="ltx_p">Given 3D sensor data (point cloud, voxel grid, or RGB-D), 3D object detection aims to identify all instances of objects from a predefined set of classes and localize each instance with a 3D bounding box. The output is a set of 3D detections <math id="S2.Thmtheorem1.p1.m1" class="ltx_Math" alttext="\mathcal{D}_{3D}=\{(b_{i}^{3D},c_{i},s_{i})\}_{i=1}^{N}" display="inline"><mrow><msub><mi class="ltx_font_mathcaligraphic">𝒟</mi><mrow><mn>3</mn><mo>⁢</mo><mi>D</mi></mrow></msub><mo>=</mo><msubsup><mrow><mo stretchy="false">{</mo><mrow><mo stretchy="false">(</mo><msubsup><mi>b</mi><mi>i</mi><mrow><mn>3</mn><mo>⁢</mo><mi>D</mi></mrow></msubsup><mo>,</mo><msub><mi>c</mi><mi>i</mi></msub><mo>,</mo><msub><mi>s</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow><mo stretchy="false">}</mo></mrow><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></msubsup></mrow></math> where <math id="S2.Thmtheorem1.p1.m2" class="ltx_Math" alttext="b_{i}^{3D}=(x,y,z,l,w,h,\theta)" display="inline"><mrow><msubsup><mi>b</mi><mi>i</mi><mrow><mn>3</mn><mo>⁢</mo><mi>D</mi></mrow></msubsup><mo>=</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo>,</mo><mi>z</mi><mo>,</mo><mi>l</mi><mo>,</mo><mi>w</mi><mo>,</mo><mi>h</mi><mo>,</mo><mi>θ</mi><mo stretchy="false">)</mo></mrow></mrow></math> represents the 3D bounding box with center coordinates <math id="S2.Thmtheorem1.p1.m3" class="ltx_Math" alttext="(x,y,z)" display="inline"><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo>,</mo><mi>z</mi><mo stretchy="false">)</mo></mrow></math>, dimensions <math id="S2.Thmtheorem1.p1.m4" class="ltx_Math" alttext="(l,w,h)" display="inline"><mrow><mo stretchy="false">(</mo><mi>l</mi><mo>,</mo><mi>w</mi><mo>,</mo><mi>h</mi><mo stretchy="false">)</mo></mrow></math> for length, width, and height, and orientation <math id="S2.Thmtheorem1.p1.m5" class="ltx_Math" alttext="\theta" display="inline"><mi>θ</mi></math>.</p>
+</div>
+</div>
+<section id="S2.SS1.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Extending anchor design to 3D space.</h4>
+
+<div id="S2.SS1.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">For 3D anchor design, each anchor is parameterized by seven values: <math id="S2.SS1.SSS0.Px1.p1.m1" class="ltx_Math" alttext="(x_{a},y_{a},z_{a},l_{a},w_{a},h_{a},\theta_{a})" display="inline"><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>a</mi></msub><mo>,</mo><msub><mi>y</mi><mi>a</mi></msub><mo>,</mo><msub><mi>z</mi><mi>a</mi></msub><mo>,</mo><msub><mi>l</mi><mi>a</mi></msub><mo>,</mo><msub><mi>w</mi><mi>a</mi></msub><mo>,</mo><msub><mi>h</mi><mi>a</mi></msub><mo>,</mo><msub><mi>θ</mi><mi>a</mi></msub><mo stretchy="false">)</mo></mrow></math> representing the center coordinates, dimensions, and orientation. Common 3D anchor designs use aspect ratios appropriate for the target object classes, and discrete orientation bins (e.g., 0°, 90°, 180°) to handle rotation invariance.</p>
+</div>
+<div id="S2.SS1.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">The anchor refinement process follows similar principles to 2D detection, with the network predicting corrections <math id="S2.SS1.SSS0.Px1.p2.m1" class="ltx_Math" alttext="(\Delta x,\Delta y,\Delta z,\Delta l,\Delta w,\Delta h,\Delta\theta)" display="inline"><mrow><mo stretchy="false">(</mo><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>x</mi></mrow><mo>,</mo><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>y</mi></mrow><mo>,</mo><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>z</mi></mrow><mo>,</mo><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>l</mi></mrow><mo>,</mo><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>w</mi></mrow><mo>,</mo><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>h</mi></mrow><mo>,</mo><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>θ</mi></mrow><mo stretchy="false">)</mo></mrow></math> to transform anchor parameters into final detections:</p>
+</div>
+<div id="S2.SS1.SSS0.Px1.p3" class="ltx_para">
+<table id="S2.Ex10" class="ltx_equationgroup ltx_eqn_table">
+
+<tbody id="S2.Ex10X"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.Ex10X.m2" class="ltx_Math" alttext="\displaystyle x" display="inline"><mi>x</mi></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.Ex10X.m3" class="ltx_Math" alttext="\displaystyle=\Delta x\cdot l_{a}+x_{a}," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><mrow><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>x</mi></mrow><mo lspace="0.222em" rspace="0.222em">⋅</mo><msub><mi>l</mi><mi>a</mi></msub></mrow><mo>+</mo><msub><mi>x</mi><mi>a</mi></msub></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S2.Ex10Xa"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.Ex10Xa.m2" class="ltx_Math" alttext="\displaystyle y" display="inline"><mi>y</mi></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.Ex10Xa.m3" class="ltx_Math" alttext="\displaystyle=\Delta y\cdot w_{a}+y_{a}," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><mrow><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>y</mi></mrow><mo lspace="0.222em" rspace="0.222em">⋅</mo><msub><mi>w</mi><mi>a</mi></msub></mrow><mo>+</mo><msub><mi>y</mi><mi>a</mi></msub></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S2.Ex10Xb"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.Ex10Xb.m2" class="ltx_Math" alttext="\displaystyle z" display="inline"><mi>z</mi></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.Ex10Xb.m3" class="ltx_Math" alttext="\displaystyle=\Delta z\cdot h_{a}+z_{a}," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><mrow><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>z</mi></mrow><mo lspace="0.222em" rspace="0.222em">⋅</mo><msub><mi>h</mi><mi>a</mi></msub></mrow><mo>+</mo><msub><mi>z</mi><mi>a</mi></msub></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S2.Ex10Xc"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.Ex10Xc.m2" class="ltx_Math" alttext="\displaystyle l" display="inline"><mi>l</mi></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.Ex10Xc.m3" class="ltx_Math" alttext="\displaystyle=l_{a}\cdot\exp(\Delta l)," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><msub><mi>l</mi><mi>a</mi></msub><mo lspace="0.222em" rspace="0.222em">⋅</mo><mrow><mi>exp</mi><mo>⁡</mo><mrow><mo stretchy="false">(</mo><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>l</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S2.Ex10Xd"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.Ex10Xd.m2" class="ltx_Math" alttext="\displaystyle w" display="inline"><mi>w</mi></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.Ex10Xd.m3" class="ltx_Math" alttext="\displaystyle=w_{a}\cdot\exp(\Delta w)," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><msub><mi>w</mi><mi>a</mi></msub><mo lspace="0.222em" rspace="0.222em">⋅</mo><mrow><mi>exp</mi><mo>⁡</mo><mrow><mo stretchy="false">(</mo><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>w</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S2.Ex10Xe"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.Ex10Xe.m2" class="ltx_Math" alttext="\displaystyle h" display="inline"><mi>h</mi></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.Ex10Xe.m3" class="ltx_Math" alttext="\displaystyle=h_{a}\cdot\exp(\Delta h)," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><msub><mi>h</mi><mi>a</mi></msub><mo lspace="0.222em" rspace="0.222em">⋅</mo><mrow><mi>exp</mi><mo>⁡</mo><mrow><mo stretchy="false">(</mo><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>h</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S2.Ex10Xf"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.Ex10Xf.m2" class="ltx_Math" alttext="\displaystyle\theta" display="inline"><mi>θ</mi></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.Ex10Xf.m3" class="ltx_Math" alttext="\displaystyle=\theta_{a}+\Delta\theta." display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><msub><mi>θ</mi><mi>a</mi></msub><mo>+</mo><mrow><mi mathvariant="normal">Δ</mi><mo>⁢</mo><mi>θ</mi></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S2.SS1.SSS0.Px1.p4" class="ltx_para">
+<p class="ltx_p">Similar to 2D setting, the exponential transformation ensures positive dimensions, while orientation is handled through additive corrections with appropriate normalization to handle angle wraparound.</p>
+</div>
+</section>
+<section id="S2.SS1.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Two-stage versus one-stage paradigms in 3D.</h4>
+
+<div id="S2.SS1.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">The two-stage and one-stage detection paradigms from 2D systems transfer directly to 3D detection, with each approach offering distinct advantages for different 3D data modalities and applications.
+<em class="ltx_emph ltx_font_italic">Two-stage 3D detectors</em> follow the proposal-then-classification paradigm, first generating 3D object proposals from point clouds or voxel grids, then refining these proposals through dedicated classification and regression heads. This approach works particularly well with point-based representations, where the first stage can identify promising object centers using techniques like Hough voting, and the second stage can perform detailed classification using local point features.
+<em class="ltx_emph ltx_font_italic">One-stage 3D detectors</em> perform classification and localization simultaneously, making them better suited for real-time robotics applications where latency is critical. These methods work well with regular voxel or pillar representations that enable efficient convolutional processing across the entire 3D space.
+The choice between paradigms often depends on the input data modality: point-based methods naturally lend themselves to two-stage approaches due to the irregular nature of point clouds, while voxel-based methods can efficiently implement one-stage detection using 3D CNNs.</p>
+</div>
+</section>
+<section id="S2.SS1.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Non-maximum suppression in 3D.</h4>
+
+<div id="S2.SS1.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">Non-Maximum Suppression extends to 3D by replacing 2D IoU calculations with 3D IoU or Bird’s Eye View (BEV) IoU metrics. 3D IoU computes the overlap between two 3D bounding boxes in full 3D space, accounting for differences in position, size, and orientation:</p>
+<table id="S2.Ex11" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex11.m1" class="ltx_Math" alttext="\text{IoU}_{3D}(b_{1},b_{2})=\frac{\text{Volume}(b_{1}\cap b_{2})}{\text{%
+Volume}(b_{1}\cup b_{2})}." display="block"><mrow><mrow><mrow><msub><mtext>IoU</mtext><mrow><mn>3</mn><mo>⁢</mo><mi>D</mi></mrow></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>b</mi><mn>1</mn></msub><mo>,</mo><msub><mi>b</mi><mn>2</mn></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mfrac><mrow><mtext>Volume</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>b</mi><mn>1</mn></msub><mo>∩</mo><msub><mi>b</mi><mn>2</mn></msub></mrow><mo stretchy="false">)</mo></mrow></mrow><mrow><mtext>Volume</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>b</mi><mn>1</mn></msub><mo>∪</mo><msub><mi>b</mi><mn>2</mn></msub></mrow><mo stretchy="false">)</mo></mrow></mrow></mfrac></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Computing 3D IoU requires determining the intersection volume between two oriented 3D boxes, which is more complex than the 2D case but essential for accurate duplicate removal.</p>
+</div>
+<div id="S2.SS1.SSS0.Px3.p2" class="ltx_para">
+<p class="ltx_p">For autonomous driving applications, BEV IoU is often preferred as it focuses on the ground plane where most objects interact:</p>
+<table id="S2.Ex12" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex12.m1" class="ltx_Math" alttext="\text{IoU}_{BEV}(b_{1},b_{2})=\frac{\text{Area}(b_{1}^{BEV}\cap b_{2}^{BEV})}{%
+\text{Area}(b_{1}^{BEV}\cup b_{2}^{BEV})}," display="block"><mrow><mrow><mrow><msub><mtext>IoU</mtext><mrow><mi>B</mi><mo>⁢</mo><mi>E</mi><mo>⁢</mo><mi>V</mi></mrow></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>b</mi><mn>1</mn></msub><mo>,</mo><msub><mi>b</mi><mn>2</mn></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mfrac><mrow><mtext>Area</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msubsup><mi>b</mi><mn>1</mn><mrow><mi>B</mi><mo>⁢</mo><mi>E</mi><mo>⁢</mo><mi>V</mi></mrow></msubsup><mo>∩</mo><msubsup><mi>b</mi><mn>2</mn><mrow><mi>B</mi><mo>⁢</mo><mi>E</mi><mo>⁢</mo><mi>V</mi></mrow></msubsup></mrow><mo stretchy="false">)</mo></mrow></mrow><mrow><mtext>Area</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msubsup><mi>b</mi><mn>1</mn><mrow><mi>B</mi><mo>⁢</mo><mi>E</mi><mo>⁢</mo><mi>V</mi></mrow></msubsup><mo>∪</mo><msubsup><mi>b</mi><mn>2</mn><mrow><mi>B</mi><mo>⁢</mo><mi>E</mi><mo>⁢</mo><mi>V</mi></mrow></msubsup></mrow><mo stretchy="false">)</mo></mrow></mrow></mfrac></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S2.SS1.SSS0.Px3.p2.m1" class="ltx_Math" alttext="b^{BEV}" display="inline"><msup><mi>b</mi><mrow><mi>B</mi><mo>⁢</mo><mi>E</mi><mo>⁢</mo><mi>V</mi></mrow></msup></math> represents the projection of the 3D bounding box onto the ground plane. BEV IoU is computationally simpler and often more relevant for navigation tasks.</p>
+</div>
+</section>
+<section id="S2.SS1.SSS0.Px4" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Evaluation metrics for 3D detection.</h4>
+
+<div id="S2.SS1.SSS0.Px4.p1" class="ltx_para">
+<p class="ltx_p">3D object detection uses specialized metrics that account for spatial dimensions and orientation accuracy. The standard metric is 3D Average Precision (AP) computed using 3D IoU thresholds (typically 0.5 and 0.7). For autonomous driving, evaluation often focuses on Bird’s Eye View (BEV) metrics that emphasize horizontal plane accuracy, with benchmarks like KITTI providing difficulty-based analysis. Orientation accuracy is measured through angular error between predicted and ground truth orientations, with some metrics requiring joint spatial and angular tolerance for correct detections.</p>
+</div>
+</section>
+</section>
+<section id="S2.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">10.2.2 </span>3D Detection from Point Clouds and Voxel Representations</h3>
+
+<div id="S2.SS2.p1" class="ltx_para">
+<p class="ltx_p">Building effective 3D object detection systems requires leveraging the specialized architectures for 3D data processing developed in the previous chapter. The choice between point-based and voxel-based representations fundamentally shapes the detection architecture, with each approach offering distinct advantages for different robotics applications. Point-based methods preserve the geometric precision of the original sensor data and handle irregular point distributions naturally, making them well-suited for applications requiring precise object localization. Voxel-based methods trade some geometric precision for computational efficiency by imposing regular grid structures that enable optimized convolutional operations, making them preferred for real-time robotics applications.</p>
+</div>
+<div id="S2.SS2.p2" class="ltx_para">
+<p class="ltx_p">Rather than being mutually exclusive, these representations often complement each other within detection pipelines. Many successful 3D detection systems combine the efficiency of voxel processing for initial feature extraction with the precision of point-based refinement for final object localization. Understanding how different detection paradigms—two-stage, one-stage, and transformer-based—can be adapted to work with these 3D representations provides the foundation for building robust detection systems.</p>
+</div>
+<section id="S2.SS2.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Leveraging 3D feature representations.</h4>
+
+<div id="S2.SS2.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">The 3D detection architectures we will explore build directly upon the feature extraction capabilities of PointNet, VoxelNet, and PointPillars discussed in the previous chapter. These architectures provide learned feature representations that encode geometric patterns, spatial relationships, and semantic information from 3D sensor data. The key insight is that these features can serve as input to detection heads that predict object classifications and 3D bounding box parameters.</p>
+</div>
+<div id="S2.SS2.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">Point-based representations excel at preserving fine-grained geometric details and handling the irregular structure of sensor data. PointNet++ features capture multi-scale geometric patterns through hierarchical set abstraction, enabling detection of objects at different scales and levels of detail. These features are particularly valuable for detecting small objects or distinguishing between closely spaced instances where geometric precision is critical.
+Voxel-based representations provide computational advantages through regular grid structures that enable efficient 3D convolutions and parallel processing. VoxelNet features encode local geometric patterns within voxels while maintaining spatial relationships across the scene. PointPillars features offer a hybrid approach, encoding vertical structure within pillars while enabling efficient 2D processing for large-scale scenes. The choice between these representations often depends on the computational constraints and accuracy requirements of the specific robotics application.</p>
+</div>
+</section>
+</section>
+<section id="S2.SS3" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">10.2.3 </span>Two-Stage 3D Detection: Extending Faster R-CNN</h3>
+
+<div id="S2.SS3.p1" class="ltx_para">
+<p class="ltx_p">The two-stage detection paradigm extends naturally to 3D by first generating object proposals in 3D space, then refining these proposals through dedicated classification and regression networks. This approach works particularly well when combined with the hierarchical feature representations from PointNet++ or the structured features from VoxelNet.
+The PointRCNN architecture is illustrated in Figure&#160;<a href="#S2.F6" title="Figure 10.6 ‣ 10.2.3 Two-Stage 3D Detection: Extending Faster R-CNN ‣ 10.2 3D Object Detection" class="ltx_ref"><span class="ltx_text ltx_ref_tag">10.6</span></a>.</p>
+</div>
+<figure id="S2.F6" class="ltx_figure"><img src="/book-assets/object-detection/figs__ch12_figs__pointrcnn_architecture.png" id="S2.F6.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 10.6</span>: </span><span class="ltx_text" style="font-size:90%;">PointRCNN architecture showing bottom-up 3D proposal generation from point-wise features, followed by canonical coordinate refinement and final detection heads from Shi et al. (2018).</span></figcaption>
+</figure>
+<section id="S2.SS3.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">PointRCNN: point-based two-stage detection.</h4>
+
+<div id="S2.SS3.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">PointRCNN demonstrates how the Faster R-CNN paradigm can be adapted to work directly with point cloud data using PointNet++ features. The architecture follows a bottom-up approach where object proposals are generated directly from point-wise features rather than through dense sliding window approaches used in image detection.</p>
+</div>
+<div id="S2.SS3.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">The first stage leverages PointNet++ hierarchical features to perform point-wise binary classification, identifying points that likely belong to foreground objects versus background. Rather than generating proposals at regular grid locations, PointRCNN generates 3D proposals centered at high-confidence foreground points. This approach is computationally efficient because it only considers a subset of points for proposal generation, and it preserves the geometric precision of the original point cloud.
+For each proposal, the second stage extracts local point features within the proposed 3D region and applies canonical coordinate transformation to normalize the local geometry. This transformation aligns the object coordinate system with a canonical orientation, making the subsequent classification and regression tasks more robust to object orientation variations. The canonical transformation is particularly important for 3D detection because objects can appear in arbitrary orientations in the sensor coordinate system.</p>
+</div>
+<div id="S2.SS3.SSS0.Px1.p3" class="ltx_para">
+<p class="ltx_p">The mathematical formulation for the canonical transformation involves rotating and translating the local point coordinates so that the object’s principal axes align with canonical directions:</p>
+<table id="S2.Ex13" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex13.m1" class="ltx_Math" alttext="p_{\text{canonical}}=R^{-1}(p_{\text{local}}-t)," display="block"><mrow><mrow><msub><mi>p</mi><mtext>canonical</mtext></msub><mo>=</mo><mrow><msup><mi>R</mi><mrow><mo>−</mo><mn>1</mn></mrow></msup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>p</mi><mtext>local</mtext></msub><mo>−</mo><mi>t</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S2.SS3.SSS0.Px1.p3.m1" class="ltx_Math" alttext="R" display="inline"><mi>R</mi></math> is the estimated object rotation and <math id="S2.SS3.SSS0.Px1.p3.m2" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math> is the estimated object center. This transformation enables the network to learn object-centric features that are invariant to the object’s pose in the world coordinate system.</p>
+</div>
+</section>
+<section id="S2.SS3.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">VoxelNet: voxel-based two-stage detection.</h4>
+
+<div id="S2.SS3.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">VoxelNet adapts the two-stage paradigm to work with voxel-based representations by integrating Voxel Feature Encoding with Region Proposal Network concepts. The architecture processes point clouds through VFE layers to generate voxel-wise features, then applies 3D convolutional layers to build hierarchical representations across the voxelized space.
+The proposal generation stage adapts the RPN concept to 3D by sliding 3D anchor templates across the feature volume. At each spatial location in the 3D feature map, the network predicts objectness scores and 3D bounding box refinements for multiple anchor templates covering different object sizes and orientations. The 3D RPN loss combines objectness classification with 3D bounding box regression:</p>
+<table id="S2.Ex14" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex14.m1" class="ltx_Math" alttext="L_{\text{3D-RPN}}=\frac{1}{N_{\text{cls}}}\sum_{i}L_{\text{cls}}(p_{i},p_{i}^{%
+*})+\lambda\frac{1}{N_{\text{box}}}\sum_{i}p_{i}^{*}L_{\text{3D-box}}(b_{i},b_%
+{i}^{*})," display="block"><mrow><mrow><msub><mi>L</mi><mtext>3D-RPN</mtext></msub><mo>=</mo><mrow><mrow><mfrac><mn>1</mn><msub><mi>N</mi><mtext>cls</mtext></msub></mfrac><mo>⁢</mo><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder><mrow><msub><mi>L</mi><mtext>cls</mtext></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>p</mi><mi>i</mi></msub><mo>,</mo><msubsup><mi>p</mi><mi>i</mi><mo>∗</mo></msubsup><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo>+</mo><mrow><mi>λ</mi><mo>⁢</mo><mfrac><mn>1</mn><msub><mi>N</mi><mtext>box</mtext></msub></mfrac><mo>⁢</mo><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder><mrow><msubsup><mi>p</mi><mi>i</mi><mo>∗</mo></msubsup><mo>⁢</mo><msub><mi>L</mi><mtext>3D-box</mtext></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>b</mi><mi>i</mi></msub><mo>,</mo><msubsup><mi>b</mi><mi>i</mi><mo>∗</mo></msubsup><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S2.SS3.SSS0.Px2.p1.m1" class="ltx_Math" alttext="L_{\text{3D-box}}" display="inline"><msub><mi>L</mi><mtext>3D-box</mtext></msub></math> incorporates losses for all seven parameters of the 3D bounding box: center coordinates, dimensions, and orientation.</p>
+</div>
+<div id="S2.SS3.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">The second stage performs 3D RoI pooling to extract fixed-size features for each proposal, followed by classification and bounding box refinement. The 3D RoI pooling operation extends the 2D concept by pooling features from 3D regions of the feature volume, maintaining spatial relationships in all three dimensions.</p>
+</div>
+</section>
+</section>
+<section id="S2.SS4" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">10.2.4 </span>One-Stage 3D Detection: Direct Prediction</h3>
+
+<div id="S2.SS4.p1" class="ltx_para">
+<p class="ltx_p">One-stage 3D detection methods perform object classification and localization simultaneously, eliminating the separate proposal generation stage. These approaches are particularly well-suited for real-time robotics applications where detection latency must be minimized.</p>
+</div>
+<section id="S2.SS4.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">CenterPoint: treating 3D objects as points.</h4>
+
+<div id="S2.SS4.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">CenterPoint represents objects as points in Bird’s Eye View (BEV) space and performs detection through keypoint estimation, similar to 2D anchor-free methods like CenterNet. The approach builds on PointPillars pillar-based representation to efficiently process large-scale point clouds while maintaining real-time performance.</p>
+</div>
+<div id="S2.SS4.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">The key insight is that 3D objects can be effectively represented by their center points when projected into BEV space, particularly for autonomous driving scenarios where objects primarily move on the ground plane. CenterPoint predicts a heatmap in BEV coordinates where peaks correspond to object centers, along with regression maps that predict 3D bounding box parameters for each detected center.
+The detection pipeline processes point clouds through PointPillars to generate BEV feature maps, then applies 2D convolutional networks to predict center heatmaps and regression targets:</p>
+<table id="S2.Ex15" class="ltx_equationgroup ltx_eqn_table">
+
+<tbody id="S2.Ex15X"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.Ex15X.m2" class="ltx_Math" alttext="\displaystyle\mathbf{Y}_{\text{heatmap}}" display="inline"><msub><mi>𝐘</mi><mtext>heatmap</mtext></msub></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.Ex15X.m3" class="ltx_Math" alttext="\displaystyle=\sigma(\text{Conv}_{2D}(\mathbf{F}_{\text{BEV}}))," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><mi>σ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mtext>Conv</mtext><mrow><mn>2</mn><mo>⁢</mo><mi>D</mi></mrow></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝐅</mi><mtext>BEV</mtext></msub><mo stretchy="false">)</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S2.Ex15Xa"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.Ex15Xa.m2" class="ltx_Math" alttext="\displaystyle\mathbf{Y}_{\text{regression}}" display="inline"><msub><mi>𝐘</mi><mtext>regression</mtext></msub></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.Ex15Xa.m3" class="ltx_Math" alttext="\displaystyle=\text{Conv}_{2D}(\mathbf{F}_{\text{BEV}})," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><msub><mtext>Conv</mtext><mrow><mn>2</mn><mo>⁢</mo><mi>D</mi></mrow></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝐅</mi><mtext>BEV</mtext></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S2.SS4.SSS0.Px1.p2.m1" class="ltx_Math" alttext="\mathbf{F}_{\text{BEV}}" display="inline"><msub><mi>𝐅</mi><mtext>BEV</mtext></msub></math> represents the BEV feature map from PointPillars processing, and <math id="S2.SS4.SSS0.Px1.p2.m2" class="ltx_Math" alttext="\sigma" display="inline"><mi>σ</mi></math> is the sigmoid activation for heatmap prediction. The regression targets include 3D center offsets, object dimensions, and orientation angles.</p>
+</div>
+<div id="S2.SS4.SSS0.Px1.p3" class="ltx_para">
+<p class="ltx_p">The loss function combines center point detection with regression objectives:</p>
+<table id="S2.Ex16" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex16.m1" class="ltx_Math" alttext="L_{\text{CenterPoint}}=L_{\text{heatmap}}+\lambda_{\text{reg}}L_{\text{%
+regression}}," display="block"><mrow><mrow><msub><mi>L</mi><mtext>CenterPoint</mtext></msub><mo>=</mo><mrow><msub><mi>L</mi><mtext>heatmap</mtext></msub><mo>+</mo><mrow><msub><mi>λ</mi><mtext>reg</mtext></msub><mo>⁢</mo><msub><mi>L</mi><mtext>regression</mtext></msub></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S2.SS4.SSS0.Px1.p3.m1" class="ltx_Math" alttext="L_{\text{heatmap}}" display="inline"><msub><mi>L</mi><mtext>heatmap</mtext></msub></math> uses focal loss to handle the extreme imbalance between center points and background, and <math id="S2.SS4.SSS0.Px1.p3.m2" class="ltx_Math" alttext="L_{\text{regression}}" display="inline"><msub><mi>L</mi><mtext>regression</mtext></msub></math> uses smooth L1 loss for the continuous regression targets.
+CenterPoint extends beyond basic detection by incorporating velocity estimation for tracking applications. By processing consecutive frames, the network can predict object velocities directly as part of the regression targets, enabling seamless integration with multi-object tracking systems essential for autonomous navigation.</p>
+</div>
+</section>
+</section>
+<section id="S2.SS5" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">10.2.5 </span>Transformer-Based 3D Detection</h3>
+
+<div id="S2.SS5.p1" class="ltx_para">
+<p class="ltx_p">Transformer architectures have been successfully adapted to 3D detection by treating object detection as a set prediction problem, eliminating the need for hand-designed anchors and complex post-processing steps like non-maximum suppression.</p>
+</div>
+<section id="S2.SS5.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">3DETR: set-to-set prediction in 3D.</h4>
+
+<div id="S2.SS5.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">3DETR extends the DETR paradigm to 3D object detection by using transformer architectures to directly predict sets of 3D bounding boxes from point cloud or voxel features. The approach uses learnable object queries that attend to 3D scene features through cross-attention mechanisms, enabling end-to-end learning from raw 3D data to final detections.
+The architecture processes 3D input data through feature extraction networks (PointNet++ for point clouds or 3D CNNs for voxel grids) to generate scene feature representations. These features are then processed by a transformer encoder to build contextual representations that capture long-range dependencies across the 3D scene. The transformer decoder uses a fixed set of learnable object queries to attend to the encoded scene features and predict object detections.</p>
+</div>
+<div id="S2.SS5.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">Each object query learns to specialize in detecting objects with particular characteristics or in specific spatial regions. The cross-attention mechanism allows queries to gather relevant information from across the entire scene, enabling detection of partially occluded objects or objects that extend across multiple local regions. The self-attention within the decoder enables queries to coordinate with each other, reducing duplicate detections without explicit post-processing.
+The final prediction heads convert each object query’s representation into 3D bounding box parameters and class predictions:</p>
+<table id="S2.Ex17" class="ltx_equationgroup ltx_eqn_table">
+
+<tbody id="S2.Ex17X"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.Ex17X.m2" class="ltx_Math" alttext="\displaystyle\mathbf{b}_{i}" display="inline"><msub><mi>𝐛</mi><mi>i</mi></msub></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.Ex17X.m3" class="ltx_Math" alttext="\displaystyle=\text{MLP}_{\text{box}}(\mathbf{q}_{i})," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><msub><mtext>MLP</mtext><mtext>box</mtext></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝐪</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+<tbody id="S2.Ex17Xa"><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_td ltx_align_right ltx_eqn_cell"><math id="S2.Ex17Xa.m2" class="ltx_Math" alttext="\displaystyle\mathbf{c}_{i}" display="inline"><msub><mi>𝐜</mi><mi>i</mi></msub></math></td>
+<td class="ltx_td ltx_align_left ltx_eqn_cell"><math id="S2.Ex17Xa.m3" class="ltx_Math" alttext="\displaystyle=\text{MLP}_{\text{class}}(\mathbf{q}_{i})," display="inline"><mrow><mrow><mi></mi><mo>=</mo><mrow><msub><mtext>MLP</mtext><mtext>class</mtext></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝐪</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S2.SS5.SSS0.Px1.p2.m1" class="ltx_Math" alttext="\mathbf{q}_{i}" display="inline"><msub><mi>𝐪</mi><mi>i</mi></msub></math> is the <math id="S2.SS5.SSS0.Px1.p2.m2" class="ltx_Math" alttext="i" display="inline"><mi>i</mi></math>-th object query after transformer processing. The training uses Hungarian matching to establish optimal assignment between predicted and ground truth objects, followed by standard detection losses.</p>
+</div>
+<div id="S2.SS5.SSS0.Px1.p3" class="ltx_para">
+<p class="ltx_p">The set-based prediction eliminates the need for anchor design, anchor assignment strategies, and non-maximum suppression, simplifying the detection pipeline while achieving competitive performance. This approach is particularly attractive for complex 3D scenes where traditional anchor-based methods struggle with the high-dimensional anchor space and complex object interactions.</p>
+</div>
+</section>
+</section>
+</section>
+<section id="S3" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">10.3 </span>Semantic and Instance Segmentation</h2>
+
+<div id="S3.p1" class="ltx_para">
+<p class="ltx_p">Segmentation extends object detection by providing pixel-level or point-level understanding of scenes, enabling robots to understand not just where objects are located, but precisely which pixels belong to each object or scene category. While object detection provides coarse spatial understanding through bounding boxes, segmentation offers fine-grained spatial reasoning essential for tasks like autonomous navigation on complex terrain, precise robotic manipulation, and detailed scene understanding.
+Figure&#160;<a href="#S3.F7" title="Figure 10.7 ‣ 10.3 Semantic and Instance Segmentation" class="ltx_ref"><span class="ltx_text ltx_ref_tag">10.7</span></a> illustrates an example of semantic and instance segmentation outputs.</p>
+</div>
+<figure id="S3.F7" class="ltx_figure"><img src="/book-assets/object-detection/figs__ch12_figs__segmentation.png" id="S3.F7.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 10.7</span>: </span><span class="ltx_text" style="font-size:90%;">An input image and the corresponding semantic and instance segmentation outputs.</span></figcaption>
+</figure>
+<section id="S3.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">10.3.1 </span>Semantic Segmentation</h3>
+
+<div id="S3.SS1.p1" class="ltx_para">
+<p class="ltx_p">Semantic segmentation extends image understanding beyond object detection by classifying every pixel in an image into predefined semantic categories, providing dense spatial understanding of the scene. Unlike object detection which outputs sparse bounding boxes, semantic segmentation produces pixel-level predictions that preserve the precise boundaries and spatial extent of different scene elements. This fine-grained understanding is essential for robotics applications where precise spatial reasoning is required.</p>
+</div>
+<section id="S3.SS1.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Problem definition and robotics applications.</h4>
+
+<div id="S3.SS1.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">Semantic segmentation performs pixel-level classification without distinguishing between different instances of the same class. For an input image <math id="S3.SS1.SSS0.Px1.p1.m1" class="ltx_Math" alttext="I" display="inline"><mi>I</mi></math> of size <math id="S3.SS1.SSS0.Px1.p1.m2" class="ltx_Math" alttext="H\times W" display="inline"><mrow><mi>H</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>W</mi></mrow></math>, the output is a segmentation map <math id="S3.SS1.SSS0.Px1.p1.m3" class="ltx_Math" alttext="S" display="inline"><mi>S</mi></math> of the same spatial dimensions, where each pixel <math id="S3.SS1.SSS0.Px1.p1.m4" class="ltx_Math" alttext="(i,j)" display="inline"><mrow><mo stretchy="false">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo stretchy="false">)</mo></mrow></math> is assigned a class label <math id="S3.SS1.SSS0.Px1.p1.m5" class="ltx_Math" alttext="S_{i,j}\in\mathcal{C}" display="inline"><mrow><msub><mi>S</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mo>∈</mo><mi class="ltx_font_mathcaligraphic">𝒞</mi></mrow></math> from the predefined set of semantic categories.
+For robotics systems, autonomous vehicles use segmentation to identify drivable road surfaces, distinguish between different types of terrain, and understand scene layout for path planning. Mobile robots navigating indoor environments use segmentation to identify floors, walls, furniture, and obstacles, enabling more sophisticated spatial reasoning for navigation planning.
+In each case, the pixel-level precision enables robots to make more informed decisions about how to interact with their environment.</p>
+</div>
+</section>
+<section id="S3.SS1.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Fully convolutional networks (FCNs).</h4>
+
+<div id="S3.SS1.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">Semantic segmentation can be viewed as dense classification where standard CNN architectures are adapted to produce spatial output maps rather than single classification scores. Fully Convolutional Networks (FCNs) build on the convolutional feature extraction capabilities of CNNs while replacing the fully connected classification layers with convolutional layers that preserve spatial structure.
+These models replace the fully connected layers typically used for classification with convolutional layers that can accept images of arbitrary size and produce correspondingly sized output maps. For a CNN backbone that produces feature maps of size <math id="S3.SS1.SSS0.Px2.p1.m1" class="ltx_Math" alttext="H/32\times W/32" display="inline"><mrow><mrow><mrow><mi>H</mi><mo>/</mo><mn>32</mn></mrow><mo lspace="0.222em" rspace="0.222em">×</mo><mi>W</mi></mrow><mo>/</mo><mn>32</mn></mrow></math> (due to pooling operations), FCN applies <math id="S3.SS1.SSS0.Px2.p1.m2" class="ltx_Math" alttext="1\times 1" display="inline"><mrow><mn>1</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>1</mn></mrow></math> convolutions to produce class score maps, then upsamples these maps back to the original image resolution.
+The upsampling process uses transposed convolutions (also called deconvolutions) to increase spatial resolution:</p>
+<table id="S3.Ex18" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex18.m1" class="ltx_Math" alttext="y_{i,j}=\sum_{m,n}x_{\lfloor i/s\rfloor+m,\lfloor j/s\rfloor+n}\cdot w_{m,n}," display="block"><mrow><mrow><msub><mi>y</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mo rspace="0.111em">=</mo><mrow><munder><mo movablelimits="false">∑</mo><mrow><mi>m</mi><mo>,</mo><mi>n</mi></mrow></munder><mrow><msub><mi>x</mi><mrow><mrow><mrow><mo stretchy="false">⌊</mo><mrow><mi>i</mi><mo>/</mo><mi>s</mi></mrow><mo stretchy="false">⌋</mo></mrow><mo>+</mo><mi>m</mi></mrow><mo>,</mo><mrow><mrow><mo stretchy="false">⌊</mo><mrow><mi>j</mi><mo>/</mo><mi>s</mi></mrow><mo stretchy="false">⌋</mo></mrow><mo>+</mo><mi>n</mi></mrow></mrow></msub><mo lspace="0.222em" rspace="0.222em">⋅</mo><msub><mi>w</mi><mrow><mi>m</mi><mo>,</mo><mi>n</mi></mrow></msub></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S3.SS1.SSS0.Px2.p1.m3" class="ltx_Math" alttext="s" display="inline"><mi>s</mi></math> is the upsampling stride and <math id="S3.SS1.SSS0.Px2.p1.m4" class="ltx_Math" alttext="w" display="inline"><mi>w</mi></math> represents the learned transposed convolution weights. This operation is the mathematical inverse of convolution with stride <math id="S3.SS1.SSS0.Px2.p1.m5" class="ltx_Math" alttext="s" display="inline"><mi>s</mi></math>, enabling learnable upsampling that can recover spatial details.</p>
+</div>
+<div id="S3.SS1.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">FCN introduces skip connections that combine features from different layers of the encoder to recover fine-grained spatial information lost during downsampling. These connections add feature maps from earlier layers (with higher spatial resolution) to upsampled feature maps from deeper layers (with richer semantic information):</p>
+<table id="S3.Ex19" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex19.m1" class="ltx_Math" alttext="F_{\text{fused}}=\text{Upsample}(F_{\text{deep}})+F_{\text{shallow}}." display="block"><mrow><mrow><msub><mi>F</mi><mtext>fused</mtext></msub><mo>=</mo><mrow><mrow><mtext>Upsample</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>F</mi><mtext>deep</mtext></msub><mo stretchy="false">)</mo></mrow></mrow><mo>+</mo><msub><mi>F</mi><mtext>shallow</mtext></msub></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">This fusion enables the network to combine high-level semantic understanding with low-level spatial precision, crucial for accurate boundary delineation in robotics applications.</p>
+</div>
+<figure id="S3.F8" class="ltx_figure"><img style="width:60%;height:auto" src="/book-assets/object-detection/figs__ch12_figs__unet_architecture.png" id="S3.F8.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 10.8</span>: </span><span class="ltx_text" style="font-size:90%;">U-Net architecture showing the symmetric encoder-decoder design with skip connections at multiple scales, enabling combination of high-resolution spatial information with high-level semantic features from Ronneberger et al. (2015).</span></figcaption>
+</figure>
+</section>
+<section id="S3.SS1.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">U-Net and encoder-decoder architectures.</h4>
+
+<div id="S3.SS1.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">U-Net represents a systematic approach to encoder-decoder architectures that has become foundational for semantic segmentation across many domains.
+The U-Net architecture, illustrated in Figure&#160;<a href="#S3.F8" title="Figure 10.8 ‣ Fully convolutional networks (FCNs). ‣ 10.3.1 Semantic Segmentation ‣ 10.3 Semantic and Instance Segmentation" class="ltx_ref"><span class="ltx_text ltx_ref_tag">10.8</span></a>, consists of a contracting path (encoder) that progressively reduces spatial resolution while increasing feature depth, followed by an expansive path (decoder) that gradually recovers spatial resolution while combining features across scales. For each decoder layer, skip connections concatenate features from corresponding encoder layer:</p>
+<table id="S3.Ex20" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex20.m1" class="ltx_Math" alttext="F_{\text{decoder}}^{(i)}=\text{UpConv}(F_{\text{decoder}}^{(i-1)})\oplus F_{%
+\text{encoder}}^{(i)}," display="block"><mrow><mrow><msubsup><mi>F</mi><mtext>decoder</mtext><mrow><mo stretchy="false">(</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></msubsup><mo>=</mo><mrow><mrow><mtext>UpConv</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msubsup><mi>F</mi><mtext>decoder</mtext><mrow><mo stretchy="false">(</mo><mrow><mi>i</mi><mo>−</mo><mn>1</mn></mrow><mo stretchy="false">)</mo></mrow></msubsup><mo stretchy="false">)</mo></mrow></mrow><mo>⊕</mo><msubsup><mi>F</mi><mtext>encoder</mtext><mrow><mo stretchy="false">(</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></msubsup></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S3.SS1.SSS0.Px3.p1.m1" class="ltx_Math" alttext="\oplus" display="inline"><mo>⊕</mo></math> denotes concatenation and <span class="ltx_text ltx_markedasmath">UpConv</span> represents upsampling convolution operations. These skip connections preserve fine-grained spatial details that would otherwise be lost during the encoding process.</p>
+</div>
+<div id="S3.SS1.SSS0.Px3.p2" class="ltx_para">
+<p class="ltx_p">The symmetric design ensures that the decoder has access to features at multiple scales, enabling accurate segmentation of both large objects (captured by deep, low-resolution features) and fine details (preserved through skip connections from high-resolution features). This multi-scale feature combination is particularly important for robotics applications where accurate boundary detection affects safety and task performance.</p>
+</div>
+</section>
+<section id="S3.SS1.SSS0.Px4" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Training loss: classification cross-entropy per pixel.</h4>
+
+<div id="S3.SS1.SSS0.Px4.p1" class="ltx_para">
+<p class="ltx_p">Semantic segmentation networks are trained using pixel-wise classification loss, treating each pixel as an independent classification problem. The standard loss function is cross-entropy computed across all pixels:</p>
+<table id="S3.Ex21" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex21.m1" class="ltx_Math" alttext="L_{\text{seg}}=-\frac{1}{HW}\sum_{i=1}^{H}\sum_{j=1}^{W}\sum_{c=1}^{C}y_{i,j,c%
+}\log(\hat{y}_{i,j,c})," display="block"><mrow><mrow><msub><mi>L</mi><mtext>seg</mtext></msub><mo>=</mo><mrow><mo>−</mo><mrow><mfrac><mn>1</mn><mrow><mi>H</mi><mo>⁢</mo><mi>W</mi></mrow></mfrac><mo>⁢</mo><mrow><munderover><mo movablelimits="false" rspace="0em">∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>H</mi></munderover><mrow><munderover><mo movablelimits="false" rspace="0em">∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>W</mi></munderover><mrow><munderover><mo movablelimits="false">∑</mo><mrow><mi>c</mi><mo>=</mo><mn>1</mn></mrow><mi>C</mi></munderover><mrow><msub><mi>y</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>c</mi></mrow></msub><mo lspace="0.167em">⁢</mo><mrow><mi>log</mi><mo>⁡</mo><mrow><mo stretchy="false">(</mo><msub><mover accent="true"><mi>y</mi><mo>^</mo></mover><mrow><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>c</mi></mrow></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow></mrow></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S3.SS1.SSS0.Px4.p1.m1" class="ltx_Math" alttext="y_{i,j,c}" display="inline"><msub><mi>y</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>c</mi></mrow></msub></math> is the ground truth one-hot encoding for pixel <math id="S3.SS1.SSS0.Px4.p1.m2" class="ltx_Math" alttext="(i,j)" display="inline"><mrow><mo stretchy="false">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo stretchy="false">)</mo></mrow></math> and class <math id="S3.SS1.SSS0.Px4.p1.m3" class="ltx_Math" alttext="c" display="inline"><mi>c</mi></math>, and <math id="S3.SS1.SSS0.Px4.p1.m4" class="ltx_Math" alttext="\hat{y}_{i,j,c}" display="inline"><msub><mover accent="true"><mi>y</mi><mo>^</mo></mover><mrow><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>c</mi></mrow></msub></math> is the predicted probability. This formulation treats each pixel independently, enabling efficient batch processing and straightforward optimization.</p>
+</div>
+<div id="S3.SS1.SSS0.Px4.p2" class="ltx_para">
+<p class="ltx_p">However, pixel-wise cross-entropy can struggle with class imbalance, which is common in robotics scenarios where background pixels often dominate the scene. Various modifications address this challenge, including weighted cross-entropy that assigns different weights to different classes based on their frequency, and focal loss that emphasizes hard examples by down-weighting well-classified pixels.</p>
+</div>
+</section>
+</section>
+<section id="S3.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">10.3.2 </span>Instance Segmentation</h3>
+
+<div id="S3.SS2.p1" class="ltx_para">
+<p class="ltx_p">Instance segmentation combines object detection and semantic segmentation by identifying individual object instances and their precise pixel-level boundaries. Unlike semantic segmentation which treats all objects of the same class identically, instance segmentation distinguishes between separate instances—for example, identifying three individual cars rather than just “car pixels”. This capability is critical for robotics applications where understanding individual objects enables targeted interaction and manipulation.</p>
+</div>
+<section id="S3.SS2.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Problem definition and distinction from semantic segmentation.</h4>
+
+<div id="S3.SS2.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">Instance segmentation extends semantic segmentation by assigning unique instance identifiers to pixels belonging to distinct objects. For an input image, the output includes both semantic labels and instance masks, where each instance mask <math id="S3.SS2.SSS0.Px1.p1.m1" class="ltx_Math" alttext="M_{k}" display="inline"><msub><mi>M</mi><mi>k</mi></msub></math> defines the pixel-level extent of the <math id="S3.SS2.SSS0.Px1.p1.m2" class="ltx_Math" alttext="k" display="inline"><mi>k</mi></math>-th detected object instance.
+The key distinction is that semantic segmentation answers “what is this pixel?” while instance segmentation answers “what is this pixel and which specific object does it belong to?” For a robotic arm grasping objects from a bin, semantic segmentation might identify all pixels as “tool,” but instance segmentation identifies individual wrenches, screwdrivers, and hammers, enabling the robot to select and grasp specific items.</p>
+</div>
+<figure id="S3.F9" class="ltx_figure"><img style="width:80%;height:auto" src="/book-assets/object-detection/figs__ch12_figs__mask_rcnn_architecture.png" id="S3.F9.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 10.9</span>: </span><span class="ltx_text" style="font-size:90%;">Mask R-CNN architecture showing the addition of a mask prediction branch to Faster R-CNN, with RoI Align replacing RoI pooling for improved spatial alignment from He et al. (2017).</span></figcaption>
+</figure>
+</section>
+<section id="S3.SS2.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Mask R-CNN: extending detection with segmentation.</h4>
+
+<div id="S3.SS2.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">Mask R-CNN, illustrated in Figure&#160;<a href="#S3.F9" title="Figure 10.9 ‣ Problem definition and distinction from semantic segmentation. ‣ 10.3.2 Instance Segmentation ‣ 10.3 Semantic and Instance Segmentation" class="ltx_ref"><span class="ltx_text ltx_ref_tag">10.9</span></a>, extends Faster R-CNN by adding a segmentation branch that predicts pixel-level masks for each detected object. The architecture maintains the two-stage paradigm: the RPN generates object proposals, and the detection head performs classification, bounding box regression, and mask prediction.
+The key innovation is RoI Align, which replaces RoI pooling to address spatial misalignment issues. While RoI pooling quantizes proposal coordinates to discrete feature map positions, RoI Align uses bilinear interpolation to sample features at exact locations:</p>
+<table id="S3.Ex22" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex22.m1" class="ltx_Math" alttext="F_{\text{aligned}}(x,y)=\sum_{i,j}I(i,j)\cdot\max(0,1-|x-i|)\cdot\max(0,1-|y-j%
+|)." display="block"><mrow><mrow><mrow><msub><mi>F</mi><mtext>aligned</mtext></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.111em">=</mo><mrow><munder><mo movablelimits="false">∑</mo><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></munder><mrow><mrow><mi>I</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo rspace="0.055em" stretchy="false">)</mo></mrow></mrow><mo rspace="0.222em">⋅</mo><mrow><mi>max</mi><mo>⁡</mo><mrow><mo stretchy="false">(</mo><mn>0</mn><mo>,</mo><mrow><mn>1</mn><mo>−</mo><mrow><mo stretchy="false">|</mo><mrow><mi>x</mi><mo>−</mo><mi>i</mi></mrow><mo stretchy="false">|</mo></mrow></mrow><mo rspace="0.055em" stretchy="false">)</mo></mrow></mrow><mo rspace="0.222em">⋅</mo><mrow><mi>max</mi><mo>⁡</mo><mrow><mo stretchy="false">(</mo><mn>0</mn><mo>,</mo><mrow><mn>1</mn><mo>−</mo><mrow><mo stretchy="false">|</mo><mrow><mi>y</mi><mo>−</mo><mi>j</mi></mrow><mo stretchy="false">|</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">This precise alignment is essential for accurate mask prediction, as small spatial misalignments can significantly degrade segmentation quality.</p>
+</div>
+<div id="S3.SS2.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">The mask prediction branch applies a small FCN to each RoI-aligned feature to produce a binary mask for the predicted object class. The mask loss is computed only for the predicted class to avoid competition between classes:</p>
+<table id="S3.Ex23" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex23.m1" class="ltx_Math" alttext="L_{\text{mask}}=-\frac{1}{m^{2}}\sum_{i,j}[y_{i,j}\log(\hat{y}_{i,j}^{k^{*}})+%
+(1-y_{i,j})\log(1-\hat{y}_{i,j}^{k^{*}})]," display="block"><mrow><mrow><msub><mi>L</mi><mtext>mask</mtext></msub><mo>=</mo><mrow><mo>−</mo><mrow><mfrac><mn>1</mn><msup><mi>m</mi><mn>2</mn></msup></mfrac><mo>⁢</mo><mrow><munder><mo movablelimits="false" rspace="0em">∑</mo><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></munder><mrow><mo stretchy="false">[</mo><mrow><mrow><msub><mi>y</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub><mo lspace="0.167em">⁢</mo><mrow><mi>log</mi><mo>⁡</mo><mrow><mo stretchy="false">(</mo><msubsup><mover accent="true"><mi>y</mi><mo>^</mo></mover><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow><msup><mi>k</mi><mo>∗</mo></msup></msubsup><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>+</mo><mrow><mrow><mo stretchy="false">(</mo><mrow><mn>1</mn><mo>−</mo><msub><mi>y</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub></mrow><mo stretchy="false">)</mo></mrow><mo lspace="0.167em">⁢</mo><mrow><mi>log</mi><mo>⁡</mo><mrow><mo stretchy="false">(</mo><mrow><mn>1</mn><mo>−</mo><msubsup><mover accent="true"><mi>y</mi><mo>^</mo></mover><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow><msup><mi>k</mi><mo>∗</mo></msup></msubsup></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo stretchy="false">]</mo></mrow></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S3.SS2.SSS0.Px2.p2.m1" class="ltx_Math" alttext="k^{*}" display="inline"><msup><mi>k</mi><mo>∗</mo></msup></math> is the predicted class, <math id="S3.SS2.SSS0.Px2.p2.m2" class="ltx_Math" alttext="y_{i,j}" display="inline"><msub><mi>y</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow></msub></math> is the ground truth mask, and <math id="S3.SS2.SSS0.Px2.p2.m3" class="ltx_Math" alttext="\hat{y}_{i,j}^{k^{*}}" display="inline"><msubsup><mover accent="true"><mi>y</mi><mo>^</mo></mover><mrow><mi>i</mi><mo>,</mo><mi>j</mi></mrow><msup><mi>k</mi><mo>∗</mo></msup></msubsup></math> is the predicted mask for class <math id="S3.SS2.SSS0.Px2.p2.m4" class="ltx_Math" alttext="k^{*}" display="inline"><msup><mi>k</mi><mo>∗</mo></msup></math>.</p>
+</div>
+</section>
+<section id="S3.SS2.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Panoptic segmentation.</h4>
+
+<div id="S3.SS2.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">Panoptic segmentation unifies semantic and instance segmentation by providing complete scene understanding. The task divides semantic categories into ”things” (countable objects like cars, people) and ”stuff” (amorphous regions like sky, road), performing instance segmentation for things and semantic segmentation for stuff.
+For robotics applications, panoptic segmentation provides comprehensive scene understanding. An autonomous vehicle can simultaneously understand the road surface (stuff), individual vehicles and pedestrians (thing instances), and background elements like buildings and vegetation (stuff), enabling holistic reasoning about the driving environment.</p>
+</div>
+</section>
+<section id="S3.SS2.SSS0.Px4" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Bottom-up approaches.</h4>
+
+<div id="S3.SS2.SSS0.Px4.p1" class="ltx_para">
+<p class="ltx_p">Bottom-up instance segmentation methods first perform pixel-level feature learning, then group pixels into instances based on learned embeddings. These approaches contrast with top-down methods like Mask R-CNN that first detect objects then segment them.
+Associative embedding learns pixel-level features where pixels belonging to the same instance have similar embedding vectors, while pixels from different instances have dissimilar embeddings. Instance masks are then generated by clustering pixels in the embedding space:</p>
+<table id="S3.Ex24" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex24.m1" class="ltx_Math" alttext="d(e_{i},e_{j})=||e_{i}-e_{j}||_{2}," display="block"><mrow><mrow><mrow><mi>d</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>e</mi><mi>i</mi></msub><mo>,</mo><msub><mi>e</mi><mi>j</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><msub><mrow><mo stretchy="false">‖</mo><mrow><msub><mi>e</mi><mi>i</mi></msub><mo>−</mo><msub><mi>e</mi><mi>j</mi></msub></mrow><mo stretchy="false">‖</mo></mrow><mn>2</mn></msub></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S3.SS2.SSS0.Px4.p1.m1" class="ltx_Math" alttext="e_{i}" display="inline"><msub><mi>e</mi><mi>i</mi></msub></math> and <math id="S3.SS2.SSS0.Px4.p1.m2" class="ltx_Math" alttext="e_{j}" display="inline"><msub><mi>e</mi><mi>j</mi></msub></math> are embedding vectors for pixels <math id="S3.SS2.SSS0.Px4.p1.m3" class="ltx_Math" alttext="i" display="inline"><mi>i</mi></math> and <math id="S3.SS2.SSS0.Px4.p1.m4" class="ltx_Math" alttext="j" display="inline"><mi>j</mi></math>. Pixels with distances below a threshold are grouped into the same instance.</p>
+</div>
+<div id="S3.SS2.SSS0.Px4.p2" class="ltx_para">
+<p class="ltx_p">These methods can handle arbitrary numbers of instances without predefined proposals but require robust clustering algorithms to separate instances reliably. They are particularly useful for robotics scenarios with dense object arrangements where proposal-based methods might struggle.</p>
+</div>
+</section>
+</section>
+<section id="S3.SS3" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">10.3.3 </span>3D Segmentation</h3>
+
+<div id="S3.SS3.p1" class="ltx_para">
+<p class="ltx_p">3D segmentation extends pixel-level understanding to volumetric data, providing precise spatial reasoning for robotics applications that require detailed 3D scene understanding. While 2D segmentation enables robots to understand image content, 3D segmentation allows reasoning about the full spatial extent and structure of objects in the physical world. This capability is essential for manipulation tasks requiring grasp planning, navigation in complex 3D environments, and understanding object affordances based on geometric structure.</p>
+</div>
+<section id="S3.SS3.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Point cloud segmentation.</h4>
+
+<div id="S3.SS3.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">Point cloud segmentation assigns semantic labels or instance identifiers to individual points in 3D space. The formulation extends 2D segmentation concepts to irregular point data, where each point <math id="S3.SS3.SSS0.Px1.p1.m1" class="ltx_Math" alttext="\mathbf{p}_{i}=(x_{i},y_{i},z_{i})" display="inline"><mrow><msub><mi>𝐩</mi><mi>i</mi></msub><mo>=</mo><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>,</mo><msub><mi>y</mi><mi>i</mi></msub><mo>,</mo><msub><mi>z</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math> receives a label <math id="S3.SS3.SSS0.Px1.p1.m2" class="ltx_Math" alttext="l_{i}\in\mathcal{C}" display="inline"><mrow><msub><mi>l</mi><mi>i</mi></msub><mo>∈</mo><mi class="ltx_font_mathcaligraphic">𝒞</mi></mrow></math> for semantic segmentation or instance identifier <math id="S3.SS3.SSS0.Px1.p1.m3" class="ltx_Math" alttext="I_{i}" display="inline"><msub><mi>I</mi><mi>i</mi></msub></math> for instance segmentation.
+Semantic segmentation of point clouds using PointNet++ leverages the hierarchical set abstraction layers from the previous chapter. The architecture processes points through multiple scales of local feature extraction and aggregation, then applies classification heads to predict semantic labels for each point:</p>
+<table id="S3.Ex25" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex25.m1" class="ltx_Math" alttext="l_{i}=\text{MLP}_{\text{seg}}(\mathbf{f}_{i}^{(L)})," display="block"><mrow><mrow><msub><mi>l</mi><mi>i</mi></msub><mo>=</mo><mrow><msub><mtext>MLP</mtext><mtext>seg</mtext></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msubsup><mi>𝐟</mi><mi>i</mi><mrow><mo stretchy="false">(</mo><mi>L</mi><mo stretchy="false">)</mo></mrow></msubsup><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S3.SS3.SSS0.Px1.p1.m4" class="ltx_Math" alttext="\mathbf{f}_{i}^{(L)}" display="inline"><msubsup><mi>𝐟</mi><mi>i</mi><mrow><mo stretchy="false">(</mo><mi>L</mi><mo stretchy="false">)</mo></mrow></msubsup></math> represents the final point-wise feature after <math id="S3.SS3.SSS0.Px1.p1.m5" class="ltx_Math" alttext="L" display="inline"><mi>L</mi></math> layers of hierarchical processing. The multi-scale feature extraction enables accurate segmentation of objects at different sizes and levels of detail.</p>
+</div>
+<div id="S3.SS3.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Instance segmentation</em> in point clouds requires additional mechanisms to group points into distinct object instances. Methods like PointGroup combine semantic segmentation with learned offset vectors that point toward instance centers, enabling clustering of points belonging to the same object. The training loss combines semantic classification with offset regression:</p>
+<table id="S3.Ex26" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex26.m1" class="ltx_Math" alttext="L_{\text{point-instance}}=L_{\text{semantic}}+\lambda L_{\text{offset}}+\gamma
+L%
+_{\text{clustering}}," display="block"><mrow><mrow><msub><mi>L</mi><mtext>point-instance</mtext></msub><mo>=</mo><mrow><msub><mi>L</mi><mtext>semantic</mtext></msub><mo>+</mo><mrow><mi>λ</mi><mo>⁢</mo><msub><mi>L</mi><mtext>offset</mtext></msub></mrow><mo>+</mo><mrow><mi>γ</mi><mo>⁢</mo><msub><mi>L</mi><mtext>clustering</mtext></msub></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S3.SS3.SSS0.Px1.p2.m1" class="ltx_Math" alttext="L_{\text{offset}}" display="inline"><msub><mi>L</mi><mtext>offset</mtext></msub></math> encourages points to predict vectors pointing toward their instance centers, and <math id="S3.SS3.SSS0.Px1.p2.m2" class="ltx_Math" alttext="L_{\text{clustering}}" display="inline"><msub><mi>L</mi><mtext>clustering</mtext></msub></math> promotes tight clustering within instances and separation between instances.</p>
+</div>
+<figure id="S3.F10" class="ltx_figure"><img style="width:85%;height:auto" src="/book-assets/object-detection/figs__ch12_figs__voxel_segmentation.png" id="S3.F10.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 10.10</span>: </span><span class="ltx_text" style="font-size:90%;">3D voxel-based segmentation example from the Occ3D dataset  for self-driving scenes, specifying what object category occupies each 3D location.</span></figcaption>
+</figure>
+</section>
+<section id="S3.SS3.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Voxel-based segmentation.</h4>
+
+<div id="S3.SS3.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">Voxel-based segmentation processes regular 3D grids where each voxel represents a volumetric unit in 3D space. The formulation treats segmentation as 3D dense classification, where each voxel <math id="S3.SS3.SSS0.Px2.p1.m1" class="ltx_Math" alttext="v_{i,j,k}" display="inline"><msub><mi>v</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>k</mi></mrow></msub></math> receives a semantic label or occupancy prediction.
+Occupancy grids represent a fundamental approach where each voxel indicates whether that region of space is occupied by an object. This binary classification provides essential information for navigation and collision avoidance:</p>
+<table id="S3.Ex27" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex27.m1" class="ltx_Math" alttext="o_{i,j,k}=\sigma(\text{MLP}(\mathbf{f}_{i,j,k}))," display="block"><mrow><mrow><msub><mi>o</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>k</mi></mrow></msub><mo>=</mo><mrow><mi>σ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mtext>MLP</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝐟</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>k</mi></mrow></msub><mo stretchy="false">)</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S3.SS3.SSS0.Px2.p1.m2" class="ltx_Math" alttext="o_{i,j,k}\in[0,1]" display="inline"><mrow><msub><mi>o</mi><mrow><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>k</mi></mrow></msub><mo>∈</mo><mrow><mo stretchy="false">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false">]</mo></mrow></mrow></math> represents the occupancy probability for voxel <math id="S3.SS3.SSS0.Px2.p1.m3" class="ltx_Math" alttext="(i,j,k)" display="inline"><mrow><mo stretchy="false">(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>,</mo><mi>k</mi><mo stretchy="false">)</mo></mrow></math>.</p>
+</div>
+<div id="S3.SS3.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">3D U-Net architectures extend the encoder-decoder paradigm to volumetric data for detailed semantic segmentation. The architecture applies 3D convolutions throughout the encoding and decoding paths, with 3D skip connections preserving spatial details:</p>
+<table id="S3.Ex28" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex28.m1" class="ltx_Math" alttext="\mathbf{F}_{\text{decoder}}^{(i)}=\text{UpConv3D}(\mathbf{F}_{\text{decoder}}^%
+{(i-1)})\oplus\mathbf{F}_{\text{encoder}}^{(i)}." display="block"><mrow><mrow><msubsup><mi>𝐅</mi><mtext>decoder</mtext><mrow><mo stretchy="false">(</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></msubsup><mo>=</mo><mrow><mrow><mtext>UpConv3D</mtext><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msubsup><mi>𝐅</mi><mtext>decoder</mtext><mrow><mo stretchy="false">(</mo><mrow><mi>i</mi><mo>−</mo><mn>1</mn></mrow><mo stretchy="false">)</mo></mrow></msubsup><mo stretchy="false">)</mo></mrow></mrow><mo>⊕</mo><msubsup><mi>𝐅</mi><mtext>encoder</mtext><mrow><mo stretchy="false">(</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></msubsup></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">The 3D convolutions capture volumetric patterns and spatial relationships essential for accurate 3D segmentation, while skip connections ensure fine-grained geometric details are preserved in the final predictions.
+An example of 3D voxel-based segmentation is shown in Figure&#160;<a href="#S3.F10" title="Figure 10.10 ‣ Point cloud segmentation. ‣ 10.3.3 3D Segmentation ‣ 10.3 Semantic and Instance Segmentation" class="ltx_ref"><span class="ltx_text ltx_ref_tag">10.10</span></a>.</p>
+</div>
+</section>
+</section>
+<section id="S3.SS4" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">10.3.4 </span>Robotics-Specific Applications</h3>
+
+<div id="S3.SS4.p1" class="ltx_para">
+<p class="ltx_p">Segmentation enables several critical robotics capabilities that require detailed geometric understanding of objects and environments. We explore a few examples below.</p>
+</div>
+<div id="S3.Thmexample1" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 10.3.1</span></span><span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S3.Thmexample1.p1" class="ltx_para">
+<p class="ltx_p">Grasp point prediction through part segmentation identifies functional regions of objects that are suitable for robotic grasping. By segmenting objects into semantic parts (handles, graspable surfaces, fragile regions), robots can plan grasps that are both mechanically sound and functionally appropriate. For example, segmenting a mug into handle, rim, and body regions enables the robot to choose appropriate grasp locations based on the intended manipulation task.</p>
+</div>
+</div>
+<div id="S3.Thmexample2" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 10.3.2</span></span><span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S3.Thmexample2.p1" class="ltx_para">
+<p class="ltx_p">Terrain traversability analysis uses 3D segmentation to classify different terrain types and their suitability for robot navigation. Outdoor mobile robots use segmentation to distinguish between solid ground, obstacles, vegetation, and hazardous terrain, enabling safe path planning in complex outdoor environments. The 3D understanding allows reasoning about terrain slope, roughness, and stability that would be impossible with 2D analysis alone.</p>
+</div>
+</div>
+<div id="S3.Thmexample3" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 10.3.3</span></span><span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S3.Thmexample3.p1" class="ltx_para">
+<p class="ltx_p">Object affordance understanding through part-based analysis enables robots to reason about how objects can be used based on their geometric structure. By segmenting objects into functional parts and understanding the spatial relationships between parts, robots can infer possible interactions and manipulation strategies. A segmented chair with identified seat, backrest, and legs enables the robot to understand both the object’s function and how to manipulate it safely.</p>
+</div>
+</div>
+<div id="S3.SS4.p2" class="ltx_para">
+<p class="ltx_p">These applications demonstrate how 3D segmentation provides the detailed spatial understanding necessary for robots to interact effectively with complex 3D environments, going beyond simple object detection to enable sophisticated reasoning about object structure, function, and manipulation possibilities.</p>
+</div>
+</section>
+</section>
+<section id="S4" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">10.4 </span>Summary</h2>
+
+<div id="S4.p1" class="ltx_para">
+<p class="ltx_p">In this chapter, we explored the essential robotic perception tasks of object detection and segmentation, which provide the spatial understanding necessary for robots to interact intelligently with their environments.</p>
+</div>
+<div id="S4.p2" class="ltx_para">
+<p class="ltx_p">We began with the foundations of 2D object detection, contrasting the two-stage paradigm—exemplified by the evolution from R-CNN to the efficient, learnable proposals of Faster R-CNN—with the one-stage paradigm of YOLO, which prioritizes speed for real-time applications. We also discussed how the Transformer architecture has been adapted for detection with models like DETR, which simplify the pipeline by framing detection as a direct set prediction problem.
+We then extended these concepts to 3D, detailing how detection paradigms adapt to point cloud and voxel data. We covered two-stage point-based methods like PointRCNN, one-stage voxel-based methods like CenterPoint, and Transformer-based approaches like 3DETR, each offering different trade-offs between precision and computational efficiency for processing 3D sensor data.</p>
+</div>
+<div id="S4.p3" class="ltx_para">
+<p class="ltx_p">Finally, we delved into segmentation, which provides pixel- and point-level understanding. We covered semantic segmentation with architectures like FCN and U-Net for categorizing every pixel, instance segmentation with Mask R-CNN for identifying individual objects, and their unification in panoptic segmentation. We further extended these ideas to 3D point cloud and voxel-based segmentation, highlighting their critical role in applications requiring detailed geometric reasoning, such as grasp point prediction and terrain analysis.</p>
+</div>
+<section id="S4.SS0.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">To learn more.</h4>
+
+<div id="S4.SS0.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">For a deeper exploration of the topics covered in this chapter, several key resources are available.
+The seminal papers on two-stage detection <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">2</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">2.</span> Girshick, Ross. “Fast R-CNN.” In <em>2015 IEEE International Conference on Computer Vision (ICCV)</em>, 1440-1448, 2015.</span></span></span> and one-stage detection <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">3</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">3.</span> Redmon, J., Divvala, S., Girshick, R., Farhadi, A. “You Only Look Once: Unified, Real-Time Object Detection.” In <em>Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)</em>, 2016.</span></span></span> are foundational to the field.
+For Transformer-based detection, the DETR paper <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">4</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">4.</span> Carion, Nicolas, Massa, Francisco, Synnaeve, Gabriel, Usunier, Nicolas, Kirillov, Alexander, Zagoruyko, Sergey. “End-to-End Object Detection with Transformers.” In <em>Computer Vision – ECCV 2020</em>, 213–229. Springer International Publishing, 2020.</span></span></span> introduced the set prediction paradigm.
+In 3D perception, the original papers on PointRCNN <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">5</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">5.</span> Shi, Shaoshuai, Wang, Xiaogang, Li, Hongsheng. “PointRCNN: 3D Object Proposal Generation and Detection From Point Cloud.” In <em>The IEEE Conference on Computer Vision and Pattern Recognition (CVPR)</em>, 2019.</span></span></span> and VoxelNet <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">6</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">6.</span> Zhou, Yin, Tuzel, Oncel. “Voxelnet: End-to-end learning for point cloud based 3d object detection.” In <em>Proceedings of the IEEE conference on computer vision and pattern recognition</em>, 4490–4499, 2018.</span></span></span> are essential reading for point-based and voxel-based detection, respectively.
+For segmentation, the works on Mask R-CNN <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">7</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">7.</span> He, Kaiming, Gkioxari, Georgia, Dollár, Piotr, Girshick, Ross. “Mask R-CNN.” In <em>Proceedings of the IEEE International Conference on Computer Vision</em>, 2961–2969, 2017.</span></span></span> and U-Net <span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">8</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">8.</span> Olaf Ronneberger, Philipp Fischer, Thomas Brox. “U-Net: Convolutional Networks for Biomedical Image Segmentation.” <em>CoRR</em> abs/1505.04597, 2015.</span></span></span> provide the basis for modern instance and semantic segmentation techniques.</p>
+</div>
+</section>
+</section>
+<section id="S5" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">10.5 </span>Exercises</h2>
+
+<div id="S5.p1" class="ltx_para">
+<p class="ltx_p">The starter code for the exercises provided below is available online through GitHub.
+To get started, download the code by running in a terminal window:</p>
+</div>
+<div id="S5.p2" class="ltx_para ltx_noindent">
+<div class="ltx_listing ltx_lst_language_bash ltx_lstlisting ltx_listing">
+<div class="ltx_listing_data"><a href="data:text/plain;base64,ICAgIGdpdCBjbG9uZSBodHRwczovL2dpdGh1Yi5jb20vU3RhbmZvcmRBU0wvcG9yYS1leGVyY2lzZXMuZ2l0" download="">⬇</a></div>
+<div id="lstnumberx1" class="ltx_listingline"><span class="ltx_text ltx_lst_space ltx_font_typewriter">    </span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">git</span><span class="ltx_text ltx_lst_space ltx_font_typewriter"> </span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">clone</span><span class="ltx_text ltx_lst_space ltx_font_typewriter"> </span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">https</span><span class="ltx_text ltx_font_typewriter">://</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">github</span><span class="ltx_text ltx_font_typewriter">.</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">com</span><span class="ltx_text ltx_font_typewriter">/</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">StanfordASL</span><span class="ltx_text ltx_font_typewriter">/</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">pora</span><span class="ltx_text ltx_font_typewriter">-</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">exercises</span><span class="ltx_text ltx_font_typewriter">.</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">git</span></div>
+</div>
+</div>
+<div id="S5.p3" class="ltx_para">
+<p class="ltx_p">We denote Problems requiring hand-written solutions and coding in Python with <img src="/book-assets/object-detection/figs__write.png" id="S5.p3.g1" class="ltx_graphics ltx_img_square" width="26" height="28" alt="[Uncaptioned image]"> and <img src="/book-assets/object-detection/figs__code.png" id="S5.p3.g2" class="ltx_graphics ltx_img_square" width="25" height="25" alt="[Uncaptioned image]">, respectively.</p>
+</div>
+</section>
+<section id="Sx1" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<img src="/book-assets/object-detection/figs__code.png" id="Sx1.g1" class="ltx_graphics ltx_img_square" width="25" height="25" alt="[Uncaptioned image]"> Problem 1: Object Detection Using Pre-trained Models</h2>
+
+<div id="Sx1.p1" class="ltx_para">
+<p class="ltx_p">In this exercise, you will get to experiment with pre-trained computer vision models for image object detection.
+Using the provided notebook 
+<br class="ltx_break"><span class="ltx_text ltx_font_typewriter">ch10/exercises/object_detection.ipynb</span>:</p>
+<ol id="Sx1.I1" class="ltx_enumerate">
+<li id="Sx1.I1.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">1.</span> 
+<div id="Sx1.I1.i1.p1" class="ltx_para">
+<p class="ltx_p">Implement the code to load and evaluate a pre-trained model for object detection.</p>
+</div>
+</li>
+<li id="Sx1.I1.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">2.</span> 
+<div id="Sx1.I1.i2.p1" class="ltx_para">
+<p class="ltx_p">Implement the function <span class="ltx_text ltx_font_typewriter">draw_result</span> to create an image with the bounding boxes, labels, and scores overlaid.</p>
+</div>
+</li>
+<li id="Sx1.I1.i3" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">3.</span> 
+<div id="Sx1.I1.i3.p1" class="ltx_para">
+<p class="ltx_p">Implement the function <span class="ltx_text ltx_font_typewriter">filter</span> to filter the boxes, labels, and scores based on a score threshold.</p>
+</div>
+</li>
+</ol>
+<p class="ltx_p"></p>
+</div>
+</section>

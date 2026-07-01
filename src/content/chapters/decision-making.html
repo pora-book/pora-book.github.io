@@ -1,0 +1,1101 @@
+
+<div id="p1" class="ltx_para">
+<p class="ltx_p">In <span class="ltx_ref">the referenced item</span>, we introduced finite state machines as a structured and explicit way to model the logical flow of a robot’s behavior, allowing us to hand-design a set of rules that govern its actions in response to events.
+For well-defined tasks with a limited number of states, a carefully crafted finite state machine is an effective and interpretable way to implement a robot’s decision-making logic.
+However, the very structure that makes finite state machines clear also imposes fundamental limitations, especially as the complexity and uncertainty of the robot’s environment grow.</p>
+</div>
+<div id="p2" class="ltx_para">
+<p class="ltx_p">This chapter introduces a more general, optimization-based framework that directly addresses these limitations.
+Rather than manually specifying decision rules, we formulate decision-making as a mathematical optimization problem, allowing optimal actions to be computed automatically for complex, multi-step tasks, even under uncertainty.
+The central computational tool explored in this chapter is <em class="ltx_emph ltx_font_italic">dynamic programming</em>, a powerful algorithmic paradigm for solving sequential decision-making problems.
+Dynamic programming operates by decomposing complex, long-horizon problems into a sequence of simpler, nested subproblems that can be solved efficiently.
+As we will see, it also provides the theoretical foundation for modern learning-based approaches like reinforcement learning (<span class="ltx_ref">the referenced item</span>) and imitation learning (<span class="ltx_ref">the referenced item</span>).</p>
+</div>
+<div id="p3" class="ltx_para">
+<p class="ltx_p">We begin in Section&#160;<a href="#S1" title="17.1 Deterministic Sequential Decision Making" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.1</span></a> by applying dynamic programming to deterministic decision-making problems, where the robot’s actions have certain and predictable outcomes.
+We then extend this framework in Section&#160;<a href="#S2" title="17.2 Decision Making Under Uncertainty: Markov Decision Processes" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.2</span></a> to stochastic decision-making problems, specifically Markov decision processes (MDPs), which explicitly account for uncertainty in the environment.
+Finally, in Section&#160;<a href="#S3" title="17.3 Limitations of Dynamic Programming" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.3</span></a>, we discuss the limitations of classical dynamic programming methods, thereby motivating the learning-based approaches introduced in later chapters.</p>
+</div>
+<section id="S1" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">17.1 </span>Deterministic Sequential Decision Making</h2>
+
+<div id="S1.p1" class="ltx_para">
+<p class="ltx_p">We begin our study of dynamic programming by introducing a simple, yet extremely general, formulation of sequential decision making.
+Despite its apparent simplicity, this formulation captures a wide range of problems arising in robotics, control, operations research, and artificial intelligence.
+We first consider the deterministic case, where the outcome of each action is fully predictable, before addressing stochasticity in the next section.</p>
+</div>
+<div id="S1.p2" class="ltx_para">
+<p class="ltx_p">In this formulation, time is modeled as a sequence of <em class="ltx_emph ltx_font_italic">discrete</em> stages at which decisions are made.
+That is, we consider a discrete-time setting<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.p2.p1" class="ltx_para">
+<span class="ltx_p">The continuous-time counterpart to dynamic programming is the Hamilton-Jacobi-Bellman (HJB) equation. While the HJB equation is beyond the scope of this chapter, we refer interested readers to <span class="ltx_cite">Bertsekas (2000)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">1</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">1.</span> Bertsekas, D. <em>Dynamic Programming and Optimal Control</em>. Athena Scientific, 2000.</span></span></span> for a comprehensive treatment of continuous-time decision-making.</span>
+</span></span></span></span></span>, where the evolution of the system is described by a difference equation of the form:</p>
+<table id="S1.E1" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E1.m1" class="ltx_Math" alttext="\bm{x}_{t+1}=f_{t}(\bm{x}_{t},\bm{u}_{t}),\quad t=0,\dots,T-1," display="block"><mrow><mrow><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>=</mo><mrow><msub><mi>f</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo rspace="1.167em">,</mo><mrow><mi>t</mi><mo>=</mo><mrow><mn>0</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(17.1)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S1.p2.m1" class="ltx_Math" alttext="\bm{x}_{t}\in\mathbb{R}^{n}" display="inline"><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∈</mo><msup><mi>ℝ</mi><mi>n</mi></msup></mrow></math> denotes the system state at time step <math id="S1.p2.m2" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math>, <math id="S1.p2.m3" class="ltx_Math" alttext="\bm{u}_{t}\in\mathbb{R}^{m}" display="inline"><mrow><msub><mi>𝒖</mi><mi>t</mi></msub><mo>∈</mo><msup><mi>ℝ</mi><mi>m</mi></msup></mrow></math> is the control applied at that step, and <math id="S1.p2.m4" class="ltx_Math" alttext="f_{t}" display="inline"><msub><mi>f</mi><mi>t</mi></msub></math> specifies how the state evolves.
+The integer <math id="S1.p2.m5" class="ltx_Math" alttext="T" display="inline"><mi>T</mi></math> defines a finite planning horizon.</p>
+</div>
+<div id="S1.p3" class="ltx_para">
+<p class="ltx_p">At each time step, not all controls may be available.
+We therefore associate with each state <math id="S1.p3.m1" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math> a set of admissible controls, denoted by <math id="S1.p3.m2" class="ltx_Math" alttext="\mathcal{U}(\bm{x}_{t})" display="inline"><mrow><mi class="ltx_font_mathcaligraphic">𝒰</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math>, and impose the constraint:</p>
+<table id="S1.E2" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E2.m1" class="ltx_Math" alttext="\bm{u}_{t}\in\mathcal{U}(\bm{x}_{t}),\quad t=0,\dots,T-1." display="block"><mrow><mrow><mrow><msub><mi>𝒖</mi><mi>t</mi></msub><mo>∈</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒰</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo rspace="1.167em">,</mo><mrow><mi>t</mi><mo>=</mo><mrow><mn>0</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(17.2)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">No particular structure is assumed for <math id="S1.p3.m3" class="ltx_Math" alttext="\mathcal{U}(\bm{x}_{t})" display="inline"><mrow><mi class="ltx_font_mathcaligraphic">𝒰</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math>.
+Depending on the application, it may be a finite set of discrete actions, a continuous region of allowable inputs, or a state-dependent subset encoding physical, logical, or resource limitations.</p>
+</div>
+<div id="S1.p4" class="ltx_para">
+<p class="ltx_p">The objective of the decision making problem is specified through an additive cost function defined over the planning horizon:</p>
+<table id="S1.E3" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E3.m1" class="ltx_Math" alttext="J(\bm{x}_{0},\bm{u}_{0},\dots,\bm{u}_{T-1})=g_{T}(\bm{x}_{T})+\sum_{t=0}^{T-1}%
+g_{t}(\bm{x}_{t},\bm{u}_{t})," display="block"><mrow><mrow><mrow><mi>J</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mn>0</mn></msub><mo>,</mo><msub><mi>𝒖</mi><mn>0</mn></msub><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msub><mi>𝒖</mi><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mrow><msub><mi>g</mi><mi>T</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>T</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.055em">+</mo><mrow><munderover><mo movablelimits="false">∑</mo><mrow><mi>t</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></munderover><mrow><msub><mi>g</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(17.3)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S1.p4.m1" class="ltx_Math" alttext="g_{t}" display="inline"><msub><mi>g</mi><mi>t</mi></msub></math> represents the stage cost incurred at time <math id="S1.p4.m2" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math> and <math id="S1.p4.m3" class="ltx_Math" alttext="g_{T}" display="inline"><msub><mi>g</mi><mi>T</mi></msub></math> is a terminal cost applied to the final state.
+The additivity of the cost over time is a central structural assumption: it is this property that enables the decomposition of the problem into simpler subproblems, which lies at the heart of dynamic programming.
+No assumptions are made regarding smoothness, convexity, or time invariance of the cost functions.</p>
+</div>
+<div id="S1.p5" class="ltx_para">
+<p class="ltx_p">The deterministic sequential decision making problem can be formally defined as follows:</p>
+</div>
+<div id="S1.Thmtheorem1" class="ltx_theorem ltx_theorem_definition">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Definition 17.1</span></span><span class="ltx_text ltx_font_bold"> </span>(Deterministic Sequential Decision Making Problem)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmtheorem1.p1" class="ltx_para">
+<p class="ltx_p">Given the discrete-time system (Equation&#160;<a href="#S1.E1" title="In 17.1 Deterministic Sequential Decision Making" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.1</span></a>), the control constraints (Equation&#160;<a href="#S1.E2" title="In 17.1 Deterministic Sequential Decision Making" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.2</span></a>), and the additive cost function (Equation&#160;<a href="#S1.E3" title="In 17.1 Deterministic Sequential Decision Making" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.3</span></a>), the deterministic sequential decision making problem can be stated as the following optimization problem:</p>
+<table id="S1.E4" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E4.m1" class="ltx_math_unparsed" alttext="\begin{split}J^{*}(\bm{x}_{0})=\underset{\bm{u}_{t},\&gt;\&gt;t=0,\dots,T-1}{\text{%
+minimize}}&amp;\quad g_{T}(\bm{x}_{T})+\sum_{t=0}^{T-1}g_{t}(\bm{x}_{t},\bm{u}_{t}%
+),\\
+\text{subject to}&amp;\quad\bm{x}_{t+1}=f_{t}(\bm{x}_{t},\bm{u}_{t}),\quad t=0,%
+\dots,T-1,\\
+&amp;\quad\bm{u}_{t}\in\mathcal{U}(\bm{x}_{t}),\quad t=0,\dots,T-1.\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><msup><mi>J</mi><mo>∗</mo></msup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mn>0</mn></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><munder accentunder="true"><mtext>minimize</mtext><mrow><mrow><mrow><msub><mi>𝒖</mi><mi>t</mi></msub><mo rspace="0.607em">,</mo><mi>t</mi></mrow><mo>=</mo><mn>0</mn></mrow><mo>,</mo><mrow><mi mathvariant="normal">…</mi><mo>,</mo><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></mrow></mrow></munder></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msub><mi>g</mi><mi>T</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>T</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.055em">+</mo><mrow><munderover><mo movablelimits="false">∑</mo><mrow><mi>t</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></munderover><mrow><msub><mi>g</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mtext>subject to</mtext></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>=</mo><mrow><msub><mi>f</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo rspace="1.167em">,</mo><mrow><mi>t</mi><mo>=</mo><mrow><mn>0</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></mrow></mrow></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msub><mi>𝒖</mi><mi>t</mi></msub><mo>∈</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒰</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo rspace="1.167em">,</mo><mrow><mi>t</mi><mo>=</mo><mrow><mn>0</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(17.4)</span></td>
+</tr></tbody>
+</table>
+</div>
+</div>
+<div id="S1.p6" class="ltx_para">
+<p class="ltx_p">As we will see throughout the remainder of this chapter, the central goal of dynamic programming is to compute a solution to Problem (Equation&#160;<a href="#S1.E4" title="In Definition 17.1 (Deterministic Sequential Decision Making Problem). ‣ 17.1 Deterministic Sequential Decision Making" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.4</span></a>) in the form of an optimal <em class="ltx_emph ltx_font_italic">closed-loop</em> control policy:</p>
+<table id="S1.E5" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E5.m1" class="ltx_math_unparsed" alttext="\begin{split}\pi=&amp;\{\pi_{0},\ldots,\pi_{T-1}\},\\
+\bm{u}_{t}^{*}=&amp;\pi_{t}^{*}(\bm{x}_{t}),\quad t=0,\dots,T-1,\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mi>π</mi><mo>=</mo><mi></mi></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mo stretchy="false">{</mo><msub><mi>π</mi><mn>0</mn></msub><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msub><mi>π</mi><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="false">}</mo></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>𝒖</mi><mi>t</mi><mo>∗</mo></msubsup><mo>=</mo><mi></mi></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><mrow><mrow><msubsup><mi>π</mi><mi>t</mi><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo rspace="1.167em">,</mo><mi>t</mi></mrow><mo>=</mo><mn>0</mn></mrow><mo>,</mo><mrow><mi mathvariant="normal">…</mi><mo>,</mo><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></mrow></mrow><mo>,</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(17.5)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where the policy <math id="S1.p6.m1" class="ltx_Math" alttext="\pi" display="inline"><mi>π</mi></math> denotes a sequence of functions <math id="S1.p6.m2" class="ltx_Math" alttext="\pi_{t}" display="inline"><msub><mi>π</mi><mi>t</mi></msub></math> mapping any state <math id="S1.p6.m3" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math> into a control <math id="S1.p6.m4" class="ltx_Math" alttext="\bm{u}_{t}" display="inline"><msub><mi>𝒖</mi><mi>t</mi></msub></math><span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.p6.p1" class="ltx_para">
+<span class="ltx_p">In the deterministic setting considered here, the system evolution is fully predictable, and closed-loop and open-loop optimal solutions therefore coincide. The true advantages of closed-loop policies emerge mainly in the stochastic setting, which we address in the next section.</span>
+</span></span></span></span></span>.</p>
+</div>
+<div id="S1.p7" class="ltx_para">
+<p class="ltx_p">In <a class="ltx_ref" href="/book/closed-loop-control/">Chapter 3</a>, we were able to derive closed-loop control laws primarily by exploiting strong structural assumptions, such as linear system dynamics, quadratic cost functions, or special system properties like differential flatness.
+While these assumptions yield elegant and computationally efficient solutions, they substantially limit the range of problems that can be addressed.
+Dynamic programming offers a fundamentally different approach.
+Rather than relying on restrictive structural properties, it exploits only the sequential nature of the decision-making process and the additive structure of the cost function, thereby providing a systematic framework for computing optimal closed-loop policies for a much broader class of systems, including those with nonlinear dynamics and non-quadratic costs.</p>
+</div>
+<div id="S1.p8" class="ltx_para">
+<p class="ltx_p">In what follows, we will explore how dynamic programming can be employed to solve the deterministic decision making problem defined above through the so-called <em class="ltx_emph ltx_font_italic">principle of optimality</em>.</p>
+</div>
+<section id="S1.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">17.1.1 </span>The Principle of Optimality</h3>
+
+<div id="S1.SS1.p1" class="ltx_para">
+<p class="ltx_p">The dynamic programming approach to sequential decision making rests on a very simple, yet powerful, idea, known as the <em class="ltx_emph ltx_font_italic">principle of optimality</em><span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS1.p1.p1" class="ltx_para">
+<span class="ltx_p">Often referred to as <em class="ltx_emph ltx_font_italic">Bellman’s principle of optimality</em>.</span>
+</span></span></span></span></span>.
+Despite its simplicity, this principle is the key that transforms an otherwise intractable optimization problem into one that can be solved efficiently through recursive decomposition.</p>
+</div>
+<div id="S1.SS1.p2" class="ltx_para">
+<p class="ltx_p">At a high level, the principle of optimality expresses the following insight.
+Suppose that a policy is optimal for a given decision making problem.
+Then, if we consider any intermediate time and the state reached at that time while following this policy, the remaining decisions prescribed by the policy must themselves be optimal for the subproblem that starts from that state.
+In other words, any <em class="ltx_emph ltx_font_italic">tail segment</em> of an optimal policy must itself be optimal for the corresponding <em class="ltx_emph ltx_font_italic">tail subproblem</em>.</p>
+</div>
+<div id="S1.SS1.p3" class="ltx_para">
+<p class="ltx_p">The intuitive justification for this principle is straightforward.
+If the remaining decisions after some time were not optimal for the corresponding tail subproblem, then we could replace them with a better alternative and thereby reduce the total cost.
+This would contradict the assumption that the original policy was optimal.
+Thus, optimal policies must be composed of optimal solutions to all of their tail subproblems.</p>
+</div>
+<div id="S1.SS1.p4" class="ltx_para">
+<p class="ltx_p">This idea is most easily visualized in shortest-path problems, as illustrated in Figure&#160;<a href="#S1.F1" title="Figure 17.1 ‣ 17.1.1 The Principle of Optimality ‣ 17.1 Deterministic Sequential Decision Making" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.1</span></a>.
+If the optimal path from a starting point <math id="S1.SS1.p4.m1" class="ltx_Math" alttext="a" display="inline"><mi>a</mi></math> to a destination <math id="S1.SS1.p4.m2" class="ltx_Math" alttext="e" display="inline"><mi>e</mi></math> passes through an intermediate point <math id="S1.SS1.p4.m3" class="ltx_Math" alttext="b" display="inline"><mi>b</mi></math>, then the portion of the path from <math id="S1.SS1.p4.m4" class="ltx_Math" alttext="b" display="inline"><mi>b</mi></math> to <math id="S1.SS1.p4.m5" class="ltx_Math" alttext="e" display="inline"><mi>e</mi></math> must itself be optimal among all paths that start at <math id="S1.SS1.p4.m6" class="ltx_Math" alttext="b" display="inline"><mi>b</mi></math>.
+Otherwise, a shorter path from <math id="S1.SS1.p4.m7" class="ltx_Math" alttext="b" display="inline"><mi>b</mi></math> to <math id="S1.SS1.p4.m8" class="ltx_Math" alttext="e" display="inline"><mi>e</mi></math> could be substituted, yielding a shorter overall path from <math id="S1.SS1.p4.m9" class="ltx_Math" alttext="a" display="inline"><mi>a</mi></math> to <math id="S1.SS1.p4.m10" class="ltx_Math" alttext="e" display="inline"><mi>e</mi></math>.</p>
+</div>
+<figure id="S1.F1" class="ltx_figure"><img style="width:50%;height:auto" src="/book-assets/decision-making/figs__ch20_figs__princopt1.png" id="S1.F1.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 17.1</span>: </span><span class="ltx_text" style="font-size:90%;">Illustration of the principle of optimality for a shortest-path problem. If the path <math id="S1.F1.m6" class="ltx_Math" alttext="a\rightarrow b\rightarrow e" display="inline"><mrow><mi>a</mi><mo stretchy="false">→</mo><mi>b</mi><mo stretchy="false">→</mo><mi>e</mi></mrow></math> is optimal from <math id="S1.F1.m7" class="ltx_Math" alttext="a" display="inline"><mi>a</mi></math> to <math id="S1.F1.m8" class="ltx_Math" alttext="e" display="inline"><mi>e</mi></math>, then the subpath <math id="S1.F1.m9" class="ltx_Math" alttext="b\rightarrow e" display="inline"><mrow><mi>b</mi><mo stretchy="false">→</mo><mi>e</mi></mrow></math> must be optimal when starting from <math id="S1.F1.m10" class="ltx_Math" alttext="b" display="inline"><mi>b</mi></math>. Adapted from <span class="ltx_cite">Kirk (2004)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">2</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">2.</span> Kirk, D. E. <em>Optimal Control Theory: An Introduction</em>. Dover Publications, 2004.</span></span></span>.</span></figcaption>
+</figure>
+<div id="S1.SS1.p5" class="ltx_para">
+<p class="ltx_p">We now state the principle of optimality formally for deterministic decision making problems.</p>
+</div>
+<div id="S1.Thmtheorem2" class="ltx_theorem ltx_theorem_theorem">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Theorem 17.2</span></span><span class="ltx_text ltx_font_bold"> </span>(Principle of Optimality (Deterministic Case))<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmtheorem2.p1" class="ltx_para">
+<p class="ltx_p"><span class="ltx_text ltx_font_italic">Let <math id="S1.Thmtheorem2.p1.m1" class="ltx_Math" alttext="\{\bm{u}_{0}^{*},\bm{u}_{1}^{*},\dots,\bm{u}_{T-1}^{*}\}" display="inline"><mrow><mo stretchy="false">{</mo><msubsup><mi>𝐮</mi><mn>0</mn><mo>∗</mo></msubsup><mo>,</mo><msubsup><mi>𝐮</mi><mn>1</mn><mo>∗</mo></msubsup><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msubsup><mi>𝐮</mi><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow><mo>∗</mo></msubsup><mo stretchy="false">}</mo></mrow></math> be an optimal control sequence to the deterministic decision making problem defined by Problem <a href="#S1.E4" title="In Definition 17.1 (Deterministic Sequential Decision Making Problem). ‣ 17.1 Deterministic Sequential Decision Making" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.4</span></a> with initial condition <math id="S1.Thmtheorem2.p1.m2" class="ltx_Math" alttext="\bm{x}^{*}_{0}" display="inline"><msubsup><mi>𝐱</mi><mn>0</mn><mo>∗</mo></msubsup></math>, and let <math id="S1.Thmtheorem2.p1.m3" class="ltx_Math" alttext="\{\bm{x}_{0}^{*},\bm{x}_{1}^{*},\dots,\bm{x}_{T}^{*}\}" display="inline"><mrow><mo stretchy="false">{</mo><msubsup><mi>𝐱</mi><mn>0</mn><mo>∗</mo></msubsup><mo>,</mo><msubsup><mi>𝐱</mi><mn>1</mn><mo>∗</mo></msubsup><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msubsup><mi>𝐱</mi><mi>T</mi><mo>∗</mo></msubsup><mo stretchy="false">}</mo></mrow></math> denote the corresponding optimal state trajectory.
+Then, for any time <math id="S1.Thmtheorem2.p1.m4" class="ltx_Math" alttext="t\in\{0,\dots,T-1\}" display="inline"><mrow><mi>t</mi><mo>∈</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow><mo stretchy="false">}</mo></mrow></mrow></math>, the truncated control sequence <math id="S1.Thmtheorem2.p1.m5" class="ltx_Math" alttext="\{\bm{u}_{t}^{*},\dots,\bm{u}_{T-1}^{*}\}" display="inline"><mrow><mo stretchy="false">{</mo><msubsup><mi>𝐮</mi><mi>t</mi><mo>∗</mo></msubsup><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msubsup><mi>𝐮</mi><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow><mo>∗</mo></msubsup><mo stretchy="false">}</mo></mrow></math> is optimal for the subproblem that starts from state <math id="S1.Thmtheorem2.p1.m6" class="ltx_Math" alttext="\bm{x}_{t}^{*}" display="inline"><msubsup><mi>𝐱</mi><mi>t</mi><mo>∗</mo></msubsup></math> at time <math id="S1.Thmtheorem2.p1.m7" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math> and minimizes the tail cost:</span></p>
+<table id="S1.Ex1" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex1.m1" class="ltx_Math" alttext="J_{\text{tail}}(\bm{x}_{t},\bm{u}_{t},\dots,\bm{u}_{T-1})=g_{T}(\bm{x}_{T})+%
+\sum_{i=t}^{T-1}g_{i}(\bm{x}_{i},\bm{u}_{i})," display="block"><mrow><mrow><mrow><msub><mi>J</mi><mtext class="ltx_mathvariant_italic">tail</mtext></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msub><mi>𝒖</mi><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mrow><msub><mi>g</mi><mi>T</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>T</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.055em">+</mo><mrow><munderover><mo movablelimits="false">∑</mo><mrow><mi>i</mi><mo>=</mo><mi>t</mi></mrow><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></munderover><mrow><msub><mi>g</mi><mi>i</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>i</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p"><span class="ltx_text ltx_font_italic">subject to the same system dynamics and control constraints, over the horizon <math id="S1.Thmtheorem2.p1.m8" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math> to <math id="S1.Thmtheorem2.p1.m9" class="ltx_Math" alttext="T" display="inline"><mi>T</mi></math>.</span></p>
+</div>
+</div>
+<div id="S1.SS1.p6" class="ltx_para">
+<p class="ltx_p">The principle of optimality suggests that an optimal policy can be constructed by solving a sequence of smaller subproblems.
+One may first solve the tail subproblem involving only the final stage, then extend this solution to the tail subproblem involving the last two stages, and continue in this manner until an optimal policy for the entire horizon is obtained.
+The dynamic programming algorithm is based precisely on this idea: it proceeds backward in time, solving tail subproblems of increasing length by reusing solutions to shorter tail subproblems.</p>
+</div>
+<div id="S1.Thmexample1" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 17.1.1</span></span><span class="ltx_text ltx_font_bold"> </span>(Shortest-Path Problem)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmexample1.p1" class="ltx_para">
+<p class="ltx_p">Consider the deterministic shortest-path problem shown in Figure&#160;<a href="#S1.F2" title="Figure 17.2 ‣ Example 17.1.1 (Shortest-Path Problem). ‣ 17.1.1 The Principle of Optimality ‣ 17.1 Deterministic Sequential Decision Making" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.2</span></a>, where the objective is to find an optimal path from point <math id="S1.Thmexample1.p1.m1" class="ltx_Math" alttext="b" display="inline"><mi>b</mi></math> to point <math id="S1.Thmexample1.p1.m2" class="ltx_Math" alttext="f" display="inline"><mi>f</mi></math>.
+Suppose that the optimal costs from points <math id="S1.Thmexample1.p1.m3" class="ltx_Math" alttext="c" display="inline"><mi>c</mi></math>, <math id="S1.Thmexample1.p1.m4" class="ltx_Math" alttext="d" display="inline"><mi>d</mi></math>, and <math id="S1.Thmexample1.p1.m5" class="ltx_Math" alttext="e" display="inline"><mi>e</mi></math> to <math id="S1.Thmexample1.p1.m6" class="ltx_Math" alttext="f" display="inline"><mi>f</mi></math> are already known.</p>
+</div>
+<figure id="S1.F2" class="ltx_figure"><img style="width:65%;height:auto" src="/book-assets/decision-making/figs__ch20_figs__princopt2.png" id="S1.F2.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 17.2</span>: </span><span class="ltx_text" style="font-size:90%;">By leveraging optimal tail costs, the number of candidate paths that must be evaluated when searching from <math id="S1.F2.m3" class="ltx_Math" alttext="b" display="inline"><mi>b</mi></math> to <math id="S1.F2.m4" class="ltx_Math" alttext="f" display="inline"><mi>f</mi></math> is dramatically reduced. Adapted from <span class="ltx_cite">Kirk (2004)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">3</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">3.</span> Kirk, D. E. <em>Optimal Control Theory: An Introduction</em>. Dover Publications, 2004.</span></span></span>.</span></figcaption>
+</figure>
+</div>
+<div id="S1.SS1.p7" class="ltx_para">
+<p class="ltx_p">A brute-force approach would require evaluating all possible paths from <math id="S1.SS1.p7.m1" class="ltx_Math" alttext="b" display="inline"><mi>b</mi></math> to <math id="S1.SS1.p7.m2" class="ltx_Math" alttext="f" display="inline"><mi>f</mi></math>, including:</p>
+<table id="S1.Ex2" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex2.m1" class="ltx_Math" alttext="\begin{split}\{b\rightarrow c\rightarrow f,\;b\rightarrow c\rightarrow d%
+\rightarrow f,\;b\rightarrow c\rightarrow d\rightarrow e\rightarrow f,\;b%
+\rightarrow d\rightarrow c\rightarrow f,\;b\rightarrow d\rightarrow f,\\
+b\rightarrow d\rightarrow e\rightarrow f,\;b\rightarrow e\rightarrow d%
+\rightarrow c\rightarrow f,\;b\rightarrow e\rightarrow d\rightarrow f,\;b%
+\rightarrow e\rightarrow f\}.\end{split}" display="block"><mtable displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mo stretchy="false">{</mo><mi>b</mi><mo stretchy="false">→</mo><mi>c</mi><mo stretchy="false">→</mo><mi>f</mi><mo rspace="0.447em">,</mo><mi>b</mi><mo stretchy="false">→</mo><mi>c</mi><mo stretchy="false">→</mo><mi>d</mi><mo stretchy="false">→</mo><mi>f</mi><mo rspace="0.447em">,</mo><mi>b</mi><mo stretchy="false">→</mo><mi>c</mi><mo stretchy="false">→</mo><mi>d</mi><mo stretchy="false">→</mo><mi>e</mi><mo stretchy="false">→</mo><mi>f</mi><mo rspace="0.447em">,</mo><mi>b</mi><mo stretchy="false">→</mo><mi>d</mi><mo stretchy="false">→</mo><mi>c</mi><mo stretchy="false">→</mo><mi>f</mi><mo rspace="0.447em">,</mo><mi>b</mi><mo stretchy="false">→</mo><mi>d</mi><mo stretchy="false">→</mo><mi>f</mi><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mi>b</mi><mo stretchy="false">→</mo><mi>d</mi><mo stretchy="false">→</mo><mi>e</mi><mo stretchy="false">→</mo><mi>f</mi><mo rspace="0.447em">,</mo><mi>b</mi><mo stretchy="false">→</mo><mi>e</mi><mo stretchy="false">→</mo><mi>d</mi><mo stretchy="false">→</mo><mi>c</mi><mo stretchy="false">→</mo><mi>f</mi><mo rspace="0.447em">,</mo><mi>b</mi><mo stretchy="false">→</mo><mi>e</mi><mo stretchy="false">→</mo><mi>d</mi><mo stretchy="false">→</mo><mi>f</mi><mo rspace="0.447em">,</mo><mi>b</mi><mo stretchy="false">→</mo><mi>e</mi><mo stretchy="false">→</mo><mi>f</mi><mo stretchy="false">}</mo><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">By exploiting the principle of optimality, we know that any optimal path from <math id="S1.SS1.p7.m3" class="ltx_Math" alttext="b" display="inline"><mi>b</mi></math> to <math id="S1.SS1.p7.m4" class="ltx_Math" alttext="f" display="inline"><mi>f</mi></math> must consist of an immediate step from <math id="S1.SS1.p7.m5" class="ltx_Math" alttext="b" display="inline"><mi>b</mi></math> to one of its neighboring points (<math id="S1.SS1.p7.m6" class="ltx_Math" alttext="c" display="inline"><mi>c</mi></math>, <math id="S1.SS1.p7.m7" class="ltx_Math" alttext="d" display="inline"><mi>d</mi></math>, or <math id="S1.SS1.p7.m8" class="ltx_Math" alttext="e" display="inline"><mi>e</mi></math>), followed by an optimal path from that neighboring point to <math id="S1.SS1.p7.m9" class="ltx_Math" alttext="f" display="inline"><mi>f</mi></math>.
+Thus, only three candidate paths need to be evaluated:</p>
+<table id="S1.Ex3" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex3.m1" class="ltx_Math" alttext="b\rightarrow c\rightarrow f,\quad b\rightarrow d\rightarrow f,\quad b%
+\rightarrow e\rightarrow f," display="block"><mrow><mrow><mrow><mi>b</mi><mo stretchy="false">→</mo><mi>c</mi><mo stretchy="false">→</mo><mi>f</mi></mrow><mo rspace="1.167em">,</mo><mrow><mi>b</mi><mo stretchy="false">→</mo><mi>d</mi><mo stretchy="false">→</mo><mi>f</mi></mrow><mo rspace="1.167em">,</mo><mrow><mi>b</mi><mo stretchy="false">→</mo><mi>e</mi><mo stretchy="false">→</mo><mi>f</mi></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where the optimal path can be found by selecting the minimum-cost path among:</p>
+<table id="S1.Ex4" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex4.m1" class="ltx_Math" alttext="\{J_{bc}+J^{*}_{cf},\;J_{bd}+J^{*}_{df},\;J_{be}+J^{*}_{ef}\}." display="block"><mrow><mrow><mo stretchy="false">{</mo><mrow><msub><mi>J</mi><mrow><mi>b</mi><mo>⁢</mo><mi>c</mi></mrow></msub><mo>+</mo><msubsup><mi>J</mi><mrow><mi>c</mi><mo>⁢</mo><mi>f</mi></mrow><mo>∗</mo></msubsup></mrow><mo rspace="0.447em">,</mo><mrow><msub><mi>J</mi><mrow><mi>b</mi><mo>⁢</mo><mi>d</mi></mrow></msub><mo>+</mo><msubsup><mi>J</mi><mrow><mi>d</mi><mo>⁢</mo><mi>f</mi></mrow><mo>∗</mo></msubsup></mrow><mo rspace="0.447em">,</mo><mrow><msub><mi>J</mi><mrow><mi>b</mi><mo>⁢</mo><mi>e</mi></mrow></msub><mo>+</mo><msubsup><mi>J</mi><mrow><mi>e</mi><mo>⁢</mo><mi>f</mi></mrow><mo>∗</mo></msubsup></mrow><mo stretchy="false">}</mo></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">This simple example illustrates the central idea underlying dynamic programming, where optimal tail costs are reused to efficiently construct optimal solutions to larger problems.
+We now formalize this idea into a systematic algorithm for solving sequential decision making problems.</p>
+</div>
+</section>
+<section id="S1.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">17.1.2 </span>The Dynamic Programming Algorithm</h3>
+
+<div id="S1.SS2.p1" class="ltx_para">
+<p class="ltx_p">The principle of optimality provides a powerful structural property of optimal solutions, but by itself it does not specify how such solutions should be computed.
+Dynamic programming turns this structural insight into a concrete computational procedure to find optimal control policies.</p>
+</div>
+<div id="S1.SS2.p2" class="ltx_para">
+<p class="ltx_p">Rather than attempting to find an optimal control sequence over the entire horizon at once, dynamic programming proceeds by solving a sequence of smaller subproblems backward in time.
+This motivates the introduction of the so-called <em class="ltx_emph ltx_font_italic">cost-to-go</em> function.
+For each time <math id="S1.SS2.p2.m1" class="ltx_Math" alttext="t\in\{0,\dots,T\}" display="inline"><mrow><mi>t</mi><mo>∈</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mi>T</mi><mo stretchy="false">}</mo></mrow></mrow></math> and each state <math id="S1.SS2.p2.m2" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math>, define the optimal cost-to-go <math id="S1.SS2.p2.m3" class="ltx_Math" alttext="J_{t}^{*}(\bm{x}_{t})" display="inline"><mrow><msubsup><mi>J</mi><mi>t</mi><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math> as the minimum achievable cost when the system starts from state <math id="S1.SS2.p2.m4" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math> at time <math id="S1.SS2.p2.m5" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math> and evolves optimally until the terminal time <math id="S1.SS2.p2.m6" class="ltx_Math" alttext="T" display="inline"><mi>T</mi></math>.
+By definition, the cost-to-go at time <math id="S1.SS2.p2.m7" class="ltx_Math" alttext="T" display="inline"><mi>T</mi></math> coincides with the terminal cost:</p>
+<table id="S1.Ex5" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex5.m1" class="ltx_Math" alttext="J_{T}^{*}(\bm{x}_{T})=g_{T}(\bm{x}_{T}),\quad\forall\bm{x}_{T}\in\mathcal{X}," display="block"><mrow><mrow><mrow><mrow><msubsup><mi>J</mi><mi>T</mi><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>T</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><msub><mi>g</mi><mi>T</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>T</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo rspace="1.167em">,</mo><mrow><mrow><mo rspace="0.167em">∀</mo><msub><mi>𝒙</mi><mi>T</mi></msub></mrow><mo>∈</mo><mi class="ltx_font_mathcaligraphic">𝒳</mi></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">since no further decisions remain to be made after time <math id="S1.SS2.p2.m8" class="ltx_Math" alttext="T" display="inline"><mi>T</mi></math>.</p>
+</div>
+<div id="S1.SS2.p3" class="ltx_para">
+<p class="ltx_p">The principle of optimality implies that the optimal cost-to-go functions satisfy a recursive relationship, where the cost-to-go at time <math id="S1.SS2.p3.m1" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math> can be expressed in terms of the stage cost at time <math id="S1.SS2.p3.m2" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math> and the cost-to-go at time <math id="S1.SS2.p3.m3" class="ltx_Math" alttext="t+1" display="inline"><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></math>:</p>
+<table id="S1.E6" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E6.m1" class="ltx_Math" alttext="J_{t}^{*}(\bm{x}_{t})=\min_{\bm{u}_{t}\in\mathcal{U}(\bm{x}_{t})}\Bigl{[}g_{t}%
+(\bm{x}_{t},\bm{u}_{t})+J_{t+1}^{*}\bigl{(}f_{t}(\bm{x}_{t},\bm{u}_{t})\bigr{)%
+}\Bigr{]},\qquad t=0,\dots,T-1." display="block"><mrow><mrow><mrow><mrow><msubsup><mi>J</mi><mi>t</mi><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><munder><mi>min</mi><mrow><msub><mi>𝒖</mi><mi>t</mi></msub><mo>∈</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒰</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></munder><mo>⁡</mo><mrow><mo maxsize="160%" minsize="160%">[</mo><mrow><mrow><msub><mi>g</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo maxsize="120%" minsize="120%">(</mo><mrow><msub><mi>f</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo maxsize="120%" minsize="120%">)</mo></mrow></mrow></mrow><mo maxsize="160%" minsize="160%">]</mo></mrow></mrow></mrow><mo rspace="2.167em">,</mo><mrow><mi>t</mi><mo>=</mo><mrow><mn>0</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(17.6)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">This equation, often referred to as the Bellman equation, expresses the <em class="ltx_emph ltx_font_italic">global</em> optimization problem in terms of a <em class="ltx_emph ltx_font_italic">local</em> minimization combined with the optimal solution of a shorter-horizon problem.</p>
+</div>
+<div id="S1.SS2.p4" class="ltx_para">
+<p class="ltx_p">In practice, the dynamic programming algorithm leverages the Bellman equation to compute the optimal cost-to-go functions via a backward-in-time recursion, as summarized in Algorithm&#160;<a href="#algorithm1" title="In 17.1.2 The Dynamic Programming Algorithm ‣ 17.1 Deterministic Sequential Decision Making" class="ltx_ref"><span class="ltx_text ltx_ref_tag">1</span></a>.
+Starting from the known terminal cost <math id="S1.SS2.p4.m1" class="ltx_Math" alttext="J_{T}^{*}" display="inline"><msubsup><mi>J</mi><mi>T</mi><mo>∗</mo></msubsup></math>, one computes <math id="S1.SS2.p4.m2" class="ltx_Math" alttext="J_{T-1}^{*}" display="inline"><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow><mo>∗</mo></msubsup></math>, then <math id="S1.SS2.p4.m3" class="ltx_Math" alttext="J_{T-2}^{*}" display="inline"><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>2</mn></mrow><mo>∗</mo></msubsup></math>, and so on, until <math id="S1.SS2.p4.m4" class="ltx_Math" alttext="J_{0}^{*}" display="inline"><msubsup><mi>J</mi><mn>0</mn><mo>∗</mo></msubsup></math> is obtained.
+At each stage of this backward recursion, the optimal tail cost is computed for every state in the state space.
+The result is a collection of functions <math id="S1.SS2.p4.m5" class="ltx_Math" alttext="\{J_{t}^{*}(\cdot)\}_{t=0}^{T}" display="inline"><msubsup><mrow><mo stretchy="false">{</mo><mrow><msubsup><mi>J</mi><mi>t</mi><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mo lspace="0em" rspace="0em">⋅</mo><mo stretchy="false">)</mo></mrow></mrow><mo stretchy="false">}</mo></mrow><mrow><mi>t</mi><mo>=</mo><mn>0</mn></mrow><mi>T</mi></msubsup></math> that completely characterize the optimal performance of the system from any state and time.</p>
+</div>
+<figure id="algorithm1" class="ltx_float ltx_algorithm">
+<div class="ltx_listing ltx_lst_numbers_left ltx_listing">
+<div class="ltx_listingline"><math id="algorithm1.m1" class="ltx_Math" alttext="J^{*}_{T}(\bm{x}_{T})=g_{T}(\bm{x}_{T})," display="inline"><mrow><mrow><mrow><msubsup><mi>J</mi><mi>T</mi><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>T</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><msub><mi>g</mi><mi>T</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>T</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math> for all <math id="algorithm1.m2" class="ltx_Math" alttext="\bm{x}_{T}\in\mathcal{X}" display="inline"><mrow><msub><mi>𝒙</mi><mi>T</mi></msub><mo>∈</mo><mi class="ltx_font_mathcaligraphic">𝒳</mi></mrow></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">for</span> <em class="ltx_emph ltx_font_italic"><math id="algorithm1.m3" class="ltx_Math" alttext="t=T-1" display="inline"><mrow><mi>t</mi><mo>=</mo><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></mrow></math> <span class="ltx_text ltx_font_bold ltx_font_upright">to</span> <math id="algorithm1.m4" class="ltx_Math" alttext="0" display="inline"><mn>0</mn></math></em> <span class="ltx_text ltx_font_bold">do</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm1.m5" class="ltx_Math" alttext="J^{*}_{t}(\bm{x}_{t})=\min_{\bm{u}_{t}\in\mathcal{U}(\bm{x}_{t})}\Bigl{[}g_{t}%(\bm{x}_{t},\bm{u}_{t})+J_{t+1}^{*}\bigl{(}f_{t}(\bm{x}_{t},\bm{u}_{t})\bigr{)%}\Bigr{]},\qquad" display="inline"><mrow><mrow><mrow><msubsup><mi>J</mi><mi>t</mi><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><msub><mi>min</mi><mrow><msub><mi>𝒖</mi><mi>t</mi></msub><mo>∈</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒰</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></msub><mo>⁡</mo><mrow><mo maxsize="160%" minsize="160%">[</mo><mrow><mrow><msub><mi>g</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo maxsize="120%" minsize="120%">(</mo><mrow><msub><mi>f</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo maxsize="120%" minsize="120%">)</mo></mrow></mrow></mrow><mo maxsize="160%" minsize="160%">]</mo></mrow></mrow></mrow><mo>,</mo></mrow></math> for all <math id="algorithm1.m6" class="ltx_Math" alttext="\bm{x}_{t}\in\mathcal{X}" display="inline"><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>∈</mo><mi class="ltx_font_mathcaligraphic">𝒳</mi></mrow></math></div>
+<div class="ltx_listingline">&#160;</div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">return</span> <math id="algorithm1.m7" class="ltx_Math" alttext="J^{*}_{0}(\cdot),\dots,J^{*}_{T}(\cdot)" display="inline"><mrow><mrow><msubsup><mi>J</mi><mn>0</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mo lspace="0em" rspace="0em">⋅</mo><mo stretchy="false">)</mo></mrow></mrow><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><msubsup><mi>J</mi><mi>T</mi><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mo lspace="0em" rspace="0em">⋅</mo><mo stretchy="false">)</mo></mrow></mrow></mrow></math></div>
+</div>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_float"><span class="ltx_text ltx_font_bold">Algorithm 1</span> </span>Dynamic Programming (Deterministic)</figcaption>
+</figure>
+<div id="S1.SS2.p5" class="ltx_para">
+<p class="ltx_p">Once the cost-to-go functions have been computed, the optimal control at each time step is obtained by minimizing the sum of the immediate cost and the optimal cost-to-go of the resulting next state:</p>
+<table id="S1.Ex6" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex6.m1" class="ltx_Math" alttext="\bm{u}_{t}^{*}=\operatorname*{arg\,min}_{\bm{u}_{t}\in\mathcal{U}(\bm{x}_{t}^{%
+*})}\Bigl{[}g_{t}(\bm{x}_{t}^{*},\bm{u}_{t})+J_{t+1}^{*}\bigl{(}f_{t}(\bm{x}_{%
+t}^{*},\bm{u}_{t})\bigr{)}\Bigr{]}." display="block"><mrow><mrow><msubsup><mi>𝒖</mi><mi>t</mi><mo>∗</mo></msubsup><mo>=</mo><mrow><munder><mrow><mi>arg</mi><mo lspace="0.170em">⁢</mo><mi>min</mi></mrow><mrow><msub><mi>𝒖</mi><mi>t</mi></msub><mo>∈</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒰</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msubsup><mi>𝒙</mi><mi>t</mi><mo>∗</mo></msubsup><mo stretchy="false">)</mo></mrow></mrow></mrow></munder><mo>⁡</mo><mrow><mo maxsize="160%" minsize="160%">[</mo><mrow><mrow><msub><mi>g</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msubsup><mi>𝒙</mi><mi>t</mi><mo>∗</mo></msubsup><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo maxsize="120%" minsize="120%">(</mo><mrow><msub><mi>f</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msubsup><mi>𝒙</mi><mi>t</mi><mo>∗</mo></msubsup><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo maxsize="120%" minsize="120%">)</mo></mrow></mrow></mrow><mo maxsize="160%" minsize="160%">]</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">The system is then propagated to the next state <math id="S1.SS2.p5.m1" class="ltx_Math" alttext="\bm{x}_{t+1}^{*}=f_{t}(\bm{x}_{t}^{*},\bm{u}_{t}^{*})" display="inline"><mrow><msubsup><mi>𝒙</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow><mo>∗</mo></msubsup><mo>=</mo><mrow><msub><mi>f</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msubsup><mi>𝒙</mi><mi>t</mi><mo>∗</mo></msubsup><mo>,</mo><msubsup><mi>𝒖</mi><mi>t</mi><mo>∗</mo></msubsup><mo stretchy="false">)</mo></mrow></mrow></mrow></math>, and the process is repeated until the terminal time <math id="S1.SS2.p5.m2" class="ltx_Math" alttext="T" display="inline"><mi>T</mi></math> is reached.
+Conceptually, the backward pass computes the optimal cost-to-go functions of every tail subproblem, while the forward pass uses these functions to compute the actions that realize these optimal costs.</p>
+</div>
+<div id="S1.SS2.p6" class="ltx_para">
+<p class="ltx_p">Although dynamic programming yields an exact solution to the deterministic decision making problem, its direct application is often limited by computational considerations.
+The backward recursion requires evaluating the Bellman equation for every possible state at every time step, which may be infeasible when the state space is continuous or very large.
+Discretization of the state space may render the algorithm implementable, but even then the computational burden can grow rapidly with the dimension of the state.
+These challenges motivate the development of approximate methods that retain the conceptual framework of dynamic programming while relaxing its computational demands.</p>
+</div>
+<div id="S1.SS2.p7" class="ltx_para">
+<p class="ltx_p">Despite these practical limitations, dynamic programming occupies a central role in sequential decision making.
+It provides the canonical solution method for finite-horizon problems, offers a precise interpretation of optimality through cost-to-go functions, and serves as the conceptual foundation for a wide range of learning-based control algorithms.</p>
+</div>
+<div id="S1.Thmexample2" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 17.1.2</span></span><span class="ltx_text ltx_font_bold"> </span>(Grid Navigation)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmexample2.p1" class="ltx_para">
+<p class="ltx_p">Consider the environment shown in Figure&#160;<a href="#S1.F3" title="Figure 17.3 ‣ Example 17.1.2 (Grid Navigation). ‣ 17.1.2 The Dynamic Programming Algorithm ‣ 17.1 Deterministic Sequential Decision Making" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.3</span></a>, where the objective is to move from point <math id="S1.Thmexample2.p1.m1" class="ltx_Math" alttext="a" display="inline"><mi>a</mi></math> to point <math id="S1.Thmexample2.p1.m2" class="ltx_Math" alttext="h" display="inline"><mi>h</mi></math> while incurring the minimum possible cost.
+The state <math id="S1.Thmexample2.p1.m3" class="ltx_Math" alttext="\bm{x}=\{a,b,c,d,e,f,g,h\}" display="inline"><mrow><mi>𝒙</mi><mo>=</mo><mrow><mo stretchy="false">{</mo><mi>a</mi><mo>,</mo><mi>b</mi><mo>,</mo><mi>c</mi><mo>,</mo><mi>d</mi><mo>,</mo><mi>e</mi><mo>,</mo><mi>f</mi><mo>,</mo><mi>g</mi><mo>,</mo><mi>h</mi><mo stretchy="false">}</mo></mrow></mrow></math> corresponds to the agent’s current location on the grid, and the available control actions at each state are encoded by the arrows indicating allowable directions of travel.
+For example, at point <math id="S1.Thmexample2.p1.m4" class="ltx_Math" alttext="c" display="inline"><mi>c</mi></math> the agent may move either right or up, but not left or down.
+Each directed edge is associated with a nonnegative traversal cost, as shown in the figure.</p>
+</div>
+<figure id="S1.F3" class="ltx_figure"><img style="width:80%;height:auto" src="/book-assets/decision-making/figs__ch20_figs__dpexample.png" id="S1.F3.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 17.3</span>: </span><span class="ltx_text" style="font-size:90%;">A deterministic decision making problem where the goal is to move from point <math id="S1.F3.m4" class="ltx_Math" alttext="a" display="inline"><mi>a</mi></math> to point <math id="S1.F3.m5" class="ltx_Math" alttext="h" display="inline"><mi>h</mi></math> while incurring the minimal amount of cost.
+The path <math id="S1.F3.m6" class="ltx_Math" alttext="a\rightarrow d\rightarrow e\rightarrow f\rightarrow g\rightarrow h" display="inline"><mrow><mi>a</mi><mo stretchy="false">→</mo><mi>d</mi><mo stretchy="false">→</mo><mi>e</mi><mo stretchy="false">→</mo><mi>f</mi><mo stretchy="false">→</mo><mi>g</mi><mo stretchy="false">→</mo><mi>h</mi></mrow></math> is the optimal path.
+We solve this problem by dynamic programming in Example&#160;<a href="#S1.Thmexample2" title="Example 17.1.2 (Grid Navigation). ‣ 17.1.2 The Dynamic Programming Algorithm ‣ 17.1 Deterministic Sequential Decision Making" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.1.2</span></a>. Adapted from <span class="ltx_cite">Kirk (2004)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">4</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">4.</span> Kirk, D. E. <em>Optimal Control Theory: An Introduction</em>. Dover Publications, 2004.</span></span></span>.</span></figcaption>
+</figure>
+<div id="S1.Thmexample2.p2" class="ltx_para">
+<p class="ltx_p">We treat point <math id="S1.Thmexample2.p2.m1" class="ltx_Math" alttext="h" display="inline"><mi>h</mi></math> as a terminal state with zero terminal cost, so that:</p>
+<table id="S1.Ex7" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex7.m1" class="ltx_Math" alttext="J^{*}_{T}(h)=0," display="block"><mrow><mrow><mrow><msubsup><mi>J</mi><mi>T</mi><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>h</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mn>0</mn></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">and we allow the agent to remain at <math id="S1.Thmexample2.p2.m2" class="ltx_Math" alttext="h" display="inline"><mi>h</mi></math> at zero cost once it is reached.
+The dynamic programming recursion is initialized at this terminal condition and proceeds backward in time, successively computing the optimal cost-to-go for states that can reach <math id="S1.Thmexample2.p2.m3" class="ltx_Math" alttext="h" display="inline"><mi>h</mi></math> within an increasing number of steps.</p>
+</div>
+<div id="S1.Thmexample2.p3" class="ltx_para">
+<p class="ltx_p">At the first backward step, corresponding to one step from the terminal time, only states that can transition directly to <math id="S1.Thmexample2.p3.m1" class="ltx_Math" alttext="h" display="inline"><mi>h</mi></math> are relevant.
+These are the points <math id="S1.Thmexample2.p3.m2" class="ltx_Math" alttext="e" display="inline"><mi>e</mi></math> and <math id="S1.Thmexample2.p3.m3" class="ltx_Math" alttext="g" display="inline"><mi>g</mi></math>, together with <math id="S1.Thmexample2.p3.m4" class="ltx_Math" alttext="h" display="inline"><mi>h</mi></math> itself.
+The optimal costs-to-go are obtained by adding the immediate transition cost to the terminal cost:</p>
+<table id="S1.Ex8" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex8.m1" class="ltx_math_unparsed" alttext="\begin{split}J^{*}_{T-1}(h)&amp;=0+J^{*}_{T}(h)=0,\quad u^{*}_{T-1}(h)=\text{stay}%
+,\\
+J^{*}_{T-1}(e)&amp;=8+J^{*}_{T}(h)=8,\quad u^{*}_{T-1}(e)=\text{right},\\
+J^{*}_{T-1}(g)&amp;=2+J^{*}_{T}(h)=2,\quad u^{*}_{T-1}(g)=\text{up}.\\
+\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>h</mi><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><mi></mi><mo>=</mo><mrow><mn>0</mn><mo>+</mo><mrow><msubsup><mi>J</mi><mi>T</mi><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>h</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>=</mo><mn>0</mn></mrow><mo rspace="1.167em">,</mo><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>h</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>stay</mtext></mrow></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>e</mi><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><mi></mi><mo>=</mo><mrow><mn>8</mn><mo>+</mo><mrow><msubsup><mi>J</mi><mi>T</mi><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>h</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>=</mo><mn>8</mn></mrow><mo rspace="1.167em">,</mo><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>e</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>right</mtext></mrow></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>g</mi><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><mi></mi><mo>=</mo><mrow><mn>2</mn><mo>+</mo><mrow><msubsup><mi>J</mi><mi>T</mi><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>h</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>=</mo><mn>2</mn></mrow><mo rspace="1.167em">,</mo><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>g</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>up</mtext></mrow></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">At the next step of the recursion, states such as <math id="S1.Thmexample2.p3.m5" class="ltx_Math" alttext="d" display="inline"><mi>d</mi></math> and <math id="S1.Thmexample2.p3.m6" class="ltx_Math" alttext="f" display="inline"><mi>f</mi></math> become relevant, since they can reach <math id="S1.Thmexample2.p3.m7" class="ltx_Math" alttext="h" display="inline"><mi>h</mi></math> in two steps.
+Their optimal costs-to-go are computed by adding the immediate cost of moving to <math id="S1.Thmexample2.p3.m8" class="ltx_Math" alttext="e" display="inline"><mi>e</mi></math> or <math id="S1.Thmexample2.p3.m9" class="ltx_Math" alttext="g" display="inline"><mi>g</mi></math> and then using the previously computed one-step tail costs:</p>
+<table id="S1.Ex9" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex9.m1" class="ltx_Math" alttext="\begin{split}J^{*}_{T-2}(d)=3+J^{*}_{T-1}(e)=11,\quad&amp;u^{*}_{T-2}(d)=\text{%
+right},\\
+J^{*}_{T-2}(f)=3+J^{*}_{T-1}(g)=5,\quad&amp;u^{*}_{T-2}(f)=\text{right}.\\
+\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>2</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>d</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mn>3</mn><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>e</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>=</mo><mn>11</mn></mrow><mo>,</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>2</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>d</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>right</mtext></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>2</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mn>3</mn><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>g</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>=</mo><mn>5</mn></mrow><mo>,</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>2</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>right</mtext></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">At this point, the cost-to-go values represent the optimal cost of reaching <math id="S1.Thmexample2.p3.m10" class="ltx_Math" alttext="h" display="inline"><mi>h</mi></math> in at most two steps from each of the states <math id="S1.Thmexample2.p3.m11" class="ltx_Math" alttext="\{d,e,f,g\}" display="inline"><mrow><mo stretchy="false">{</mo><mi>d</mi><mo>,</mo><mi>e</mi><mo>,</mo><mi>f</mi><mo>,</mo><mi>g</mi><mo stretchy="false">}</mo></mrow></math>.</p>
+</div>
+<div id="S1.Thmexample2.p4" class="ltx_para">
+<p class="ltx_p">As the recursion continues, additional states enter the computation, and some states acquire multiple feasible paths to the terminal state.
+For example, at the next backward step, state <math id="S1.Thmexample2.p4.m1" class="ltx_Math" alttext="e" display="inline"><mi>e</mi></math> may either move directly to <math id="S1.Thmexample2.p4.m2" class="ltx_Math" alttext="h" display="inline"><mi>h</mi></math> or move downward to <math id="S1.Thmexample2.p4.m3" class="ltx_Math" alttext="f" display="inline"><mi>f</mi></math> and then proceed optimally from there.
+The Bellman equation automatically selects the cheaper of these alternatives:</p>
+<table id="S1.Ex10" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex10.m1" class="ltx_Math" alttext="J^{*}_{T-3}(e)=\min\{8+J^{*}_{T-2}(h),\,2+J^{*}_{T-2}(f)\}=7,\quad u^{*}_{T-3}%
+(e)=\text{down}." display="block"><mrow><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>3</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>e</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>min</mi><mo>⁡</mo><mrow><mo stretchy="false">{</mo><mrow><mn>8</mn><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>2</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>h</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo><mrow><mn> 2</mn><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>2</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo stretchy="false">}</mo></mrow></mrow><mo>=</mo><mn>7</mn></mrow><mo rspace="1.167em">,</mo><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>3</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>e</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>down</mtext></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Similarly, the other relevant states at this step are updated as follows:</p>
+<table id="S1.Ex11" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex11.m1" class="ltx_Math" alttext="\begin{split}J^{*}_{T-3}(g)=2,\quad&amp;u^{*}_{T-3}(g)=\text{up},\\
+J^{*}_{T-3}(d)=3+J^{*}_{T-2}(e)=11,\quad&amp;u^{*}_{T-3}(d)=\text{right},\\
+J^{*}_{T-3}(f)=5,\quad&amp;u^{*}_{T-3}(f)=\text{right},\\
+J^{*}_{T-3}(a)=8+J^{*}_{T-2}(d)=19,\quad&amp;u^{*}_{T-3}(a)=\text{right},\\
+J^{*}_{T-3}(c)=\min\{5+J^{*}_{T-2}(d),\&gt;3+J^{*}_{T-2}(f)\}=8,\quad&amp;u^{*}_{T-3}%
+(c)=\text{right}.\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>3</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>g</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mn>2</mn></mrow><mo>,</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>3</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>g</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>up</mtext></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>3</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>d</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mn>3</mn><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>2</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>e</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>=</mo><mn>11</mn></mrow><mo>,</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>3</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>d</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>right</mtext></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>3</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mn>5</mn></mrow><mo>,</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>3</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>right</mtext></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>3</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>a</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mn>8</mn><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>2</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>d</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>=</mo><mn>19</mn></mrow><mo>,</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>3</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>a</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>right</mtext></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>3</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>c</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>min</mi><mo>⁡</mo><mrow><mo stretchy="false">{</mo><mrow><mn>5</mn><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>2</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>d</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo><mrow><mn> 3</mn><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>2</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo stretchy="false">}</mo></mrow></mrow><mo>=</mo><mn>8</mn></mrow><mo>,</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>3</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>c</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>right</mtext></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">At this stage, we see that the goal <math id="S1.Thmexample2.p4.m4" class="ltx_Math" alttext="h" display="inline"><mi>h</mi></math> is reachable from <math id="S1.Thmexample2.p4.m5" class="ltx_Math" alttext="a" display="inline"><mi>a</mi></math> in three time steps on path <math id="S1.Thmexample2.p4.m6" class="ltx_Math" alttext="a\rightarrow d\rightarrow e\rightarrow h" display="inline"><mrow><mi>a</mi><mo stretchy="false">→</mo><mi>d</mi><mo stretchy="false">→</mo><mi>e</mi><mo stretchy="false">→</mo><mi>h</mi></mrow></math>, and that we would incur a cost of 19.</p>
+</div>
+<div id="S1.Thmexample2.p5" class="ltx_para">
+<p class="ltx_p">Extending the horizon further allows the algorithm to discover lower-cost paths that take advantage of additional intermediate states.
+In particular, the recursion continues one more step to yield:</p>
+<table id="S1.Ex12" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex12.m1" class="ltx_Math" alttext="\begin{split}J^{*}_{T-4}(e)=7,\quad&amp;u^{*}_{T-4}(e)=\text{down},\\
+J^{*}_{T-4}(g)=2,\quad&amp;u^{*}_{T-4}(g)=\text{up},\\
+J^{*}_{T-4}(d)=3+J^{*}_{T-3}(e)=10,\quad&amp;u^{*}_{T-4}(d)=\text{right},\\
+J^{*}_{T-4}(f)=5,\quad&amp;u^{*}_{T-4}(f)=\text{right},\\
+J^{*}_{T-4}(a)=8+J^{*}_{T-3}(d)=19,\quad&amp;u^{*}_{T-4}(a)=\text{right},\\
+J^{*}_{T-4}(c)=\min\{5+J^{*}_{T-3}(d),\&gt;3+J^{*}_{T-3}(f)\}=8,\quad&amp;u^{*}_{T-4}%
+(c)=\text{right},\\
+J^{*}_{T-4}(b)=9+J^{*}_{T-3}(c)=17,\quad&amp;u^{*}_{T-4}(b)=\text{right}.\\
+\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>4</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>e</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mn>7</mn></mrow><mo>,</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>4</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>e</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>down</mtext></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>4</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>g</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mn>2</mn></mrow><mo>,</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>4</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>g</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>up</mtext></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>4</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>d</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mn>3</mn><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>3</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>e</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>=</mo><mn>10</mn></mrow><mo>,</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>4</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>d</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>right</mtext></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>4</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mn>5</mn></mrow><mo>,</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>4</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>right</mtext></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>4</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>a</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mn>8</mn><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>3</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>d</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>=</mo><mn>19</mn></mrow><mo>,</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>4</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>a</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>right</mtext></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>4</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>c</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>min</mi><mo>⁡</mo><mrow><mo stretchy="false">{</mo><mrow><mn>5</mn><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>3</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>d</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo><mrow><mn> 3</mn><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>3</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo stretchy="false">}</mo></mrow></mrow><mo>=</mo><mn>8</mn></mrow><mo>,</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>4</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>c</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>right</mtext></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>4</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>b</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mn>9</mn><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>3</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>c</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>=</mo><mn>17</mn></mrow><mo>,</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>4</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>b</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>right</mtext></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Finally, extending the horizon one last time allows the algorithm to find the optimal path from the initial state <math id="S1.Thmexample2.p5.m1" class="ltx_Math" alttext="a" display="inline"><mi>a</mi></math> to the goal state <math id="S1.Thmexample2.p5.m2" class="ltx_Math" alttext="h" display="inline"><mi>h</mi></math>, corresponding to the path <math id="S1.Thmexample2.p5.m3" class="ltx_Math" alttext="a\rightarrow d\rightarrow e\rightarrow f\rightarrow g\rightarrow h" display="inline"><mrow><mi>a</mi><mo stretchy="false">→</mo><mi>d</mi><mo stretchy="false">→</mo><mi>e</mi><mo stretchy="false">→</mo><mi>f</mi><mo stretchy="false">→</mo><mi>g</mi><mo stretchy="false">→</mo><mi>h</mi></mrow></math>, with total cost 18:</p>
+<table id="S1.Ex13" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex13.m1" class="ltx_Math" alttext="\begin{split}J^{*}_{T-5}(e)=7,\quad&amp;u^{*}_{T-5}(e)=\text{down},\\
+J^{*}_{T-5}(g)=2,\quad&amp;u^{*}_{T-5}(g)=\text{up},\\
+J^{*}_{T-5}(d)=10,\quad&amp;u^{*}_{T-5}(d)=\text{right},\\
+J^{*}_{T-5}(f)=5,\quad&amp;u^{*}_{T-5}(f)=\text{right},\\
+J^{*}_{T-5}(a)=\min\{8+J^{*}_{T-4}(d),\&gt;5+J^{*}_{T-4}(b)\}=18,\quad&amp;u^{*}_{T-5%
+}(a)=\text{right},\\
+J^{*}_{T-5}(c)=\min\{5+J^{*}_{T-4}(d),\&gt;3+J^{*}_{T-4}(f)\}=8,\quad&amp;u^{*}_{T-5}%
+(c)=\text{right},\\
+J^{*}_{T-5}(b)=9+J^{*}_{T-4}(c)=17,\quad&amp;u^{*}_{T-5}(b)=\text{right}.\\
+\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>5</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>e</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mn>7</mn></mrow><mo>,</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>5</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>e</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>down</mtext></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>5</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>g</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mn>2</mn></mrow><mo>,</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>5</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>g</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>up</mtext></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>5</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>d</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mn>10</mn></mrow><mo>,</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>5</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>d</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>right</mtext></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>5</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mn>5</mn></mrow><mo>,</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>5</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>right</mtext></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>5</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>a</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>min</mi><mo>⁡</mo><mrow><mo stretchy="false">{</mo><mrow><mn>8</mn><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>4</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>d</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo><mrow><mn> 5</mn><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>4</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>b</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo stretchy="false">}</mo></mrow></mrow><mo>=</mo><mn>18</mn></mrow><mo>,</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>5</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>a</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>right</mtext></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>5</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>c</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>min</mi><mo>⁡</mo><mrow><mo stretchy="false">{</mo><mrow><mn>5</mn><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>4</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>d</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo><mrow><mn> 3</mn><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>4</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>f</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo stretchy="false">}</mo></mrow></mrow><mo>=</mo><mn>8</mn></mrow><mo>,</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>5</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>c</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>right</mtext></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>5</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>b</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mn>9</mn><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>T</mi><mo>−</mo><mn>4</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>c</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>=</mo><mn>17</mn></mrow><mo>,</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msubsup><mi>u</mi><mrow><mi>T</mi><mo>−</mo><mn>5</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>b</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mtext>right</mtext></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Several important features of dynamic programming are illustrated by this example.
+First, the algorithm does not search over complete paths from <math id="S1.Thmexample2.p5.m4" class="ltx_Math" alttext="a" display="inline"><mi>a</mi></math> to <math id="S1.Thmexample2.p5.m5" class="ltx_Math" alttext="h" display="inline"><mi>h</mi></math>.
+Instead, it incrementally builds optimal solutions by reusing previously computed tail costs.
+Second, the algorithm computes optimal costs and controls for <em class="ltx_emph ltx_font_italic">all</em> states, not just the initial state of interest.
+As a result, once the cost-to-go functions have been computed, optimal paths can be generated immediately from any starting point and for any horizon length.
+For example, starting from point <math id="S1.Thmexample2.p5.m6" class="ltx_Math" alttext="c" display="inline"><mi>c</mi></math> with a horizon of three steps, the optimal path <math id="S1.Thmexample2.p5.m7" class="ltx_Math" alttext="c\rightarrow f\rightarrow g\rightarrow h" display="inline"><mrow><mi>c</mi><mo stretchy="false">→</mo><mi>f</mi><mo stretchy="false">→</mo><mi>g</mi><mo stretchy="false">→</mo><mi>h</mi></mrow></math> and its associated cost of <math id="S1.Thmexample2.p5.m8" class="ltx_Math" alttext="8" display="inline"><mn>8</mn></math> can be read off directly, without any additional computation.</p>
+</div>
+</div>
+</section>
+</section>
+<section id="S2" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">17.2 </span>Decision Making Under Uncertainty: Markov Decision Processes</h2>
+
+<div id="S2.p1" class="ltx_para">
+<p class="ltx_p">The deterministic decision making framework developed in Section&#160;<a href="#S1" title="17.1 Deterministic Sequential Decision Making" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.1</span></a> provides a clean and powerful lens through which sequential decision making problems can be understood and solved.
+In realistic robotic systems, however, the environment is never perfectly known, and uncertainty is an intrinsic feature of physical interaction and perception.
+Sensor measurements are noisy, actuation is imperfect, and the environment may evolve in ways that cannot be modeled exactly or anticipated in advance.
+As a result, the evolution of the system state cannot be described deterministically, and decision quality must be evaluated in a statistical sense.</p>
+</div>
+<div id="S2.p2" class="ltx_para">
+<p class="ltx_p">The goal of this section is to extend the deterministic sequential decision making problem in Definition <a href="#S1.Thmtheorem1" title="Definition 17.1 (Deterministic Sequential Decision Making Problem). ‣ 17.1 Deterministic Sequential Decision Making" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.1</span></a> to explicitly account for such uncertainty.
+We begin by deriving a stochastic formulation of the sequential decision making problem that incorporates uncertainty into both the system dynamics and the cost structure, thereby introducing the framework of <em class="ltx_emph ltx_font_italic">Markov decision processes</em> (MDPs).
+This framework is a cornerstone of modern decision making under uncertainty, and will serve as a bridge to the learning-based methods developed in <span class="ltx_ref">the referenced item</span> and <span class="ltx_ref">the referenced item</span>.
+We then adapt the principle of optimality and the dynamic programming algorithm to this stochastic setting.</p>
+</div>
+<section id="S2.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">17.2.1 </span>Problem Formulation</h3>
+
+<div id="S2.SS1.p1" class="ltx_para">
+<p class="ltx_p">We begin by modifying the state transition model in (Equation&#160;<a href="#S1.E1" title="In 17.1 Deterministic Sequential Decision Making" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.1</span></a>) to include a stochastic disturbance:</p>
+<table id="S2.E7" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.E7.m1" class="ltx_Math" alttext="\bm{x}_{t+1}=f_{t}(\bm{x}_{t},\bm{u}_{t},\bm{w}_{t}),\quad t=0,\dots,T-1," display="block"><mrow><mrow><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>=</mo><mrow><msub><mi>f</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒘</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo rspace="1.167em">,</mo><mrow><mi>t</mi><mo>=</mo><mrow><mn>0</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(17.7)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S2.SS1.p1.m1" class="ltx_Math" alttext="\bm{w}_{t}" display="inline"><msub><mi>𝒘</mi><mi>t</mi></msub></math> denotes a stochastic disturbance at time <math id="S2.SS1.p1.m2" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math>.
+The disturbance <math id="S2.SS1.p1.m3" class="ltx_Math" alttext="\bm{w}_{t}" display="inline"><msub><mi>𝒘</mi><mi>t</mi></msub></math> is assumed to be drawn from a known conditional probability distribution:</p>
+<table id="S2.E8" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.E8.m1" class="ltx_Math" alttext="\bm{w}_{t}\sim p_{t}(\bm{w}_{t}\mid\bm{x}_{t},\bm{u}_{t})." display="block"><mrow><mrow><msub><mi>𝒘</mi><mi>t</mi></msub><mo>∼</mo><mrow><msub><mi>p</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒘</mi><mi>t</mi></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(17.8)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">This assumption implies that the distribution of the next state depends only on the current state and action, and not on the full history of the system.
+This conditional independence assumption is an instance of the <em class="ltx_emph ltx_font_italic">Markov property</em><span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.SS1.p1.p1" class="ltx_para">
+<span class="ltx_p">Which we previously encountered in <a class="ltx_ref" href="/book/localization-filtering/">Chapter 11</a> in the context of Bayesian filtering.</span>
+</span></span></span></span></span>, which states that, given the present state and action, the future evolution of the system is independent of the past.
+Accordingly, the state <math id="S2.SS1.p1.m4" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math> can be interpreted as a sufficient summary of all past information relevant for future decision making.</p>
+</div>
+<div id="S2.SS1.p2" class="ltx_para">
+<p class="ltx_p">The admissible control constraints remain unchanged.
+At each time step, the control must satisfy:</p>
+<table id="S2.E9" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.E9.m1" class="ltx_Math" alttext="\bm{u}_{t}\in\mathcal{U}(\bm{x}_{t}),\quad t=0,\dots,T-1," display="block"><mrow><mrow><mrow><msub><mi>𝒖</mi><mi>t</mi></msub><mo>∈</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒰</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo rspace="1.167em">,</mo><mrow><mi>t</mi><mo>=</mo><mrow><mn>0</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(17.9)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S2.SS1.p2.m1" class="ltx_Math" alttext="\mathcal{U}(\bm{x}_{t})" display="inline"><mrow><mi class="ltx_font_mathcaligraphic">𝒰</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math> may encode physical limitations, logical constraints, or discrete action choices.</p>
+</div>
+<div id="S2.SS1.p3" class="ltx_para">
+<p class="ltx_p">We also allow the instantaneous cost to depend explicitly on the disturbance:</p>
+<table id="S2.E10" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.E10.m1" class="ltx_Math" alttext="g_{t}:\mathcal{X}\times\mathcal{U}\times\mathcal{W}\to\mathbb{R},\quad t=0,%
+\dots,T-1," display="block"><mrow><mrow><msub><mi>g</mi><mi>t</mi></msub><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mrow><mrow><mi class="ltx_font_mathcaligraphic">𝒳</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi class="ltx_font_mathcaligraphic">𝒰</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi class="ltx_font_mathcaligraphic">𝒲</mi></mrow><mo stretchy="false">→</mo><mi>ℝ</mi></mrow><mo rspace="1.167em">,</mo><mrow><mi>t</mi><mo>=</mo><mrow><mn>0</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(17.10)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S2.SS1.p3.m1" class="ltx_Math" alttext="\mathcal{W}" display="inline"><mi class="ltx_font_mathcaligraphic">𝒲</mi></math> denotes the space of possible disturbance values.</p>
+</div>
+<div id="S2.SS1.p4" class="ltx_para">
+<p class="ltx_p">Because the system evolution is now stochastic, performance can no longer be evaluated along a single trajectory.
+Instead, we measure performance in expectation.
+Specifically, given a policy <math id="S2.SS1.p4.m1" class="ltx_Math" alttext="\pi=\{\pi_{0},\dots,\pi_{T-1}\}" display="inline"><mrow><mi>π</mi><mo>=</mo><mrow><mo stretchy="false">{</mo><msub><mi>π</mi><mn>0</mn></msub><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msub><mi>π</mi><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="false">}</mo></mrow></mrow></math>, we define the associated expected cost starting from an initial state <math id="S2.SS1.p4.m2" class="ltx_Math" alttext="\bm{x}_{0}" display="inline"><msub><mi>𝒙</mi><mn>0</mn></msub></math> as:</p>
+<table id="S2.E11" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.E11.m1" class="ltx_Math" alttext="J_{\pi}(\bm{x}_{0})=\mathbb{E}_{\bm{w}}\left[\,g_{T}(\bm{x}_{T})+\sum_{t=0}^{T%
+-1}g_{t}(\bm{x}_{t},\pi_{t}(\bm{x}_{t}),\bm{w}_{t})\,\right]," display="block"><mrow><mrow><mrow><msub><mi>J</mi><mi>π</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mn>0</mn></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><msub><mi>𝔼</mi><mi>𝒘</mi></msub><mo>⁢</mo><mrow><mo rspace="0.170em">[</mo><mrow><mrow><msub><mi>g</mi><mi>T</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>T</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.055em">+</mo><mrow><munderover><mo movablelimits="false">∑</mo><mrow><mi>t</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></munderover><mrow><msub><mi>g</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><mrow><msub><mi>π</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>,</mo><msub><mi>𝒘</mi><mi>t</mi></msub><mo rspace="0.170em" stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo>]</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(17.11)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where the expectation is taken with respect to the joint distribution of the disturbance sequence <math id="S2.SS1.p4.m3" class="ltx_Math" alttext="\{\bm{w}_{0},\dots,\bm{w}_{T-1}\}" display="inline"><mrow><mo stretchy="false">{</mo><msub><mi>𝒘</mi><mn>0</mn></msub><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msub><mi>𝒘</mi><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="false">}</mo></mrow></math> induced by the policy <math id="S2.SS1.p4.m4" class="ltx_Math" alttext="\pi" display="inline"><mi>π</mi></math> and the stochastic dynamics (Equation&#160;<a href="#S2.E7" title="In 17.2.1 Problem Formulation ‣ 17.2 Decision Making Under Uncertainty: Markov Decision Processes" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.7</span></a>).
+This formulation corresponds to a <em class="ltx_emph ltx_font_italic">risk-neutral</em> objective, where policies are compared based on their average performance<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.SS1.p4.p1" class="ltx_para">
+<span class="ltx_p">While the expected cost formulation is the most common in the literature, alternative risk measures—such as worst-case performance or risk-sensitive criteria—can also be considered, but are beyond the scope of this chapter.</span>
+</span></span></span></span></span>.</p>
+</div>
+<div id="S2.SS1.p5" class="ltx_para">
+<p class="ltx_p">We can now formally state the stochastic sequential decision making problem.</p>
+</div>
+<div id="S2.Thmtheorem1" class="ltx_theorem ltx_theorem_definition">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Definition 17.1</span></span><span class="ltx_text ltx_font_bold"> </span>(Stochastic Sequential Decision Making Problem)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S2.Thmtheorem1.p1" class="ltx_para">
+<p class="ltx_p">Given the stochastic dynamics (Equation&#160;<a href="#S2.E7" title="In 17.2.1 Problem Formulation ‣ 17.2 Decision Making Under Uncertainty: Markov Decision Processes" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.7</span></a>), the control constraints (Equation&#160;<a href="#S2.E9" title="In 17.2.1 Problem Formulation ‣ 17.2 Decision Making Under Uncertainty: Markov Decision Processes" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.9</span></a>), and the expected cost (Equation&#160;<a href="#S2.E11" title="In 17.2.1 Problem Formulation ‣ 17.2 Decision Making Under Uncertainty: Markov Decision Processes" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.11</span></a>), the stochastic sequential decision making problem consists of computing an optimal policy:</p>
+<table id="S2.Ex14" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex14.m1" class="ltx_Math" alttext="\pi^{*}=\{\pi_{0}^{*},\dots,\pi_{T-1}^{*}\}," display="block"><mrow><mrow><msup><mi>π</mi><mo>∗</mo></msup><mo>=</mo><mrow><mo stretchy="false">{</mo><msubsup><mi>π</mi><mn>0</mn><mo>∗</mo></msubsup><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msubsup><mi>π</mi><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow><mo>∗</mo></msubsup><mo stretchy="false">}</mo></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">that solves:</p>
+<table id="S2.E12" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.E12.m1" class="ltx_math_unparsed" alttext="\begin{split}J^{*}(\bm{x}_{0})=\underset{[}{\text{minimize}}\&gt;\quad\pi]&amp;%
+\mathbb{E}_{\bm{w}}\left[\,g_{T}(\bm{x}_{T})+\sum_{t=0}^{T-1}g_{t}(\bm{x}_{t},%
+\pi_{t}(\bm{x}_{t}),\bm{w}_{t})\,\right],\\
+\text{subject to}\quad&amp;\bm{x}_{t+1}=f_{t}(\bm{x}_{t},\bm{u}_{t},\bm{w}_{t}),%
+\quad t=0,\dots,T-1,\\
+&amp;\bm{u}_{t}=\pi_{t}(\bm{x}_{t})\in\mathcal{U}(\bm{x}_{t}),\&gt;\&gt;t=0,\dots,T-1.%
+\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msup><mi>J</mi><mo>∗</mo></msup><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mn>0</mn></msub><mo stretchy="false">)</mo></mrow><mo>=</mo><munder accentunder="true"><mtext>minimize</mtext><mo fence="false">[</mo></munder><mspace width="1.22222222222222em"></mspace><mi>π</mi><mo stretchy="false">]</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><msub><mi>𝔼</mi><mi>𝒘</mi></msub><mo>⁢</mo><mrow><mo rspace="0.170em">[</mo><mrow><mrow><msub><mi>g</mi><mi>T</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>T</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.055em">+</mo><mrow><munderover><mo movablelimits="false">∑</mo><mrow><mi>t</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></munderover><mrow><msub><mi>g</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><mrow><msub><mi>π</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>,</mo><msub><mi>𝒘</mi><mi>t</mi></msub><mo rspace="0.170em" stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo>]</mo></mrow></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mtext>subject to</mtext></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>=</mo><mrow><msub><mi>f</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒘</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo rspace="1.167em">,</mo><mrow><mi>t</mi><mo>=</mo><mrow><mn>0</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></mrow></mrow></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><msub><mi>𝒖</mi><mi>t</mi></msub><mo>=</mo><mrow><msub><mi>π</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>∈</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒰</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo rspace="0.607em">,</mo><mrow><mi>t</mi><mo>=</mo><mrow><mn>0</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(17.12)</span></td>
+</tr></tbody>
+</table>
+</div>
+</div>
+<div id="S2.SS1.p6" class="ltx_para">
+<p class="ltx_p">This formulation is also known as a finite-horizon <em class="ltx_emph ltx_font_italic">Markov decision process</em>.
+It mirrors the deterministic problem in structure, differing only in the introduction of random disturbances and the use of expected cost as the performance criterion.
+As we will see next, this similarity allows us to extend the principle of optimality and dynamic programming methods to this stochastic setting<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.SS1.p6.p1" class="ltx_para">
+<span class="ltx_p">This problem formulation lies at the core of several disciplines, including optimal control, operations research, robotics, economics, and machine learning. As a result, it is common to encounter substantially different notation and terminology across communities, even when describing essentially the same underlying problem. In this chapter, we adopt notation that is standard in optimal control. In the next chapter, we will reintroduce the same problem using notation that is more common in the machine learning and reinforcement learning literature. For a broader discussion of the connections, overlaps, and distinctions among these perspectives, we refer the reader to <span class="ltx_cite">Powell (2012)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">5</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">5.</span> Powell, W. B. “AI, OR and control theory: A Rosetta Stone for stochastic optimization.” In <em>Princeton University</em>, 2012.</span></span></span>.</span>
+</span></span></span></span></span>.</p>
+</div>
+</section>
+<section id="S2.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">17.2.2 </span>Stochastic Decision Making with Dynamic Programming</h3>
+
+<div id="S2.SS2.p1" class="ltx_para">
+<p class="ltx_p">As in the deterministic case, the key property that enables efficient solution methods for the stochastic sequential decision making problem is the principle of optimality.
+In this subsection, we first state the principle of optimality for the stochastic setting, and then show how it leads to a dynamic programming recursion for computing optimal policies.</p>
+</div>
+<section id="S2.SS2.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Principle of Optimality.</h4>
+
+<div id="S2.SS2.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">In the stochastic setting, the core intuition behind the principle of optimality—that optimal policies can be constructed by composing optimal solutions to tail subproblems—remains valid.
+However, it must be formulated in terms of <em class="ltx_emph ltx_font_italic">expected</em> future cost.
+Because state transitions are random, it is no longer meaningful to reason in terms of a single “optimal trajectory”.
+Instead, policies are evaluated by the expected cumulative cost they induce under the stochastic elements in the system.</p>
+</div>
+<div id="S2.SS2.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">The crucial assumption that enables a recursive decomposition is the Markov property.
+Specifically, as introduced in <a class="ltx_ref" href="/book/localization-filtering/">Chapter 11</a>, the Markov property ensures that the future evolution of the system depends only on the current state and action, and not on the full history leading up to that state.
+Consequently, the expected cost incurred from time <math id="S2.SS2.SSS0.Px1.p2.m1" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math> onward depends only on <math id="S2.SS2.SSS0.Px1.p2.m2" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math> and the future actions selected by the policy.</p>
+</div>
+<div id="S2.SS2.SSS0.Px1.p3" class="ltx_para">
+<p class="ltx_p">Under this assumption, if a policy is optimal from the initial condition, then after reaching any intermediate state <math id="S2.SS2.SSS0.Px1.p3.m1" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math>, the remaining portion of that policy must still be optimal for the tail problem that starts at <math id="S2.SS2.SSS0.Px1.p3.m2" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math>.
+If this were not the case, the tail could be replaced by an alternative policy with strictly lower expected cost, thereby reducing the overall expected cost and contradicting the optimality of the original policy.</p>
+</div>
+<div id="S2.SS2.SSS0.Px1.p4" class="ltx_para">
+<p class="ltx_p">Formally, we can state the principle of optimality for the stochastic decision making problem as follows:</p>
+</div>
+<div id="S2.Thmtheorem2" class="ltx_theorem ltx_theorem_theorem">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Theorem 17.2</span></span><span class="ltx_text ltx_font_bold"> </span>(Principle of Optimality (Stochastic Case))<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S2.Thmtheorem2.p1" class="ltx_para">
+<p class="ltx_p"><span class="ltx_text ltx_font_italic">Let <math id="S2.Thmtheorem2.p1.m1" class="ltx_Math" alttext="\pi^{*}=\{\pi_{0}^{*},\pi_{1}^{*},\dots,\pi_{T-1}^{*}\}" display="inline"><mrow><msup><mi>π</mi><mo>∗</mo></msup><mo>=</mo><mrow><mo stretchy="false">{</mo><msubsup><mi>π</mi><mn>0</mn><mo>∗</mo></msubsup><mo>,</mo><msubsup><mi>π</mi><mn>1</mn><mo>∗</mo></msubsup><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msubsup><mi>π</mi><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow><mo>∗</mo></msubsup><mo stretchy="false">}</mo></mrow></mrow></math> be an optimal policy for the stochastic decision making problem defined in Problem <a href="#S2.E12" title="In Definition 17.1 (Stochastic Sequential Decision Making Problem). ‣ 17.2.1 Problem Formulation ‣ 17.2 Decision Making Under Uncertainty: Markov Decision Processes" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.12</span></a>.
+For any time <math id="S2.Thmtheorem2.p1.m2" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math> and any state <math id="S2.Thmtheorem2.p1.m3" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝐱</mi><mi>t</mi></msub></math> that is reachable under <math id="S2.Thmtheorem2.p1.m4" class="ltx_Math" alttext="\pi^{*}" display="inline"><msup><mi>π</mi><mo>∗</mo></msup></math>, the tail policy <math id="S2.Thmtheorem2.p1.m5" class="ltx_Math" alttext="\{\pi_{t}^{*},\dots,\pi_{T-1}^{*}\}" display="inline"><mrow><mo stretchy="false">{</mo><msubsup><mi>π</mi><mi>t</mi><mo>∗</mo></msubsup><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msubsup><mi>π</mi><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow><mo>∗</mo></msubsup><mo stretchy="false">}</mo></mrow></math> is an optimal policy for the tail subproblem that starts at time <math id="S2.Thmtheorem2.p1.m6" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math> from state <math id="S2.Thmtheorem2.p1.m7" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝐱</mi><mi>t</mi></msub></math> and minimizes the expected cost:</span></p>
+<table id="S2.Ex15" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex15.m1" class="ltx_Math" alttext="J_{\pi}(\bm{x}_{t})=\mathbb{E}_{\bm{w}}\left[\,g_{T}(\bm{x}_{T})+\sum_{i=t}^{T%
+-1}g_{i}(\bm{x}_{i},\pi_{i}(\bm{x}_{i}),\bm{w}_{i})\,\right]." display="block"><mrow><mrow><mrow><msub><mi>J</mi><mi>π</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><msub><mi>𝔼</mi><mi>𝒘</mi></msub><mo>⁢</mo><mrow><mo rspace="0.170em">[</mo><mrow><mrow><msub><mi>g</mi><mi>T</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>T</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.055em">+</mo><mrow><munderover><mo movablelimits="false">∑</mo><mrow><mi>i</mi><mo>=</mo><mi>t</mi></mrow><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></munderover><mrow><msub><mi>g</mi><mi>i</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>i</mi></msub><mo>,</mo><mrow><msub><mi>π</mi><mi>i</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>,</mo><msub><mi>𝒘</mi><mi>i</mi></msub><mo rspace="0.170em" stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo>]</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+</div>
+<div id="S2.SS2.SSS0.Px1.p5" class="ltx_para">
+<p class="ltx_p">As in the deterministic case, this result implies that optimal policies can be constructed by solving a sequence of nested tail subproblems, with dynamic programming providing a systematic procedure for carrying out this backward construction, as we describe next.</p>
+</div>
+</section>
+<section id="S2.SS2.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Dynamic Programming.</h4>
+
+<div id="S2.SS2.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">The dynamic programming algorithm for the stochastic case closely mirrors its deterministic counterpart.
+It proceeds backward in time, starting from the terminal cost:</p>
+<table id="S2.Ex16" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex16.m1" class="ltx_Math" alttext="J_{T}^{*}(\bm{x}_{T})=g_{T}(\bm{x}_{T}),\quad\forall\bm{x}_{T}\in\mathcal{X}," display="block"><mrow><mrow><mrow><mrow><msubsup><mi>J</mi><mi>T</mi><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>T</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><msub><mi>g</mi><mi>T</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>T</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo rspace="1.167em">,</mo><mrow><mrow><mo rspace="0.167em">∀</mo><msub><mi>𝒙</mi><mi>T</mi></msub></mrow><mo>∈</mo><mi class="ltx_font_mathcaligraphic">𝒳</mi></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">and successively computing the optimal cost-to-go for earlier stages.
+At each step, the algorithm evaluates, for every state, the expected cost associated with each admissible control and selects the minimizing one.
+Similarly, the cost-to-go can be expressed recursively, yielding the (stochastic) Bellman equation:</p>
+<table id="S2.E13" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.E13.m1" class="ltx_Math" alttext="J_{t}^{*}(\bm{x}_{t})=\min_{\bm{u}_{t}\in\mathcal{U}(\bm{x}_{t})}\mathbb{E}_{%
+\bm{w}}\left[g_{t}(\bm{x}_{t},\bm{u}_{t},\bm{w}_{t})+J_{t+1}^{*}\!\bigl{(}f_{t%
+}(\bm{x}_{t},\bm{u}_{t},\bm{w}_{t})\bigr{)}\right],\qquad t=0,\dots,T-1." display="block"><mrow><mrow><mrow><mrow><msubsup><mi>J</mi><mi>t</mi><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mrow><munder><mi>min</mi><mrow><msub><mi>𝒖</mi><mi>t</mi></msub><mo>∈</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒰</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></munder><mo lspace="0.167em">⁡</mo><msub><mi>𝔼</mi><mi>𝒘</mi></msub></mrow><mo>⁢</mo><mrow><mo>[</mo><mrow><mrow><msub><mi>g</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒘</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo maxsize="120%" minsize="120%">(</mo><mrow><msub><mi>f</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒘</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo maxsize="120%" minsize="120%">)</mo></mrow></mrow></mrow><mo>]</mo></mrow></mrow></mrow><mo rspace="2.167em">,</mo><mrow><mi>t</mi><mo>=</mo><mrow><mn>0</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(17.13)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">The resulting dynamic programming algorithm is summarized in Algorithm&#160;<a href="#algorithm2" title="In Dynamic Programming. ‣ 17.2.2 Stochastic Decision Making with Dynamic Programming ‣ 17.2 Decision Making Under Uncertainty: Markov Decision Processes" class="ltx_ref"><span class="ltx_text ltx_ref_tag">2</span></a>.</p>
+</div>
+<figure id="algorithm2" class="ltx_float ltx_algorithm">
+<div class="ltx_listing ltx_lst_numbers_left ltx_listing">
+<div class="ltx_listingline"><math id="algorithm2.m1" class="ltx_Math" alttext="J_{T}^{*}(\bm{x})=g_{T}(\bm{x})," display="inline"><mrow><mrow><mrow><msubsup><mi>J</mi><mi>T</mi><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><msub><mi>g</mi><mi>T</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math> for all <math id="algorithm2.m2" class="ltx_Math" alttext="\bm{x}\in\mathcal{X}" display="inline"><mrow><mi>𝒙</mi><mo>∈</mo><mi class="ltx_font_mathcaligraphic">𝒳</mi></mrow></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">for</span> <em class="ltx_emph ltx_font_italic"><math id="algorithm2.m3" class="ltx_Math" alttext="t=T-1" display="inline"><mrow><mi>t</mi><mo>=</mo><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></mrow></math> <span class="ltx_text ltx_font_bold ltx_font_upright">to</span> <math id="algorithm2.m4" class="ltx_Math" alttext="0" display="inline"><mn>0</mn></math></em> <span class="ltx_text ltx_font_bold">do</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm2.m5" class="ltx_Math" alttext="J_{t}^{*}(\bm{x})=\underset{\bm{u}\in\mathcal{U}(\bm{x})}{\min}\mathbb{E}_{\bm%{w}}\left[g_{t}(\bm{x},\bm{u},\bm{w})+J_{t+1}^{*}(f_{t}(\bm{x},\bm{u},\bm{w}))%\right]," display="inline"><mrow><mrow><mrow><msubsup><mi>J</mi><mi>t</mi><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><munder accentunder="true"><mi>min</mi><mrow><mi>𝒖</mi><mo>∈</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒰</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></munder><mo lspace="0.167em">⁢</mo><msub><mi>𝔼</mi><mi>𝒘</mi></msub><mo>⁢</mo><mrow><mo>[</mo><mrow><mrow><msub><mi>g</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒙</mi><mo>,</mo><mi>𝒖</mi><mo>,</mo><mi>𝒘</mi><mo stretchy="false">)</mo></mrow></mrow><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>f</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒙</mi><mo>,</mo><mi>𝒖</mi><mo>,</mo><mi>𝒘</mi><mo stretchy="false">)</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>]</mo></mrow></mrow></mrow><mo>,</mo></mrow></math> for all <math id="algorithm2.m6" class="ltx_Math" alttext="\bm{x}\in\mathcal{X}" display="inline"><mrow><mi>𝒙</mi><mo>∈</mo><mi class="ltx_font_mathcaligraphic">𝒳</mi></mrow></math></div>
+<div class="ltx_listingline">&#160;</div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">return</span> <math id="algorithm2.m7" class="ltx_Math" alttext="J_{0}^{*}(\cdot),\dots,J_{T}^{*}(\cdot)" display="inline"><mrow><mrow><msubsup><mi>J</mi><mn>0</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mo lspace="0em" rspace="0em">⋅</mo><mo stretchy="false">)</mo></mrow></mrow><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><msubsup><mi>J</mi><mi>T</mi><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mo lspace="0em" rspace="0em">⋅</mo><mo stretchy="false">)</mo></mrow></mrow></mrow></math></div>
+</div>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_float"><span class="ltx_text ltx_font_bold">Algorithm 2</span> </span>Dynamic Programming (Stochastic Case)</figcaption>
+</figure>
+<div id="S2.SS2.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">Once the cost-to-go functions have been computed, an optimal policy is obtained by selecting:</p>
+<table id="S2.E14" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.E14.m1" class="ltx_Math" alttext="\pi_{t}^{*}(\bm{x}_{t})=\operatorname*{arg\,min}_{\bm{u}_{t}\in\mathcal{U}(\bm%
+{x}_{t})}\mathbb{E}_{\bm{w}}\left[g_{t}(\bm{x}_{t},\bm{u}_{t},\bm{w}_{t})+J_{t%
++1}^{*}\!\bigl{(}f_{t}(\bm{x}_{t},\bm{u}_{t},\bm{w}_{t})\bigr{)}\right]." display="block"><mrow><mrow><mrow><msubsup><mi>π</mi><mi>t</mi><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mrow><munder><mrow><mi>arg</mi><mo lspace="0.170em">⁢</mo><mi>min</mi></mrow><mrow><msub><mi>𝒖</mi><mi>t</mi></msub><mo>∈</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒰</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></munder><mo>⁡</mo><msub><mi>𝔼</mi><mi>𝒘</mi></msub></mrow><mo>⁢</mo><mrow><mo>[</mo><mrow><mrow><msub><mi>g</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒘</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>+</mo><mrow><msubsup><mi>J</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo maxsize="120%" minsize="120%">(</mo><mrow><msub><mi>f</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒘</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo maxsize="120%" minsize="120%">)</mo></mrow></mrow></mrow><mo>]</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(17.14)</span></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S2.Thmexample1" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 17.2.1</span></span><span class="ltx_text ltx_font_bold"> </span>(Inventory Control)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S2.Thmexample1.p1" class="ltx_para">
+<p class="ltx_p">Consider a simple inventory control problem in which the state <math id="S2.Thmexample1.p1.m1" class="ltx_Math" alttext="x_{t}\in\mathbb{N}" display="inline"><mrow><msub><mi>x</mi><mi>t</mi></msub><mo>∈</mo><mi>ℕ</mi></mrow></math> denotes the available stock of an item at time <math id="S2.Thmexample1.p1.m2" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math>.
+At each step, the decision maker chooses how many items to order, <math id="S2.Thmexample1.p1.m3" class="ltx_Math" alttext="u_{t}\in\mathbb{N}" display="inline"><mrow><msub><mi>u</mi><mi>t</mi></msub><mo>∈</mo><mi>ℕ</mi></mrow></math>, before facing a random demand <math id="S2.Thmexample1.p1.m4" class="ltx_Math" alttext="w_{t}\in\mathbb{N}" display="inline"><mrow><msub><mi>w</mi><mi>t</mi></msub><mo>∈</mo><mi>ℕ</mi></mrow></math>.</p>
+</div>
+<div id="S2.Thmexample1.p2" class="ltx_para">
+<p class="ltx_p">The system dynamics are given by:</p>
+<table id="S2.Ex17" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex17.m1" class="ltx_Math" alttext="x_{t+1}=\max\{0,\,x_{t}+u_{t}-w_{t}\}," display="block"><mrow><mrow><msub><mi>x</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>=</mo><mrow><mi>max</mi><mo>⁡</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo rspace="0.337em">,</mo><mrow><mrow><msub><mi>x</mi><mi>t</mi></msub><mo>+</mo><msub><mi>u</mi><mi>t</mi></msub></mrow><mo>−</mo><msub><mi>w</mi><mi>t</mi></msub></mrow><mo stretchy="false">}</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">which captures the fact that demand reduces inventory, restocking increases it, and inventory cannot go below zero.
+We impose the constraint:</p>
+<table id="S2.Ex18" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex18.m1" class="ltx_Math" alttext="x_{t}+u_{t}\leq 2," display="block"><mrow><mrow><mrow><msub><mi>x</mi><mi>t</mi></msub><mo>+</mo><msub><mi>u</mi><mi>t</mi></msub></mrow><mo>≤</mo><mn>2</mn></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">so that the inventory capacity is limited to at most two units.</p>
+</div>
+<div id="S2.Thmexample1.p3" class="ltx_para">
+<p class="ltx_p">Demand is modeled as a discrete random variable with the following probability distribution:</p>
+<table id="S2.Ex19" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex19.m1" class="ltx_Math" alttext="p(w_{t}=0)=0.1,\quad p(w_{t}=1)=0.7,\quad p(w_{t}=2)=0.2." display="block"><mrow><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>w</mi><mi>t</mi></msub><mo>=</mo><mn>0</mn></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mn>0.1</mn></mrow><mo rspace="1.167em">,</mo><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>w</mi><mi>t</mi></msub><mo>=</mo><mn>1</mn></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mn>0.7</mn></mrow><mo rspace="1.167em">,</mo><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>w</mi><mi>t</mi></msub><mo>=</mo><mn>2</mn></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mn>0.2</mn></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S2.Thmexample1.p4" class="ltx_para">
+<p class="ltx_p">We consider a finite horizon of <math id="S2.Thmexample1.p4.m1" class="ltx_Math" alttext="T=3" display="inline"><mrow><mi>T</mi><mo>=</mo><mn>3</mn></mrow></math> steps and define the expected cost:</p>
+<table id="S2.Ex20" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex20.m1" class="ltx_Math" alttext="\mathbb{E}_{w}\left[\sum_{t=0}^{2}\bigl{(}u_{t}+(x_{t}+u_{t}-w_{t})^{2}\bigr{)%
+}\right]," display="block"><mrow><mrow><msub><mi>𝔼</mi><mi>w</mi></msub><mo>⁢</mo><mrow><mo>[</mo><mrow><munderover><mo lspace="0em" movablelimits="false" rspace="0em">∑</mo><mrow><mi>t</mi><mo>=</mo><mn>0</mn></mrow><mn>2</mn></munderover><mrow><mo maxsize="120%" minsize="120%">(</mo><mrow><msub><mi>u</mi><mi>t</mi></msub><mo>+</mo><msup><mrow><mo stretchy="false">(</mo><mrow><mrow><msub><mi>x</mi><mi>t</mi></msub><mo>+</mo><msub><mi>u</mi><mi>t</mi></msub></mrow><mo>−</mo><msub><mi>w</mi><mi>t</mi></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow><mo maxsize="120%" minsize="120%">)</mo></mrow></mrow><mo>]</mo></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">which penalizes both ordering costs and the squared deviation between inventory and demand.</p>
+</div>
+<div id="S2.Thmexample1.p5" class="ltx_para">
+<p class="ltx_p">To solve this problem using dynamic programming, we first identify the state and control spaces:</p>
+<table id="S2.Ex21" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex21.m1" class="ltx_Math" alttext="\mathcal{X}=\{0,1,2\},\quad\mathcal{U}(x_{t})=\{0,1,2-x_{t}\}." display="block"><mrow><mrow><mrow><mi class="ltx_font_mathcaligraphic">𝒳</mi><mo>=</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>,</mo><mn>2</mn><mo stretchy="false">}</mo></mrow></mrow><mo rspace="1.167em">,</mo><mrow><mrow><mi class="ltx_font_mathcaligraphic">𝒰</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>,</mo><mrow><mn>2</mn><mo>−</mo><msub><mi>x</mi><mi>t</mi></msub></mrow><mo stretchy="false">}</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Following Algorithm&#160;<a href="#algorithm2" title="In Dynamic Programming. ‣ 17.2.2 Stochastic Decision Making with Dynamic Programming ‣ 17.2 Decision Making Under Uncertainty: Markov Decision Processes" class="ltx_ref"><span class="ltx_text ltx_ref_tag">2</span></a>, we initialize the terminal cost-to-go function at time <math id="S2.Thmexample1.p5.m1" class="ltx_Math" alttext="t=3" display="inline"><mrow><mi>t</mi><mo>=</mo><mn>3</mn></mrow></math> as:</p>
+<table id="S2.Ex22" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex22.m1" class="ltx_Math" alttext="J_{3}^{*}(x_{3})=0,\quad\forall x_{3}\in\{0,1,2\}," display="block"><mrow><mrow><mrow><mrow><msubsup><mi>J</mi><mn>3</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mn>3</mn></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mn>0</mn></mrow><mo rspace="1.167em">,</mo><mrow><mrow><mo rspace="0.167em">∀</mo><msub><mi>x</mi><mn>3</mn></msub></mrow><mo>∈</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>,</mo><mn>2</mn><mo stretchy="false">}</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">since no costs are incurred after the final stage.
+Working backward, we compute the cost-to-go at time <math id="S2.Thmexample1.p5.m2" class="ltx_Math" alttext="t=2" display="inline"><mrow><mi>t</mi><mo>=</mo><mn>2</mn></mrow></math> by minimizing the expected one-step cost:</p>
+<table id="S2.Ex23" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex23.m1" class="ltx_math_unparsed" alttext="\begin{split}J^{*}_{2}(0)&amp;=\underset{u_{2}\in\{0,1,2\}}{\text{minimize}}\&gt;\&gt;%
+\mathbb{E}_{w}\left[u_{2}+(u_{2}-w_{2})^{2}\right],\\
+&amp;=\underset{u_{2}\in\{0,1,2\}}{\text{minimize}}\&gt;\&gt;u_{2}+0.1u_{2}^{2}+0.7(u_{2%
+}-1)^{2}+0.2(u_{2}-2)^{2}=1.3,\\
+J^{*}_{2}(1)&amp;=\underset{u_{2}\in\{0,1\}}{\text{minimize}}\&gt;\&gt;\mathbb{E}_{w}%
+\left[u_{2}+(1+u_{2}-w_{2})^{2}\right],\\
+&amp;=\underset{u_{2}\in\{0,1\}}{\text{minimize}}\&gt;\&gt;u_{2}+0.1(1+u_{2})^{2}+0.7(u_%
+{2})^{2}+0.2(u_{2}-1)^{2}=0.3,\\
+J^{*}_{2}(2)&amp;=\mathbb{E}_{w}\left[(2-w_{2})^{2}\right]=0.1(2)^{2}+0.7(1)^{2}+0%
+.2(0)^{2}=1.1.\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>J</mi><mn>2</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mrow><munder accentunder="true"><mtext>minimize</mtext><mrow><msub><mi>u</mi><mn>2</mn></msub><mo>∈</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>,</mo><mn>2</mn><mo stretchy="false">}</mo></mrow></mrow></munder><mo>⁢</mo><msub><mi>𝔼</mi><mi>w</mi></msub><mo>⁢</mo><mrow><mo>[</mo><mrow><msub><mi>u</mi><mn>2</mn></msub><mo>+</mo><msup><mrow><mo stretchy="false">(</mo><mrow><msub><mi>u</mi><mn>2</mn></msub><mo>−</mo><msub><mi>w</mi><mn>2</mn></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow><mo>]</mo></mrow></mrow></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mrow><mrow><munder accentunder="true"><mtext>minimize</mtext><mrow><msub><mi>u</mi><mn>2</mn></msub><mo>∈</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>,</mo><mn>2</mn><mo stretchy="false">}</mo></mrow></mrow></munder><mo>⁢</mo><msub><mi>u</mi><mn>2</mn></msub></mrow><mo>+</mo><mrow><mn>0.1</mn><mo>⁢</mo><msubsup><mi>u</mi><mn>2</mn><mn>2</mn></msubsup></mrow><mo>+</mo><mrow><mn>0.7</mn><mo>⁢</mo><msup><mrow><mo stretchy="false">(</mo><mrow><msub><mi>u</mi><mn>2</mn></msub><mo>−</mo><mn>1</mn></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow><mo>+</mo><mrow><mn>0.2</mn><mo>⁢</mo><msup><mrow><mo stretchy="false">(</mo><mrow><msub><mi>u</mi><mn>2</mn></msub><mo>−</mo><mn>2</mn></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow></mrow><mo>=</mo><mn>1.3</mn></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>J</mi><mn>2</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>1</mn><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mrow><munder accentunder="true"><mtext>minimize</mtext><mrow><msub><mi>u</mi><mn>2</mn></msub><mo>∈</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false">}</mo></mrow></mrow></munder><mo>⁢</mo><msub><mi>𝔼</mi><mi>w</mi></msub><mo>⁢</mo><mrow><mo>[</mo><mrow><msub><mi>u</mi><mn>2</mn></msub><mo>+</mo><msup><mrow><mo stretchy="false">(</mo><mrow><mrow><mn>1</mn><mo>+</mo><msub><mi>u</mi><mn>2</mn></msub></mrow><mo>−</mo><msub><mi>w</mi><mn>2</mn></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow><mo>]</mo></mrow></mrow></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mrow><mrow><munder accentunder="true"><mtext>minimize</mtext><mrow><msub><mi>u</mi><mn>2</mn></msub><mo>∈</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false">}</mo></mrow></mrow></munder><mo>⁢</mo><msub><mi>u</mi><mn>2</mn></msub></mrow><mo>+</mo><mrow><mn>0.1</mn><mo>⁢</mo><msup><mrow><mo stretchy="false">(</mo><mrow><mn>1</mn><mo>+</mo><msub><mi>u</mi><mn>2</mn></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow><mo>+</mo><mrow><mn>0.7</mn><mo>⁢</mo><msup><mrow><mo stretchy="false">(</mo><msub><mi>u</mi><mn>2</mn></msub><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow><mo>+</mo><mrow><mn>0.2</mn><mo>⁢</mo><msup><mrow><mo stretchy="false">(</mo><mrow><msub><mi>u</mi><mn>2</mn></msub><mo>−</mo><mn>1</mn></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow></mrow><mo>=</mo><mn>0.3</mn></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>J</mi><mn>2</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>2</mn><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mrow><msub><mi>𝔼</mi><mi>w</mi></msub><mo>⁢</mo><mrow><mo>[</mo><msup><mrow><mo stretchy="false">(</mo><mrow><mn>2</mn><mo>−</mo><msub><mi>w</mi><mn>2</mn></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup><mo>]</mo></mrow></mrow><mo>=</mo><mrow><mrow><mn>0.1</mn><mo>⁢</mo><msup><mrow><mo stretchy="false">(</mo><mn>2</mn><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow><mo>+</mo><mrow><mn>0.7</mn><mo>⁢</mo><msup><mrow><mo stretchy="false">(</mo><mn>1</mn><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow><mo>+</mo><mrow><mn>0.2</mn><mo>⁢</mo><msup><mrow><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow></mrow><mo>=</mo><mn>1.1</mn></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Note that for <math id="S2.Thmexample1.p5.m3" class="ltx_Math" alttext="x_{2}=2" display="inline"><mrow><msub><mi>x</mi><mn>2</mn></msub><mo>=</mo><mn>2</mn></mrow></math>, the only admissible action is <math id="S2.Thmexample1.p5.m4" class="ltx_Math" alttext="u_{2}=0" display="inline"><mrow><msub><mi>u</mi><mn>2</mn></msub><mo>=</mo><mn>0</mn></mrow></math> due to the inventory capacity constraint, and hence the minimum is achieved at <math id="S2.Thmexample1.p5.m5" class="ltx_Math" alttext="u_{2}=0" display="inline"><mrow><msub><mi>u</mi><mn>2</mn></msub><mo>=</mo><mn>0</mn></mrow></math>.</p>
+</div>
+<div id="S2.Thmexample1.p6" class="ltx_para">
+<p class="ltx_p">From these computations, we directly obtain the optimal actions at time <math id="S2.Thmexample1.p6.m1" class="ltx_Math" alttext="t=2" display="inline"><mrow><mi>t</mi><mo>=</mo><mn>2</mn></mrow></math>:</p>
+<table id="S2.Ex24" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex24.m1" class="ltx_Math" alttext="\begin{split}\pi^{*}_{2}(0)&amp;=1,\\
+\pi^{*}_{2}(1)&amp;=0,\\
+\pi^{*}_{2}(2)&amp;=0.\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>π</mi><mn>2</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mn>1</mn></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>π</mi><mn>2</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>1</mn><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mn>0</mn></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>π</mi><mn>2</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>2</mn><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mn>0</mn></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Continuing this process, we compute the cost-to-go at time <math id="S2.Thmexample1.p6.m2" class="ltx_Math" alttext="t=1" display="inline"><mrow><mi>t</mi><mo>=</mo><mn>1</mn></mrow></math>:</p>
+<table id="S2.Ex25" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex25.m1" class="ltx_Math" alttext="\begin{split}J^{*}_{1}(0)&amp;=\underset{u_{1}\in\{0,1,2\}}{\text{minimize}}\&gt;\&gt;%
+\mathbb{E}_{w}\left[u_{1}+(u_{1}-w_{1})^{2}+J^{*}_{2}(\max\{0,u_{1}-w_{1}\})%
+\right]=2.5,\\
+J^{*}_{1}(1)&amp;=\underset{u_{1}\in\{0,1\}}{\text{minimize}}\&gt;\&gt;\mathbb{E}_{w}%
+\left[u_{1}+(1+u_{1}-w_{1})^{2}+J^{*}_{2}(\max\{0,1+u_{1}-w_{1}\})\right]=1.5,%
+\\
+J^{*}_{1}(2)&amp;=\mathbb{E}_{w}\left[(2-w_{1})^{2}+J^{*}_{2}(\max\{0,2-w_{1}\})%
+\right]=1.68,\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>J</mi><mn>1</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mrow><munder accentunder="true"><mtext>minimize</mtext><mrow><msub><mi>u</mi><mn>1</mn></msub><mo>∈</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>,</mo><mn>2</mn><mo stretchy="false">}</mo></mrow></mrow></munder><mo>⁢</mo><msub><mi>𝔼</mi><mi>w</mi></msub><mo>⁢</mo><mrow><mo>[</mo><mrow><msub><mi>u</mi><mn>1</mn></msub><mo>+</mo><msup><mrow><mo stretchy="false">(</mo><mrow><msub><mi>u</mi><mn>1</mn></msub><mo>−</mo><msub><mi>w</mi><mn>1</mn></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup><mo>+</mo><mrow><msubsup><mi>J</mi><mn>2</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>max</mi><mo>⁡</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mrow><msub><mi>u</mi><mn>1</mn></msub><mo>−</mo><msub><mi>w</mi><mn>1</mn></msub></mrow><mo stretchy="false">}</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>]</mo></mrow></mrow><mo>=</mo><mn>2.5</mn></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>J</mi><mn>1</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>1</mn><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mrow><munder accentunder="true"><mtext>minimize</mtext><mrow><msub><mi>u</mi><mn>1</mn></msub><mo>∈</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false">}</mo></mrow></mrow></munder><mo>⁢</mo><msub><mi>𝔼</mi><mi>w</mi></msub><mo>⁢</mo><mrow><mo>[</mo><mrow><msub><mi>u</mi><mn>1</mn></msub><mo>+</mo><msup><mrow><mo stretchy="false">(</mo><mrow><mrow><mn>1</mn><mo>+</mo><msub><mi>u</mi><mn>1</mn></msub></mrow><mo>−</mo><msub><mi>w</mi><mn>1</mn></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup><mo>+</mo><mrow><msubsup><mi>J</mi><mn>2</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>max</mi><mo>⁡</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mrow><mrow><mn>1</mn><mo>+</mo><msub><mi>u</mi><mn>1</mn></msub></mrow><mo>−</mo><msub><mi>w</mi><mn>1</mn></msub></mrow><mo stretchy="false">}</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>]</mo></mrow></mrow><mo>=</mo><mn>1.5</mn></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>J</mi><mn>1</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>2</mn><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mrow><msub><mi>𝔼</mi><mi>w</mi></msub><mo>⁢</mo><mrow><mo>[</mo><mrow><msup><mrow><mo stretchy="false">(</mo><mrow><mn>2</mn><mo>−</mo><msub><mi>w</mi><mn>1</mn></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup><mo>+</mo><mrow><msubsup><mi>J</mi><mn>2</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>max</mi><mo>⁡</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mrow><mn>2</mn><mo>−</mo><msub><mi>w</mi><mn>1</mn></msub></mrow><mo stretchy="false">}</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>]</mo></mrow></mrow><mo>=</mo><mn>1.68</mn></mrow><mo>,</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">with optimal stage actions:</p>
+<table id="S2.Ex26" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex26.m1" class="ltx_Math" alttext="\begin{split}\pi^{*}_{1}(0)&amp;=1,\\
+\pi^{*}_{1}(1)&amp;=0,\\
+\pi^{*}_{1}(2)&amp;=0.\\
+\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>π</mi><mn>1</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mn>1</mn></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>π</mi><mn>1</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>1</mn><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mn>0</mn></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>π</mi><mn>1</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>2</mn><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mn>0</mn></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Finally, in the last step:</p>
+<table id="S2.Ex27" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex27.m1" class="ltx_Math" alttext="\begin{split}J^{*}_{0}(0)&amp;=\underset{u_{0}\in\{0,1,2\}}{\text{minimize}}\&gt;\&gt;%
+\mathbb{E}_{w}\left[u_{0}+(u_{0}-w_{0})^{2}+J^{*}_{1}(\max\{0,u_{0}-w_{0}\})%
+\right]=3.7,\\
+J^{*}_{0}(1)&amp;=\underset{u_{0}\in\{0,1\}}{\text{minimize}}\&gt;\&gt;\mathbb{E}_{w}%
+\left[u_{0}+(1+u_{0}-w_{0})^{2}+J^{*}_{1}(\max\{0,1+u_{0}-w_{0}\})\right]=2.7,%
+\\
+J^{*}_{0}(2)&amp;=\mathbb{E}_{w}\left[(2-w_{0})^{2}+J^{*}_{1}(\max\{0,2-w_{0}\})%
+\right]=2.818,\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>J</mi><mn>0</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mrow><munder accentunder="true"><mtext>minimize</mtext><mrow><msub><mi>u</mi><mn>0</mn></msub><mo>∈</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>,</mo><mn>2</mn><mo stretchy="false">}</mo></mrow></mrow></munder><mo>⁢</mo><msub><mi>𝔼</mi><mi>w</mi></msub><mo>⁢</mo><mrow><mo>[</mo><mrow><msub><mi>u</mi><mn>0</mn></msub><mo>+</mo><msup><mrow><mo stretchy="false">(</mo><mrow><msub><mi>u</mi><mn>0</mn></msub><mo>−</mo><msub><mi>w</mi><mn>0</mn></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup><mo>+</mo><mrow><msubsup><mi>J</mi><mn>1</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>max</mi><mo>⁡</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mrow><msub><mi>u</mi><mn>0</mn></msub><mo>−</mo><msub><mi>w</mi><mn>0</mn></msub></mrow><mo stretchy="false">}</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>]</mo></mrow></mrow><mo>=</mo><mn>3.7</mn></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>J</mi><mn>0</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>1</mn><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mrow><munder accentunder="true"><mtext>minimize</mtext><mrow><msub><mi>u</mi><mn>0</mn></msub><mo>∈</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false">}</mo></mrow></mrow></munder><mo>⁢</mo><msub><mi>𝔼</mi><mi>w</mi></msub><mo>⁢</mo><mrow><mo>[</mo><mrow><msub><mi>u</mi><mn>0</mn></msub><mo>+</mo><msup><mrow><mo stretchy="false">(</mo><mrow><mrow><mn>1</mn><mo>+</mo><msub><mi>u</mi><mn>0</mn></msub></mrow><mo>−</mo><msub><mi>w</mi><mn>0</mn></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup><mo>+</mo><mrow><msubsup><mi>J</mi><mn>1</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>max</mi><mo>⁡</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mrow><mrow><mn>1</mn><mo>+</mo><msub><mi>u</mi><mn>0</mn></msub></mrow><mo>−</mo><msub><mi>w</mi><mn>0</mn></msub></mrow><mo stretchy="false">}</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>]</mo></mrow></mrow><mo>=</mo><mn>2.7</mn></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>J</mi><mn>0</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>2</mn><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mrow><msub><mi>𝔼</mi><mi>w</mi></msub><mo>⁢</mo><mrow><mo>[</mo><mrow><msup><mrow><mo stretchy="false">(</mo><mrow><mn>2</mn><mo>−</mo><msub><mi>w</mi><mn>0</mn></msub></mrow><mo stretchy="false">)</mo></mrow><mn>2</mn></msup><mo>+</mo><mrow><msubsup><mi>J</mi><mn>1</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>max</mi><mo>⁡</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mrow><mn>2</mn><mo>−</mo><msub><mi>w</mi><mn>0</mn></msub></mrow><mo stretchy="false">}</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>]</mo></mrow></mrow><mo>=</mo><mn>2.818</mn></mrow><mo>,</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">with:</p>
+<table id="S2.Ex28" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex28.m1" class="ltx_Math" alttext="\begin{split}\pi^{*}_{0}(0)&amp;=1,\\
+\pi^{*}_{0}(1)&amp;=0,\\
+\pi^{*}_{0}(2)&amp;=0.\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>π</mi><mn>0</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mn>1</mn></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>π</mi><mn>0</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>1</mn><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mn>0</mn></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msubsup><mi>π</mi><mn>0</mn><mo>∗</mo></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mn>2</mn><mo stretchy="false">)</mo></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mn>0</mn></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">For this example, the optimal policy is time-invariant: <em class="ltx_emph ltx_font_italic">order one unit when the inventory is empty, and order nothing otherwise</em>.
+This policy balances the risk of unmet demand against the cost of carrying inventory, and it emerges naturally from the dynamic programming recursion.</p>
+</div>
+</div>
+</section>
+</section>
+</section>
+<section id="S3" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">17.3 </span>Limitations of Dynamic Programming</h2>
+
+<div id="S3.p1" class="ltx_para">
+<p class="ltx_p">Dynamic programming is a powerful algorithmic framework that underlies a wide range of methods for solving sequential decision-making problems.
+However, despite its generality and conceptual elegance, it suffers from several important practical limitations.</p>
+</div>
+<div id="S3.p2" class="ltx_para">
+<p class="ltx_p">First, in its standard form, dynamic programming requires <em class="ltx_emph ltx_font_italic">perfect knowledge</em> of the environment.
+This includes an accurate model of the system dynamics—whether deterministic or stochastic—as well as a known cost or reward function.
+In many real-world applications, particularly in robotics, this requirement can be highly restrictive, as physical interactions involving friction, contact dynamics, or complex nonlinear effects are often difficult to model accurately.
+Moreover, the algorithms presented in this chapter assume that the full system state is known and directly observable, which is often not the case in practice.</p>
+</div>
+<div id="S3.p3" class="ltx_para">
+<p class="ltx_p">A second major limitation of dynamic programming is the so-called <em class="ltx_emph ltx_font_italic">curse of dimensionality</em>.
+The computational and storage requirements of dynamic programming grow exponentially with the dimension of the state space.
+Concretely, if the state is <math id="S3.p3.m1" class="ltx_Math" alttext="n" display="inline"><mi>n</mi></math>-dimensional and each state variable can take on <math id="S3.p3.m2" class="ltx_Math" alttext="M" display="inline"><mi>M</mi></math> discrete values, then the Bellman equation must be evaluated <math id="S3.p3.m3" class="ltx_Math" alttext="M^{n}" display="inline"><msup><mi>M</mi><mi>n</mi></msup></math> times at each stage of the algorithm.
+While this may be tractable for low-dimensional problems, it quickly becomes infeasible as the dimensionality increases.
+This issue is especially relevant in robotics, where the state and action spaces can be very high-dimensional due to the presence of multiple degrees of freedom, sensors, and actuators.</p>
+</div>
+<div id="S3.p4" class="ltx_para">
+<p class="ltx_p">Together, these limitations motivate the development of alternative approaches that relax some of the assumptions underlying classical dynamic programming.
+In particular, they have led to the study of learning-based methods that trade exact optimality for computational tractability.</p>
+</div>
+<div id="S3.p5" class="ltx_para">
+<p class="ltx_p">In the next chapter, we first introduce <em class="ltx_emph ltx_font_italic">reinforcement learning</em>, which can be viewed as a natural extension of the ideas developed here.
+At a high level, reinforcement learning may be viewed as a form of <em class="ltx_emph ltx_font_italic">approximate dynamic programming</em>, as it retains the central concepts of value functions, Bellman recursions, and policy improvement, while addressing the key limitations of classical dynamic programming by allowing policies to be learned from interaction rather than computed from a perfectly known model over an explicitly enumerated state space.
+For this reason, reinforcement learning provides the most direct next step after the present chapter.</p>
+</div>
+<div id="S3.p6" class="ltx_para">
+<p class="ltx_p">We then turn to <em class="ltx_emph ltx_font_italic">imitation learning</em>, which offers a broader and highly practical framework for robot learning from demonstrations.
+Rather than learning solely through trial-and-error interaction with the environment, imitation learning leverages expert behavior to acquire control policies, and has become one of the most widely used paradigms for training robotic systems in practice.
+Taken together, reinforcement learning and imitation learning provide two complementary responses to the limitations of classical dynamic programming, and they will be the focus of <span class="ltx_ref">the referenced item</span> and <span class="ltx_ref">the referenced item</span>, respectively.</p>
+</div>
+</section>
+<section id="S4" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">17.4 </span>Summary</h2>
+
+<div id="S4.p1" class="ltx_para">
+<p class="ltx_p">In this chapter, we introduced a general, optimization-based framework for sequential decision-making that allows us to compute optimal policies for complex tasks, even under uncertainty.
+We began in Section&#160;<a href="#S1" title="17.1 Deterministic Sequential Decision Making" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.1</span></a> by framing deterministic sequential decision-making as a discrete-time optimal control problem, introducing dynamic programming as the primary computational tool for solving such problems.
+Grounded in the principle of optimality, dynamic programming allows long-horizon problems to be decomposed into a sequence of simpler, recursively defined subproblems.
+In Section&#160;<a href="#S2" title="17.2 Decision Making Under Uncertainty: Markov Decision Processes" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.2</span></a>, we extended this framework to the stochastic setting, where uncertainty in system dynamics and outcomes must be explicitly accounted for. This led to the formulation of Markov decision processes and the use of dynamic programming to compute policies that optimize expected performance under known sources of randomness.
+Finally, in Section&#160;<a href="#S3" title="17.3 Limitations of Dynamic Programming" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.3</span></a>, we discussed the practical limitations of dynamic programming, most notably the curse of dimensionality and the reliance on accurate models of the environment.
+These challenges motivate the development of learning-based approaches, which are the focus of the next chapter.</p>
+</div>
+<section id="S4.SS0.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">To learn more.</h4>
+
+<div id="S4.SS0.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">For a foundational and comprehensive treatment of dynamic programming and sequential decision-making, <em class="ltx_emph ltx_font_italic">Dynamic Programming and Optimal Control</em> by <span class="ltx_cite">Bertsekas (2000)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">6</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">6.</span> Bertsekas, D. <em>Dynamic Programming and Optimal Control</em>. Athena Scientific, 2000.</span></span></span> is an indispensable resource, providing rigorous derivations for both deterministic and stochastic problems.
+For an introduction to Markov decision processes with a focus on their role in modern artificial intelligence and robotics, <em class="ltx_emph ltx_font_italic">Reinforcement Learning: An Introduction</em> by <span class="ltx_cite">Sutton and Barto (2018)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">7</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">7.</span> Sutton, R., Barto, A. <em>Reinforcement learning: An introduction</em>. MIT Press, 2018.</span></span></span> is the standard reference.
+A more in-depth mathematical treatment of MDPs can be found in <em class="ltx_emph ltx_font_italic">Markov Decision Processes: Discrete Stochastic Dynamic Programming</em> by <span class="ltx_cite">Puterman (2014)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">8</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">8.</span> Puterman, M. <em>Markov Decision Processes: Discrete Stochastic Dynamic Programming</em>. Wiley, 2014.</span></span></span>.</p>
+</div>
+</section>
+</section>
+<section id="S5" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">17.5 </span>Exercises</h2>
+
+<div id="S5.p1" class="ltx_para">
+<p class="ltx_p">The starter code for the exercises provided below is available online through GitHub.
+To get started, download the code by running in a terminal window:</p>
+</div>
+<div id="S5.p2" class="ltx_para ltx_noindent">
+<div class="ltx_listing ltx_lst_language_bash ltx_lstlisting ltx_listing">
+<div class="ltx_listing_data"><a href="data:text/plain;base64,ICAgIGdpdCBjbG9uZSBodHRwczovL2dpdGh1Yi5jb20vU3RhbmZvcmRBU0wvcG9yYS1leGVyY2lzZXMuZ2l0" download="">⬇</a></div>
+<div id="lstnumberx1" class="ltx_listingline"><span class="ltx_text ltx_lst_space ltx_font_typewriter">    </span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">git</span><span class="ltx_text ltx_lst_space ltx_font_typewriter"> </span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">clone</span><span class="ltx_text ltx_lst_space ltx_font_typewriter"> </span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">https</span><span class="ltx_text ltx_font_typewriter">://</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">github</span><span class="ltx_text ltx_font_typewriter">.</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">com</span><span class="ltx_text ltx_font_typewriter">/</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">StanfordASL</span><span class="ltx_text ltx_font_typewriter">/</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">pora</span><span class="ltx_text ltx_font_typewriter">-</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">exercises</span><span class="ltx_text ltx_font_typewriter">.</span><span class="ltx_text ltx_lst_identifier ltx_font_typewriter">git</span></div>
+</div>
+</div>
+<div id="S5.p3" class="ltx_para">
+<p class="ltx_p">We denote Problems requiring hand-written solutions and coding in Python with <img src="/book-assets/decision-making/figs__write.png" id="S5.p3.g1" class="ltx_graphics ltx_img_square" width="26" height="28" alt="[Uncaptioned image]"> and <img src="/book-assets/decision-making/figs__code.png" id="S5.p3.g2" class="ltx_graphics ltx_img_square" width="25" height="25" alt="[Uncaptioned image]">, respectively.</p>
+</div>
+</section>
+<section id="Sx1" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<img src="/book-assets/decision-making/figs__write.png" id="Sx1.g1" class="ltx_graphics ltx_img_square" width="26" height="28" alt="[Uncaptioned image]"> Problem 1: Shortest Path Through A Grid</h2>
+
+<div id="Sx1.p1" class="ltx_para">
+<p class="ltx_p">Consider the graph shown in Figure&#160;<a href="#Sx1.F4" title="Figure 17.4 ‣ Problem 1: Shortest Path Through A Grid" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.4</span></a>, where it is only possible to move to the right and the numbers associated with each edge represent a cost to traverse that edge.
+The decision to be made at each node is whether to go “up” or “down”, and we can assume the state transitions are deterministic.</p>
+</div>
+<figure id="Sx1.F4" class="ltx_figure">
+<p class="ltx_p ltx_align_center"><img class="ltx_graphics ltx_centering" src="/book-assets/decision-making/_tikz__decision-making-1.svg" alt="diagram"></p>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 17.4</span>: </span><span class="ltx_text" style="font-size:90%;">Simple grid for shortest-path problem.</span></figcaption>
+</figure>
+<div id="Sx1.p2" class="ltx_para">
+<p class="ltx_p">For this exercise:</p>
+<ol id="Sx1.I1" class="ltx_enumerate">
+<li id="Sx1.I1.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">1.</span> 
+<div id="Sx1.I1.i1.p1" class="ltx_para">
+<p class="ltx_p">Use dynamic programming to find the shortest path from A to B.</p>
+</div>
+</li>
+<li id="Sx1.I1.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">2.</span> 
+<div id="Sx1.I1.i2.p1" class="ltx_para">
+<p class="ltx_p">Consider a generalized version of the shortest path problem in Figure&#160;<a href="#Sx1.F4" title="Figure 17.4 ‣ Problem 1: Shortest Path Through A Grid" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.4</span></a> where the grid has <math id="Sx1.I1.i2.p1.m1" class="ltx_Math" alttext="n" display="inline"><mi>n</mi></math> segments along each side.
+Find the number of computations required by an exhaustive search algorithm (i.e., the number of routes that such an algorithm would need to evaluate) and the number of computations required by a DP algorithm (i.e., the number of DP evaluations).
+For example, for the <math id="Sx1.I1.i2.p1.m2" class="ltx_Math" alttext="n=3" display="inline"><mrow><mi>n</mi><mo>=</mo><mn>3</mn></mrow></math> case shown in Figure&#160;<a href="#Sx1.F4" title="Figure 17.4 ‣ Problem 1: Shortest Path Through A Grid" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.4</span></a>, an exhaustive search algorithm requires 20 computations, while the DP algorithm requires only 15.</p>
+</div>
+</li>
+</ol>
+</div>
+</section>
+<section id="Sx2" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<img src="/book-assets/decision-making/figs__write.png" id="Sx2.g1" class="ltx_graphics ltx_img_square" width="26" height="28" alt="[Uncaptioned image]"> Problem 2: Machine Maintenance</h2>
+
+<div id="Sx2.p1" class="ltx_para">
+<p class="ltx_p">Suppose we have a machine that is either running or is broken down.
+If it runs throughout one week, it makes a gross profit of <math id="Sx2.p1.m1" class="ltx_Math" alttext="\$100" display="inline"><mrow><mo rspace="0.167em">$</mo><mn>100</mn></mrow></math>.
+If it fails during the week, gross profit is zero.
+If it is running at the start of the week and we perform preventive maintenance, the probability that it will fail during the week is <math id="Sx2.p1.m2" class="ltx_Math" alttext="0.4" display="inline"><mn>0.4</mn></math>.
+If we do not perform maintenance, the probability of failure is <math id="Sx2.p1.m3" class="ltx_Math" alttext="0.7" display="inline"><mn>0.7</mn></math>.
+However, preventative maintenance will cost <math id="Sx2.p1.m4" class="ltx_Math" alttext="\$20" display="inline"><mrow><mo rspace="0.167em">$</mo><mn>20</mn></mrow></math>.
+When the machine is broken down at the start of the week, it may either be repaired at a cost of <math id="Sx2.p1.m5" class="ltx_Math" alttext="\$40" display="inline"><mrow><mo rspace="0.167em">$</mo><mn>40</mn></mrow></math>, in which case it will fail during the week with a probability of <math id="Sx2.p1.m6" class="ltx_Math" alttext="0.4" display="inline"><mn>0.4</mn></math>, or it may be replaced at a cost of <math id="Sx2.p1.m7" class="ltx_Math" alttext="\$150" display="inline"><mrow><mo rspace="0.167em">$</mo><mn>150</mn></mrow></math> by a new machine that is guaranteed to run through its first week of operation.
+Find the optimal repair, replacement, and maintenance policy that maximizes total profit over four weeks, assuming a new machine at the start of the first week (that is guaranteed to run during the first week of operation).</p>
+</div>
+</section>
+<section id="Sx3" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<img src="/book-assets/decision-making/figs__code.png" id="Sx3.g1" class="ltx_graphics ltx_img_square" width="25" height="25" alt="[Uncaptioned image]"> Problem 3: Markovian Drone</h2>
+
+<div id="Sx3.p1" class="ltx_para">
+<p class="ltx_p">In this problem, we will model the task of flying a drone to its destination through a storm as a Markov Decision Process (MDP), and solve for the optimal policy using dynamic programming.
+The world is represented as an <math id="Sx3.p1.m1" class="ltx_Math" alttext="n\times n" display="inline"><mrow><mi>n</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi>n</mi></mrow></math> grid, so the state space is:</p>
+<table id="Sx3.Ex29" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="Sx3.Ex29.m1" class="ltx_Math" alttext="\mathcal{X}\coloneqq\{(x_{1},x_{2})\in\mathbb{R}^{2}\mid x_{1},x_{2}\in\{0,1,%
+\dots,n-1\}\}." display="block"><mrow><mrow><mi class="ltx_font_mathcaligraphic">𝒳</mi><mo>≔</mo><mrow><mo stretchy="false">{</mo><mrow><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><msub><mi>x</mi><mn>2</mn></msub><mo stretchy="false">)</mo></mrow><mo>∈</mo><msup><mi>ℝ</mi><mn>2</mn></msup></mrow><mo fence="true" lspace="0em" rspace="0em">∣</mo><mrow><mrow><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><msub><mi>x</mi><mn>2</mn></msub></mrow><mo>∈</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><mi>n</mi><mo>−</mo><mn>1</mn></mrow><mo stretchy="false">}</mo></mrow></mrow><mo stretchy="false">}</mo></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">In these coordinates, <math id="Sx3.p1.m2" class="ltx_Math" alttext="(0,0)" display="inline"><mrow><mo stretchy="false">(</mo><mn>0</mn><mo>,</mo><mn>0</mn><mo stretchy="false">)</mo></mrow></math> represents the bottom left corner of the map and <math id="Sx3.p1.m3" class="ltx_Math" alttext="(n-1,n-1)" display="inline"><mrow><mo stretchy="false">(</mo><mrow><mi>n</mi><mo>−</mo><mn>1</mn></mrow><mo>,</mo><mrow><mi>n</mi><mo>−</mo><mn>1</mn></mrow><mo stretchy="false">)</mo></mrow></math> represents the top right corner of the map.
+From any location <math id="Sx3.p1.m4" class="ltx_Math" alttext="x=(x_{1},x_{2})\in\mathcal{X}" display="inline"><mrow><mi>x</mi><mo>=</mo><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><msub><mi>x</mi><mn>2</mn></msub><mo stretchy="false">)</mo></mrow><mo>∈</mo><mi class="ltx_font_mathcaligraphic">𝒳</mi></mrow></math>, the drone has five possible controls it can apply:</p>
+<table id="Sx3.Ex30" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="Sx3.Ex30.m1" class="ltx_Math" alttext="\mathcal{U}\coloneqq\{\texttt{up},\texttt{down},\texttt{left},\texttt{right},%
+\texttt{land}\}." display="block"><mrow><mrow><mi class="ltx_font_mathcaligraphic">𝒰</mi><mo>≔</mo><mrow><mo stretchy="false">{</mo><mtext class="ltx_mathvariant_monospace">up</mtext><mo>,</mo><mtext class="ltx_mathvariant_monospace">down</mtext><mo>,</mo><mtext class="ltx_mathvariant_monospace">left</mtext><mo>,</mo><mtext class="ltx_mathvariant_monospace">right</mtext><mo>,</mo><mtext class="ltx_mathvariant_monospace">land</mtext><mo stretchy="false">}</mo></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">The corresponding state changes for each control input are:</p>
+<ul id="Sx3.I2" class="ltx_itemize">
+<li id="Sx3.I2.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="Sx3.I2.i1.p1" class="ltx_para">
+<p class="ltx_p"><span class="ltx_text ltx_font_typewriter">up</span>: <math id="Sx3.I2.i1.p1.m1" class="ltx_Math" alttext="(x_{1},x_{2})\mapsto(x_{1},x_{2}+1)" display="inline"><mrow><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><msub><mi>x</mi><mn>2</mn></msub><mo stretchy="false">)</mo></mrow><mo stretchy="false">↦</mo><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><mrow><msub><mi>x</mi><mn>2</mn></msub><mo>+</mo><mn>1</mn></mrow><mo stretchy="false">)</mo></mrow></mrow></math></p>
+</div>
+</li>
+<li id="Sx3.I2.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="Sx3.I2.i2.p1" class="ltx_para">
+<p class="ltx_p"><span class="ltx_text ltx_font_typewriter">down</span>: <math id="Sx3.I2.i2.p1.m1" class="ltx_Math" alttext="(x_{1},x_{2})\mapsto(x_{1},x_{2}-1)" display="inline"><mrow><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><msub><mi>x</mi><mn>2</mn></msub><mo stretchy="false">)</mo></mrow><mo stretchy="false">↦</mo><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><mrow><msub><mi>x</mi><mn>2</mn></msub><mo>−</mo><mn>1</mn></mrow><mo stretchy="false">)</mo></mrow></mrow></math></p>
+</div>
+</li>
+<li id="Sx3.I2.i3" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="Sx3.I2.i3.p1" class="ltx_para">
+<p class="ltx_p"><span class="ltx_text ltx_font_typewriter">left</span>: <math id="Sx3.I2.i3.p1.m1" class="ltx_Math" alttext="(x_{1},x_{2})\mapsto(x_{1}-1,x_{2})" display="inline"><mrow><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><msub><mi>x</mi><mn>2</mn></msub><mo stretchy="false">)</mo></mrow><mo stretchy="false">↦</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>x</mi><mn>1</mn></msub><mo>−</mo><mn>1</mn></mrow><mo>,</mo><msub><mi>x</mi><mn>2</mn></msub><mo stretchy="false">)</mo></mrow></mrow></math></p>
+</div>
+</li>
+<li id="Sx3.I2.i4" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="Sx3.I2.i4.p1" class="ltx_para">
+<p class="ltx_p"><span class="ltx_text ltx_font_typewriter">right</span>: <math id="Sx3.I2.i4.p1.m1" class="ltx_Math" alttext="(x_{1},x_{2})\mapsto(x_{1}+1,x_{2})" display="inline"><mrow><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><msub><mi>x</mi><mn>2</mn></msub><mo stretchy="false">)</mo></mrow><mo stretchy="false">↦</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>x</mi><mn>1</mn></msub><mo>+</mo><mn>1</mn></mrow><mo>,</mo><msub><mi>x</mi><mn>2</mn></msub><mo stretchy="false">)</mo></mrow></mrow></math></p>
+</div>
+</li>
+<li id="Sx3.I2.i5" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="Sx3.I2.i5.p1" class="ltx_para">
+<p class="ltx_p"><span class="ltx_text ltx_font_typewriter">land</span>: <math id="Sx3.I2.i5.p1.m1" class="ltx_Math" alttext="(x_{1},x_{2})\mapsto(x_{1},x_{2})" display="inline"><mrow><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><msub><mi>x</mi><mn>2</mn></msub><mo stretchy="false">)</mo></mrow><mo stretchy="false">↦</mo><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mn>1</mn></msub><mo>,</mo><msub><mi>x</mi><mn>2</mn></msub><mo stretchy="false">)</mo></mrow></mrow></math></p>
+</div>
+</li>
+</ul>
+<p class="ltx_p">Additionally, there is a storm centered at <math id="Sx3.p1.m5" class="ltx_Math" alttext="x_{\mathrm{eye}}\in\mathcal{X}" display="inline"><mrow><msub><mi>x</mi><mi>eye</mi></msub><mo>∈</mo><mi class="ltx_font_mathcaligraphic">𝒳</mi></mrow></math>.
+The storm’s influence is strongest at its center and decays farther from the center according to the equation <math id="Sx3.p1.m6" class="ltx_Math" alttext="\omega(x)=\exp\left(-\frac{\lVert x-x_{\mathrm{eye}}\rVert_{2}^{2}}{2\sigma^{2%
+}}\right)" display="inline"><mrow><mrow><mi>ω</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>exp</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><mo>−</mo><mfrac><msubsup><mrow><mo fence="true" rspace="0em">∥</mo><mrow><mi>x</mi><mo>−</mo><msub><mi>x</mi><mi>eye</mi></msub></mrow><mo fence="true" lspace="0em">∥</mo></mrow><mn>2</mn><mn>2</mn></msubsup><mrow><mn>2</mn><mo>⁢</mo><msup><mi>σ</mi><mn>2</mn></msup></mrow></mfrac></mrow><mo>)</mo></mrow></mrow></mrow></math>.
+Given its current state <math id="Sx3.p1.m7" class="ltx_Math" alttext="x" display="inline"><mi>x</mi></math> and control input <math id="Sx3.p1.m8" class="ltx_Math" alttext="u" display="inline"><mi>u</mi></math>, the drone’s next state is determined as follows:</p>
+<ul id="Sx3.I3" class="ltx_itemize">
+<li id="Sx3.I3.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="Sx3.I3.i1.p1" class="ltx_para">
+<p class="ltx_p">The control to land is deterministic.</p>
+</div>
+</li>
+<li id="Sx3.I3.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="Sx3.I3.i2.p1" class="ltx_para">
+<p class="ltx_p">With probability <math id="Sx3.I3.i2.p1.m1" class="ltx_Math" alttext="\omega(x)" display="inline"><mrow><mi>ω</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow></math>, the storm will cause the drone to move in a uniformly random direction (for non-landing controls).</p>
+</div>
+</li>
+<li id="Sx3.I3.i3" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="Sx3.I3.i3.p1" class="ltx_para">
+<p class="ltx_p">With probability <math id="Sx3.I3.i3.p1.m1" class="ltx_Math" alttext="1-\omega(x)" display="inline"><mrow><mn>1</mn><mo>−</mo><mrow><mi>ω</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></math>, the drone will move in the direction specified by the control (for non-landing controls).</p>
+</div>
+</li>
+<li id="Sx3.I3.i4" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">•</span> 
+<div id="Sx3.I3.i4.p1" class="ltx_para">
+<p class="ltx_p">If the resulting movement would cause the drone to leave <math id="Sx3.I3.i4.p1.m1" class="ltx_Math" alttext="\mathcal{X}" display="inline"><mi class="ltx_font_mathcaligraphic">𝒳</mi></math>, then it will not move at all. For example, if the drone is on the right boundary of the map, then moving right will do nothing.</p>
+</div>
+</li>
+</ul>
+<p class="ltx_p">The quadrotor’s objective is to reach <math id="Sx3.p1.m9" class="ltx_Math" alttext="x_{\mathrm{goal}}\in\mathcal{X}" display="inline"><mrow><msub><mi>x</mi><mi>goal</mi></msub><mo>∈</mo><mi class="ltx_font_mathcaligraphic">𝒳</mi></mrow></math> as quickly as possible, so the cost function is the indicator function <math id="Sx3.p1.m10" class="ltx_Math" alttext="g_{t}(x_{t})=1-I_{x_{\mathrm{goal}}}(x_{t})" display="inline"><mrow><mrow><msub><mi>g</mi><mi>t</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mn>1</mn><mo>−</mo><mrow><msub><mi>I</mi><msub><mi>x</mi><mi>goal</mi></msub></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow></math>.
+In other words, the drone will receive a cost of <math id="Sx3.p1.m11" class="ltx_Math" alttext="1" display="inline"><mn>1</mn></math> whenever it is not at <math id="Sx3.p1.m12" class="ltx_Math" alttext="x_{\mathrm{goal}}\in\mathcal{X}" display="inline"><mrow><msub><mi>x</mi><mi>goal</mi></msub><mo>∈</mo><mi class="ltx_font_mathcaligraphic">𝒳</mi></mrow></math>, and a cost of <math id="Sx3.p1.m13" class="ltx_Math" alttext="0" display="inline"><mn>0</mn></math> at the goal.
+The drone has limited fuel capacity, so it must reach the goal in at most <math id="Sx3.p1.m14" class="ltx_Math" alttext="T" display="inline"><mi>T</mi></math> timesteps.
+If the drone is not at the goal at the end of the horizon, it will crash and we will incur a cost of <math id="Sx3.p1.m15" class="ltx_Math" alttext="100" display="inline"><mn>100</mn></math> to replace the drone, therefore <math id="Sx3.p1.m16" class="ltx_Math" alttext="g_{T}(x_{T})=100(1-I_{x_{\mathrm{goal}}}(x_{T}))" display="inline"><mrow><mrow><msub><mi>g</mi><mi>T</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>T</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mn>100</mn><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mn>1</mn><mo>−</mo><mrow><msub><mi>I</mi><msub><mi>x</mi><mi>goal</mi></msub></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>T</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></math>.</p>
+</div>
+<div id="Sx3.p2" class="ltx_para">
+<p class="ltx_p">In the notebook <span class="ltx_text ltx_font_typewriter">ch17/exercises/markovian_drone.ipynb</span>, complete the following exercises:</p>
+<ol id="Sx3.I4" class="ltx_enumerate">
+<li id="Sx3.I4.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">1.</span> 
+<div id="Sx3.I4.i1.p1" class="ltx_para">
+<p class="ltx_p">Implement the functions of <span class="ltx_text ltx_font_typewriter">DroneMDP</span> to compute the optimal cost-to-go values via dynamic programming (Algorithm&#160;<a href="#algorithm2" title="In Dynamic Programming. ‣ 17.2.2 Stochastic Decision Making with Dynamic Programming ‣ 17.2 Decision Making Under Uncertainty: Markov Decision Processes" class="ltx_ref"><span class="ltx_text ltx_ref_tag">2</span></a>) and extract the optimal policy using Equation&#160;<a href="#S2.E14" title="In Dynamic Programming. ‣ 17.2.2 Stochastic Decision Making with Dynamic Programming ‣ 17.2 Decision Making Under Uncertainty: Markov Decision Processes" class="ltx_ref"><span class="ltx_text ltx_ref_tag">17.14</span></a>.</p>
+</div>
+</li>
+<li id="Sx3.I4.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">2.</span> 
+<div id="Sx3.I4.i2.p1" class="ltx_para">
+<p class="ltx_p">Given <math id="Sx3.I4.i2.p1.m1" class="ltx_Math" alttext="T=100" display="inline"><mrow><mi>T</mi><mo>=</mo><mn>100</mn></mrow></math>, <math id="Sx3.I4.i2.p1.m2" class="ltx_Math" alttext="n=20" display="inline"><mrow><mi>n</mi><mo>=</mo><mn>20</mn></mrow></math>, <math id="Sx3.I4.i2.p1.m3" class="ltx_Math" alttext="\sigma=10" display="inline"><mrow><mi>σ</mi><mo>=</mo><mn>10</mn></mrow></math>, <math id="Sx3.I4.i2.p1.m4" class="ltx_Math" alttext="x_{\mathrm{eye}}=(15,15)" display="inline"><mrow><msub><mi>x</mi><mi>eye</mi></msub><mo>=</mo><mrow><mo stretchy="false">(</mo><mn>15</mn><mo>,</mo><mn>15</mn><mo stretchy="false">)</mo></mrow></mrow></math>, and <math id="Sx3.I4.i2.p1.m5" class="ltx_Math" alttext="x_{\mathrm{goal}}=(19,9)" display="inline"><mrow><msub><mi>x</mi><mi>goal</mi></msub><mo>=</mo><mrow><mo stretchy="false">(</mo><mn>19</mn><mo>,</mo><mn>9</mn><mo stretchy="false">)</mo></mrow></mrow></math>, compute and plot a heatmap of the optimal cost-to-go for <math id="Sx3.I4.i2.p1.m6" class="ltx_Math" alttext="t=0" display="inline"><mrow><mi>t</mi><mo>=</mo><mn>0</mn></mrow></math> over the grid <math id="Sx3.I4.i2.p1.m7" class="ltx_Math" alttext="\mathcal{X}" display="inline"><mi class="ltx_font_mathcaligraphic">𝒳</mi></math>.
+Then, using the code provided, simulate the MDP with the optimal policy for <math id="Sx3.I4.i2.p1.m8" class="ltx_Math" alttext="T=100" display="inline"><mrow><mi>T</mi><mo>=</mo><mn>100</mn></mrow></math> time steps with the state initialized at <math id="Sx3.I4.i2.p1.m9" class="ltx_Math" alttext="x=(0,19)" display="inline"><mrow><mi>x</mi><mo>=</mo><mrow><mo stretchy="false">(</mo><mn>0</mn><mo>,</mo><mn>19</mn><mo stretchy="false">)</mo></mrow></mrow></math>.</p>
+</div>
+</li>
+</ol>
+</div>
+</section>

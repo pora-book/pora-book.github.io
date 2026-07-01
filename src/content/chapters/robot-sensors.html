@@ -1,0 +1,424 @@
+
+<div id="p1" class="ltx_para">
+<p class="ltx_p">The three main pillars of robotic autonomy are perception, planning, and control, which correspond to the see, think, and act stages of autonomy.
+The <em class="ltx_emph ltx_font_italic">perception</em> component consists of the numerous challenges associated with a robot sensing and understanding its environment, and a key element of perception is the sensors the robot uses to extract meaningful information about the world.
+In the next few chapters, we focus on the robot perception problem, and in particular we introduce common sensors utilized in robotics applications, discuss their key performance characteristics, and describe strategies for extracting useful information from the sensor measurements<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">3</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">3.</span> Dudek, G., Jenkin, M. “Inertial Sensors, GPS, and Odometry.” In <em>Springer Handbook of Robotics</em>, 477–490. Springer, 2008.<br>Siegwart, R., Nourbakhsh, I. R., Scaramuzza, D. <em>Introduction to Autonomous Mobile Robots</em>. MIT Press, 2011.</span></span></span>.</p>
+</div>
+<div id="p2" class="ltx_para">
+<p class="ltx_p">Robots operate in diverse environments which often require diverse sets of sensors for effective perception.
+For example, a self-driving car may utilize cameras, lidar, and radar for detecting objects in the environment.
+It also requires sensors for characterizing the physical state of the vehicle itself, such as inertial measurement units (IMU), GNSS positioning sensors<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="p2.p1" class="ltx_para">
+<span class="ltx_p">Global Navigation Satellite System</span>
+</span></span></span></span></span>, and more.
+In this chapter, we will begin by introducing the different types of sensors in Section <a href="#S1" title="5.1 Sensor Classifications" class="ltx_ref"><span class="ltx_text ltx_ref_tag">5.1</span></a>. Next, we will discuss the performance characteristics of sensors in Section <a href="#S2" title="5.2 Sensor Performance" class="ltx_ref"><span class="ltx_text ltx_ref_tag">5.2</span></a>, and then we will discuss common errors and uncertainty quantification for them in Section <a href="#S3" title="5.3 Sensor Errors and Uncertainty Modeling" class="ltx_ref"><span class="ltx_text ltx_ref_tag">5.3</span></a>. Finally, we will survey some of the most common sensors used in mobile robotics applications in Section <a href="#S4" title="5.4 Common Sensors in Mobile Robotics" class="ltx_ref"><span class="ltx_text ltx_ref_tag">5.4</span></a>.</p>
+</div>
+<section id="S1" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">5.1 </span>Sensor Classifications</h2>
+
+<div id="S1.p1" class="ltx_para">
+<p class="ltx_p">We use the terms <em class="ltx_emph ltx_font_italic">proprioceptive</em> and <em class="ltx_emph ltx_font_italic">exteroceptive</em> to distinguish between sensors that measure the environment and sensors which measure quantities related to the robot itself.</p>
+</div>
+<div id="S1.Thmtheorem1" class="ltx_theorem ltx_theorem_definition">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Definition 5.1</span></span><span class="ltx_text ltx_font_bold"> </span>(Proprioceptive)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmtheorem1.p1" class="ltx_para">
+<p class="ltx_p">Proprioceptive sensors measure values internal to the robot.
+For example, a proprioceptive sensor might measure motor speed, wheel load, robot arm joint angles, or battery voltage.</p>
+</div>
+</div>
+<div id="S1.Thmtheorem2" class="ltx_theorem ltx_theorem_definition">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Definition 5.2</span></span><span class="ltx_text ltx_font_bold"> </span>(Exteroceptive)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmtheorem2.p1" class="ltx_para">
+<p class="ltx_p">Exteroceptive sensors acquire information from the robot’s environment.
+For example, exteroceptive sensors measure distances to objects, light intensity, and sound amplitude.</p>
+</div>
+</div>
+<div id="S1.p2" class="ltx_para">
+<p class="ltx_p">Generally speaking, exteroceptive sensor measurements are more likely to require interpretation by the robot in order to extract meaningful environmental features.
+In addition to characterizing sensors based on what they measure, we also characterize sensors as <em class="ltx_emph ltx_font_italic">passive</em> or <em class="ltx_emph ltx_font_italic">active</em> based on how they operate.</p>
+</div>
+<div id="S1.Thmtheorem3" class="ltx_theorem ltx_theorem_definition">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Definition 5.3</span></span><span class="ltx_text ltx_font_bold"> </span>(Passive sensor)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmtheorem3.p1" class="ltx_para">
+<p class="ltx_p">Passive sensors, such as thermometers and cameras, measure ambient environmental energy entering the sensor.</p>
+</div>
+</div>
+<div id="S1.Thmtheorem4" class="ltx_theorem ltx_theorem_definition">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Definition 5.4</span></span><span class="ltx_text ltx_font_bold"> </span>(Active sensor)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S1.Thmtheorem4.p1" class="ltx_para">
+<p class="ltx_p">Active sensors, such as ultrasonic sensors, lidar and radar, emit energy into the environment and measure the reaction.</p>
+</div>
+</div>
+<div id="S1.p3" class="ltx_para">
+<p class="ltx_p">Classifying a sensor as active or passive is important because each exhibits unique characteristics and challenges.
+For example, passive sensors are heavily influenced by environmental conditions, such as a camera’s reliance on good ambient lighting to take quality images.</p>
+</div>
+</section>
+<section id="S2" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">5.2 </span>Sensor Performance</h2>
+
+<div id="S2.p1" class="ltx_para">
+<p class="ltx_p">Different types of sensors exhibit varying performance attributes.
+While some sensors maintain exceptional accuracy in controlled laboratory settings, their performance may suffer in natural real-world environments.
+Conversely, other sensors offer narrow, high-precision data across a variety of settings.
+We quantify and compare sensor performance characteristics by defining metrics related to <em class="ltx_emph ltx_font_italic">design specifications</em> and <em class="ltx_emph ltx_font_italic">in situ</em><span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.p1.p1" class="ltx_para">
+<span class="ltx_p">In situ metrics quantify how well a sensor performs in the real environment.</span>
+</span></span></span></span></span> performance.</p>
+</div>
+<section id="S2.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">5.2.1 </span>Design Specification Metrics</h3>
+
+<div id="S2.SS1.p1" class="ltx_para">
+<p class="ltx_p">A number of performance characteristics are specifically considered when designing a sensor, and which are also used to quantify its overall nominal performance capabilities.</p>
+<ol id="S2.I1" class="ltx_enumerate">
+<li id="S2.I1.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">1.</span> 
+<div id="S2.I1.i1.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Dynamic range</em> quantifies the ratio between the lower and upper limits of the sensor inputs under normal operation.
+We usually express this metric in decibels (dB), and compute it as:</p>
+<table id="S2.Ex1" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex1.m1" class="ltx_Math" alttext="\text{DR}=10\log_{10}(r)\&gt;\&gt;[\text{dB}]," display="block"><mrow><mrow><mtext>DR</mtext><mo>=</mo><mrow><mn>10</mn><mo lspace="0.167em">⁢</mo><mrow><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mrow><mo stretchy="false">(</mo><mi>r</mi><mo stretchy="false">)</mo></mrow></mrow><mo lspace="0.440em">⁢</mo><mrow><mo stretchy="false">[</mo><mtext>dB</mtext><mo stretchy="false">]</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S2.I1.i1.p1.m1" class="ltx_Math" alttext="r" display="inline"><mi>r</mi></math> is the ratio between the upper and lower limits.
+In addition to the dynamic range ratio, the actual range is also an important sensor metric.
+For example, an optical rangefinder has a minimum operating range and gives spurious data when measurements are taken with the object closer than that minimum.</p>
+</div>
+</li>
+<li id="S2.I1.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">2.</span> 
+<div id="S2.I1.i2.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Resolution</em> is the minimum difference between two values that can be detected by a sensor.
+The lower limit of the dynamic range of a sensor is usually equal to its resolution<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.I1.i2.p1.p1" class="ltx_para">
+<span class="ltx_p">This is not necessarily the case for digital sensors</span>
+</span></span></span></span></span>.</p>
+</div>
+</li>
+<li id="S2.I1.i3" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">3.</span> 
+<div id="S2.I1.i3.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Linearity</em> characterizes whether or not the sensor’s output depends linearly on the input.</p>
+</div>
+</li>
+<li id="S2.I1.i4" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">4.</span> 
+<div id="S2.I1.i4.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Bandwidth</em> or <em class="ltx_emph ltx_font_italic">frequency</em> is used to measure the speed with which a sensor can provide a stream of readings.
+We usually express this metric in units of Hertz (Hz), which is measurements per second.
+High bandwidth sensors are desirable so that downstream information can be updated at a high rate.
+For example, mobile robots may have to limit their maximum speed based on the bandwidth of their obstacle detection sensors.</p>
+</div>
+</li>
+</ol>
+</div>
+</section>
+<section id="S2.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">5.2.2 </span>In Situ Performance Metrics</h3>
+
+<div id="S2.SS2.p1" class="ltx_para">
+<p class="ltx_p">Metrics related to the design specifications can be reasonably quantified in a laboratory environment and then extrapolated to predict performance during real-world deployment.
+However, several important sensor metrics cannot be adequately characterized in lab settings since they are influenced by complex interactions between the environment.</p>
+<ol id="S2.I2" class="ltx_enumerate">
+<li id="S2.I2.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">1.</span> 
+<div id="S2.I2.i1.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Sensitivity</em> defines the ratio of change in the output from the sensor to a change in the input.
+High sensitivity is often undesirable because any noise to the input can be amplified, but low sensitivity might degrade the ability to extract useful information from the sensor’s measurements.
+<em class="ltx_emph ltx_font_italic">Cross-sensitivity</em> defines the sensitivity to environmental parameters that are unrelated to the sensor’s target quantity.
+For example, a flux-gate compass can demonstrate high sensitivity to magnetic north and is therefore useful for mobile robot navigation.
+However, the compass also has high sensitivity to ferrous building materials, so much so that its cross-sensitivity often makes the sensor useless in some indoor environments.
+High cross-sensitivity of a sensor is generally undesirable, especially when it cannot be modeled.</p>
+</div>
+</li>
+<li id="S2.I2.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">2.</span> 
+<div id="S2.I2.i2.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Error</em> of a sensor is defined as the difference between the sensor’s output measurements and the true values being measured, within some specific operating context.
+Given a true value, <math id="S2.I2.i2.p1.m1" class="ltx_Math" alttext="v" display="inline"><mi>v</mi></math>, and a measured value, <math id="S2.I2.i2.p1.m2" class="ltx_Math" alttext="m" display="inline"><mi>m</mi></math>, we define the error as <math id="S2.I2.i2.p1.m3" class="ltx_Math" alttext="e\coloneqq m-v" display="inline"><mrow><mi>e</mi><mo>≔</mo><mrow><mi>m</mi><mo>−</mo><mi>v</mi></mrow></mrow></math>.</p>
+</div>
+</li>
+<li id="S2.I2.i3" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">3.</span> 
+<div id="S2.I2.i3.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Accuracy</em> is defined as the degree of conformity between the sensor’s measurement and the true value, and is often expressed as a proportion of the true value, for example we may state that a sensor has 97.5% accuracy.
+Therefore, small error corresponds to high accuracy and large error corresponds to low accuracy.
+For a measurement, <math id="S2.I2.i3.p1.m1" class="ltx_Math" alttext="m" display="inline"><mi>m</mi></math>, and true value, <math id="S2.I2.i3.p1.m2" class="ltx_Math" alttext="v" display="inline"><mi>v</mi></math>, we define the accuracy as <math id="S2.I2.i3.p1.m3" class="ltx_Math" alttext="a\coloneqq 1-|m-v|/v" display="inline"><mrow><mi>a</mi><mo>≔</mo><mrow><mn>1</mn><mo>−</mo><mrow><mrow><mo stretchy="false">|</mo><mrow><mi>m</mi><mo>−</mo><mi>v</mi></mrow><mo stretchy="false">|</mo></mrow><mo>/</mo><mi>v</mi></mrow></mrow></mrow></math>.
+Characterizing sensor accuracy is challenging since obtaining the true value, <math id="S2.I2.i3.p1.m4" class="ltx_Math" alttext="v" display="inline"><mi>v</mi></math>, can be difficult or impossible.</p>
+</div>
+</li>
+<li id="S2.I2.i4" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">4.</span> 
+<div id="S2.I2.i4.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Precision</em> defines the reproducibility of the sensor results.
+For example, a sensor has high precision if multiple measurements of the same environmental quantity are similar.
+It is important to note that precision is not the same as accuracy<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.I2.i4.p1.p1" class="ltx_para">
+<span class="ltx_p">A very precise sensor can still be highly inaccurate</span>
+</span></span></span></span></span>.</p>
+</div>
+</li>
+</ol>
+</div>
+</section>
+</section>
+<section id="S3" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">5.3 </span>Sensor Errors and Uncertainty Modeling</h2>
+
+<div id="S3.p1" class="ltx_para">
+<p class="ltx_p">When discussing in situ performance metrics such as accuracy and precision, it is important to be able to reason about the sources of sensor errors.
+In particular, it is important to distinguish between two main types of error, <em class="ltx_emph ltx_font_italic">systematic errors</em> and <em class="ltx_emph ltx_font_italic">random errors</em>.</p>
+<ol id="S3.I1" class="ltx_enumerate">
+<li id="S3.I1.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">1.</span> 
+<div id="S3.I1.i1.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Systematic errors</em> are caused by factors or processes that can in theory be modeled because they are deterministic and therefore reproducible and predictable.
+Calibration errors are a common source of systematic errors in sensors.</p>
+</div>
+</li>
+<li id="S3.I1.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">2.</span> 
+<div id="S3.I1.i2.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Random errors</em> cannot be predicted using a sophisticated model since they are stochastic and unpredictable.
+Hue instability in a color camera, spurious rangefinding errors, and black level noise in a camera are all examples of random errors.</p>
+</div>
+</li>
+</ol>
+</div>
+<div id="S3.p2" class="ltx_para">
+<p class="ltx_p">To reliably employ a sensor in practice, it is beneficial to characterize its systematic and random errors to allow for corrections that improve its accuracy and provide information about its precision.
+We refer to the process of quantifying sensor errors and identifying their origins as <em class="ltx_emph ltx_font_italic">error analysis</em>.
+This analysis often entails identifying all sources of systematic errors, modeling random errors<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S3.p2.p1" class="ltx_para">
+<span class="ltx_p">For example, using Gaussian distributions.</span>
+</span></span></span></span></span>, and assessing the cumulative effect of errors on the sensor’s output.</p>
+</div>
+<div id="S3.p3" class="ltx_para">
+<p class="ltx_p">However, conducting a comprehensive error analysis can be difficult due to several factors.
+A significant challenge arises due to a <em class="ltx_emph ltx_font_italic">blurring</em> between systematic and random errors that is the result of changes to the operating environment.
+For instance, exteroceptive sensors on a mobile robot face varying measurement conditions as the robot navigates, with the sensor’s performance potentially influenced by the robot’s own movement.
+Therefore, while we can classify sensor errors as systematic or random in controlled environments, accurately characterizing these errors becomes substantially more complex in real-world settings.</p>
+</div>
+<div id="S3.p4" class="ltx_para">
+<p class="ltx_p">If we could perfectly model and understand all systematic errors in sensor measurements we could theoretically correct for them.
+However, in practice, this is often not feasible.
+We therefore characterize uncertainty due to random errors by using <em class="ltx_emph ltx_font_italic">probability distributions</em>.
+Given the practical challenge of identifying all sources of random error, we commonly make assumptions when modeling the error distribution.
+We commonly assume that random errors have a zero-mean, and that the distribution is symmetric and <em class="ltx_emph ltx_font_italic">unimodal</em><span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S3.p4.p1" class="ltx_para">
+<span class="ltx_p">A very common distribution that fits these properties is the Gaussian distribution.</span>
+</span></span></span></span></span>.
+These assumptions can make mathematical analysis easier, but they also have limitations.
+For example, some assumptions, such as the unimodality of the distribution, may not hold true in real-world applications.</p>
+</div>
+<div id="S3.Thmexample1" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 5.3.1</span></span><span class="ltx_text ltx_font_bold"> </span>(Sensor uncertainty assumptions)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S3.Thmexample1.p1" class="ltx_para">
+<p class="ltx_p">Consider a sonar sensor, an active sensor that uses acoustic pulses to measure distance.
+Suppose the sonar’s accuracy is high, with random errors mainly stemming from noise from internal timing circuits.
+We could reasonably assume this noise is unimodal and possibly Gaussian.
+However, in scenarios where the sonar encounters materials causing coherent reflections, distance over-estimations become likely and could result in a bias towards positive errors.
+A comprehensive distribution that also captures this effect should be bimodal and asymmetric.</p>
+</div>
+</div>
+</section>
+<section id="S4" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">5.4 </span>Common Sensors in Mobile Robotics</h2>
+
+<div id="S4.p1" class="ltx_para">
+<p class="ltx_p">In mobile robotics applications, we encounter both proprioceptive and exteroceptive sensors working together to enable autonomous operation.
+Proprioceptive sensors provide the robot with information about its internal state—encoders measure joint positions and wheel rotations, IMUs track orientation and acceleration, and heading sensors determine the robot’s direction.
+These sensors form the foundation for understanding the robot’s own configuration and motion.
+Exteroceptive sensors, on the other hand, gather information about the surrounding environment—active ranging sensors measure distances to obstacles, beacons provide absolute position references, and vision sensors capture rich visual information about the scene.
+The following sections examine key examples of each type, with particular emphasis on those most commonly used in mobile robotics.</p>
+</div>
+<section id="S4.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">5.4.1 </span>Proprioceptive Sensors</h3>
+
+<section id="S4.SS1.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Encoders.</h4>
+
+<div id="S4.SS1.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">Encoders are proprioceptive electro-mechanical sensors that convert mechanical motion into a series of digital signals that can be interpreted to measure relative or absolute position measurements<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S4.SS1.SSS0.Px1.p1.p1" class="ltx_para">
+<span class="ltx_p">Thanks to their extensive use across many domains, significant advancements have been made in developing affordable encoders that provide high resolution.</span>
+</span></span></span></span></span>.
+One common application of encoders in robotics is for sensing the rotation angle and speed of wheels or motors.
+This is important for being able to design good control laws for wheel speed control and motor-driven joints.</p>
+</div>
+<div id="S4.SS1.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">One common type of encoder is the <em class="ltx_emph ltx_font_italic">optical encoder</em>.
+Optical encoders work by directing light through slits in a rotating metal or glass disc onto a photodiode, creating sine or square wave pulses corresponding to the disc’s rotation.
+We can then integrate the number of wave peaks to determine how much the disc has rotated.
+The encoder’s resolution, expressed in cycles per revolution (CPR), determines its minimum angular resolution.
+In terms of bandwidth, it is critical that the encoder is sufficiently fast to handle the expected shaft rotation rates<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S4.SS1.SSS0.Px1.p2.p1" class="ltx_para">
+<span class="ltx_p">Encoder bandwidth is generally not a concern in mobile robot applications.</span>
+</span></span></span></span></span>.
+Quadrature encoders are also common in robotics applications to additionally sense the direction of rotation.
+As with most proprioceptive sensors, encoders typically operate in a very predictable and controlled environment and we can account for their systematic errors and cross-sensitivities.
+In practice, we often assume perfect accuracy of optical encoders since their errors are typically dwarfed by errors in downstream components.</p>
+</div>
+</section>
+<section id="S4.SS1.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Inertial measurement unit (IMU).</h4>
+
+<div id="S4.SS1.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">Inertial measurement units (IMU) are devices that use gyroscopes and accelerometers to estimate relative position, orientation, velocity, and acceleration with respect to an inertial reference frame.
+An accelerometer measures net acceleration due to external forces, including gravity, while a gyroscope measures angular velocity.
+Modern IMUs, such as those in mobile phones, typically use Micro Electro-Mechanical Systems (MEMS) technology for both components.</p>
+</div>
+<div id="S4.SS1.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">We show the general working principle of an IMU in Figure&#160;<a href="#S4.F1" title="Figure 5.1 ‣ Inertial measurement unit (IMU). ‣ 5.4.1 Proprioceptive Sensors ‣ 5.4 Common Sensors in Mobile Robotics" class="ltx_ref"><span class="ltx_text ltx_ref_tag">5.1</span></a>.
+First, we integrate gyroscope data to estimate the vehicle orientation while three accelerometers estimate the instantaneous acceleration along each axis.
+We then transform the acceleration into the local navigation frame using the current estimate of the vehicle orientation relative to gravity and subtract the gravity vector from the measurement.
+Next, we integrate the resulting acceleration to obtain the velocity and integrate again to compute the position, provided that we know both the initial velocity and position.</p>
+</div>
+<figure id="S4.F1" class="ltx_figure">
+<p class="ltx_p ltx_align_center"><img class="ltx_graphics ltx_centering" src="/book-assets/robot-sensors/_tikz__robot-sensors-1.svg" alt="diagram"></p>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 5.1</span>: </span><span class="ltx_text" style="font-size:90%;">Inertial measurement unit (IMU) block diagram.</span></figcaption>
+</figure>
+<div id="S4.SS1.SSS0.Px2.p3" class="ltx_para">
+<p class="ltx_p">One of the fundamental issues with IMUs is the phenomenon called <em class="ltx_emph ltx_font_italic">drift</em>, which describes the slow accumulation of errors over time.
+Drift in any one component will also affect the downstream components.
+For example, drift in the gyroscope leads to errors in the estimation of the vehicle orientation relative to gravity, which results in incorrect cancellation of the gravity vector.
+Additionally, errors in acceleration measurements will cause the integrated velocity to drift in time, which will in turn also cause position estimate drift.
+We can account for drift by using periodic references to some external measurement, such as GNSS position measurements, cameras, or other sensors.</p>
+</div>
+</section>
+<section id="S4.SS1.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Heading sensors.</h4>
+
+<div id="S4.SS1.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">Heading sensors determine the robot’s orientation in space and can be proprioceptive (gyroscopes) or exteroceptive (compasses).
+Compasses measure the Earth’s magnetic field to provide an estimate of direction.
+Digital compasses using the Hall effect are inexpensive but often suffer from poor resolution and accuracy, while flux-gate compasses have improved resolution and accuracy but are more expensive.
+Both types are vulnerable to magnetic field disturbances, making them less suitable for indoor applications.
+Gyroscopes preserve their orientation with respect to a fixed inertial reference frame and can be mechanical or optical.
+While high-quality gyroscopes can achieve excellent accuracy (angular drift of about 0.1 degrees in 6 hours), they are expensive and still suffer from drift over time.</p>
+</div>
+</section>
+</section>
+<section id="S4.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">5.4.2 </span>Exteroceptive Sensors</h3>
+
+<section id="S4.SS2.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Active ranging.</h4>
+
+<div id="S4.SS2.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">Active ranging sensors provide direct distance measurements to objects in the vicinity of the sensor.
+These sensors are important in robotics for localization and environment reconstruction.
+There are two main types of active ranging sensors: time-of-flight active ranging sensors and geometric active ranging sensors<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S4.SS2.SSS0.Px1.p1.p1" class="ltx_para">
+<span class="ltx_p">Examples of time-of-flight sensors include ultrasonic, laser rangefinder, and time-of-flight cameras, and examples of geometric sensors include optical triangulation and structured light sensors.</span>
+</span></span></span></span></span>.</p>
+</div>
+<div id="S4.SS2.SSS0.Px1.p2" class="ltx_para">
+<ol id="S4.I1" class="ltx_enumerate">
+<li id="S4.I1.i1" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">1.</span> 
+<div id="S4.I1.i1.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Time-of-flight Active Ranging:</em>
+Time-of-flight active ranging sensors make use of the propagation speed of sounds or electromagnetic waves.
+In particular, the travel distance is given by:</p>
+<table id="S4.Ex2" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S4.Ex2.m1" class="ltx_Math" alttext="d=\frac{ct}{2}," display="block"><mrow><mrow><mi>d</mi><mo>=</mo><mfrac><mrow><mi>c</mi><mo>⁢</mo><mi>t</mi></mrow><mn>2</mn></mfrac></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S4.I1.i1.p1.m1" class="ltx_Math" alttext="d" display="inline"><mi>d</mi></math> is the distance to the target, <math id="S4.I1.i1.p1.m2" class="ltx_Math" alttext="c" display="inline"><mi>c</mi></math> is the speed of wave propagation, and <math id="S4.I1.i1.p1.m3" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math> is the measured round-trip time of flight.
+Note that the time of flight is significantly smaller when using electromagnetic signals, on the order of nanoseconds for distances on the order of meters, which can make these types of sensors more challenging to develop in an affordable and robust way.
+The quality of time-of-flight range sensors depends on several factors including uncertainties in determining the exact time of arrival of the reflected signal, inaccuracies in the time of flight measurement, the dispersal cone of the transmitted beam<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S4.I1.i1.p1.p1" class="ltx_para">
+<span class="ltx_p">Mainly with ultrasonic range sensors.</span>
+</span></span></span></span></span>, interaction with the target<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S4.I1.i1.p1.p2" class="ltx_para">
+<span class="ltx_p">For example, surface absorption, specular reflections.</span>
+</span></span></span></span></span>, and the speed of the mobile robot and dynamic targets.</p>
+</div>
+</li>
+<li id="S4.I1.i2" class="ltx_item" style="list-style-type:none;">
+<span class="ltx_tag ltx_tag_item">2.</span> 
+<div id="S4.I1.i2.p1" class="ltx_para">
+<p class="ltx_p"><em class="ltx_emph ltx_font_italic">Geometric Active Ranging:</em> Geometric active ranging sensors use geometric properties in the measurements to establish distance readings.
+Generally, these sensors project a known pattern of light and then we can use geometric properties to analyze the reflection and estimate range via triangulation.
+Optical triangulation sensors (1D) transmit a collimated beam toward the target and use a lens to collect reflected light and project it onto a position-sensitive device or linear camera.
+Structured light sensors (2D or 3D) project a known light pattern such as a point, line, or texture, onto the environment.
+The reflection is captured by a receiver and then, together with known geometric values, we can estimate range via triangulation.</p>
+</div>
+</li>
+</ol>
+</div>
+</section>
+<section id="S4.SS2.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Beacons.</h4>
+
+<div id="S4.SS2.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">Beacons are signaling devices with precisely known positions<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S4.SS2.SSS0.Px2.p1.p1" class="ltx_para">
+<span class="ltx_p">Stars and lighthouses are classic examples.</span>
+</span></span></span></span></span> that enable position determination through relative measurements.
+The GNSS positioning system is an advanced example of beacons that works by processing synchronized signals from at least four satellites to estimate three position coordinates and a clock correction variable.
+Indoor positioning systems often use camera-based motion capture or ultra-wideband beacons for similar functionality in GPS-denied environments.</p>
+</div>
+</section>
+<section id="S4.SS2.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Vision sensors.</h4>
+
+<div id="S4.SS2.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">Vision sensors have become crucial for perception in robotics due to their ability to capture an enormous amount of information about the environment<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S4.SS2.SSS0.Px3.p1.p1" class="ltx_para">
+<span class="ltx_p">The human eye provides millions of bits of information per second.</span>
+</span></span></span></span></span>.
+Unlike the sensors discussed above which provide specific measurements like distance or orientation, cameras capture rich visual data that can be processed to extract various types of information including object detection, depth estimation, motion tracking, and scene understanding.
+The main challenges associated with vision-based sensing are related to processing digital images to extract salient information like object depth, motion and object detection, color tracking, feature detection, scene recognition, and more.
+We generally refer to the analysis and processing of images as <em class="ltx_emph ltx_font_italic">computer vision</em> and <em class="ltx_emph ltx_font_italic">image processing</em>.
+The next chapter will explore camera models and calibration in detail, followed by techniques for extracting 3D information from visual data.</p>
+</div>
+</section>
+</section>
+</section>
+<section id="S5" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">5.5 </span>Summary</h2>
+
+<div id="S5.p1" class="ltx_para">
+<p class="ltx_p">This chapter introduced the fundamental concepts of robot sensors, including their classifications, performance metrics, and common types used in mobile robotics.
+Understanding sensor characteristics—including their limitations and error sources—is essential for effective robot perception.
+While we’ve surveyed various sensor types, the remainder of this part will focus specifically on vision-based sensing, beginning with camera models and calibration in the next chapter. Later chapters will introduce how these sensors can be used to extract useful information about the environment, such as object detections.</p>
+</div>
+<section id="S5.SS0.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">To learn more.</h4>
+
+<div id="S5.SS0.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">To dive deeper into robot sensors and perception, <span class="ltx_text ltx_font_italic">Introduction to Autonomous Mobile Robots</span> by <span class="ltx_cite">Siegwart et al. (2011)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">1</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">1.</span> Siegwart, R., Nourbakhsh, I. R., Scaramuzza, D. <em>Introduction to Autonomous Mobile Robots</em>. MIT Press, 2011.</span></span></span> provides a comprehensive overview of various sensor types and their applications in robotics.
+Additionally, readers interested in robotic sensor details are encouraged to read <span class="ltx_cite">Dudek and Jenkin (2008)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">2</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">2.</span> Dudek, G., Jenkin, M. “Inertial Sensors, GPS, and Odometry.” In <em>Springer Handbook of Robotics</em>, 477–490. Springer, 2008.</span></span></span>.</p>
+</div>
+</section>
+</section>

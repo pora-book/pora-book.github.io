@@ -1,0 +1,52 @@
+---
+import '../styles/global.css';
+const { title, description, active } = Astro.props;
+const pageTitle = title ? `${title} · Principles of Robot Autonomy` : 'Principles of Robot Autonomy';
+const nav = [
+  { href: '/book/', label: 'The Book', key: 'book' },
+  { href: '/exercises/', label: 'Exercises', key: 'exercises' },
+  { href: '/lectures/', label: 'Lectures', key: 'lectures' },
+];
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    {description && <meta name="description" content={description} />}
+    <link rel="icon" href="/favicon.svg" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="inner">
+        <a class="brand" href="/">
+          <span class="title">Principles of Robot Autonomy</span>
+        </a>
+        <nav>
+          {nav.map((n) => (
+            <a href={n.href} class={active === n.key ? 'active' : ''}>{n.label}</a>
+          ))}
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="inner">
+        <div>
+          <div style="font-weight:600;color:var(--ink-soft)">Principles of Robot Autonomy</div>
+          <div>Gammelli · Lorenzetti · Luo · Zardini · Pavone</div>
+        </div>
+        <div>
+          <a href="/#cite">Cite</a> ·
+          <a href="https://github.com/StanfordASL/pora-exercises">Exercises repo</a> ·
+          <a href="https://autonomousvehicles.stanford.edu/">Stanford ASL</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

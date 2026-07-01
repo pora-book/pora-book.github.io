@@ -1,0 +1,223 @@
+/* =========================================================================
+   Principles of Robot Autonomy — editorial / academic-press theme.
+   Reading-first: serif body, warm paper, a margin column for side notes,
+   restrained palette, understated theorem/definition boxes.
+   ========================================================================= */
+
+@import '@fontsource-variable/source-serif-4';
+@import '@fontsource-variable/inter';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/600.css';
+
+:root {
+  --paper: #fbf8f2;
+  --paper-2: #f4eee2;
+  --ink: #1b1a17;
+  --ink-soft: #46433c;
+  --muted: #726c60;
+  --line: #e0d8c8;
+  --line-strong: #cabfa8;
+  --accent: #9c3d21;        /* deep terracotta — quiet, bookish */
+  --accent-soft: #f3e6dd;
+  --link: #245c63;          /* deep teal */
+  --link-hover: #123c41;
+
+  --serif: 'Source Serif 4 Variable', Georgia, 'Times New Roman', serif;
+  --sans: 'Inter Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --measure: 40rem;         /* main reading column */
+  --margin-col: 13rem;      /* side-note column (right) */
+  --toc-col: 11rem;         /* table-of-contents column (left) */
+  --gutter: 2.25rem;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.075rem;
+  line-height: 1.62;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---- UI chrome uses the sans family ---- */
+.site-header, .site-footer, nav, .ui, button, .chip, .crumbs,
+.card, .rail, .part-head, .pager, .toc { font-family: var(--sans); }
+
+a { color: var(--link); text-decoration: none; }
+a:hover { color: var(--link-hover); text-decoration: underline; text-underline-offset: 2px; }
+
+h1, h2, h3, h4 { font-family: var(--serif); font-weight: 600; line-height: 1.15; color: var(--ink); }
+
+/* =========================== Header / nav =============================== */
+.site-header {
+  position: sticky; top: 0; z-index: 30;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: saturate(140%) blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.site-header .inner {
+  max-width: 72rem; margin: 0 auto; padding: 0.85rem 1.5rem;
+  display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
+}
+.brand { display: flex; flex-direction: column; line-height: 1.1; }
+.brand .title { font-family: var(--serif); font-weight: 600; font-size: 1.05rem; color: var(--ink); }
+.brand .sub { font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.site-header nav { display: flex; gap: 1.4rem; }
+.site-header nav a { color: var(--ink-soft); font-size: 0.9rem; font-weight: 500; }
+.site-header nav a.active { color: var(--accent); }
+
+/* =========================== Footer ==================================== */
+.site-footer {
+  border-top: 1px solid var(--line); margin-top: 5rem;
+  background: var(--paper-2);
+}
+.site-footer .inner {
+  max-width: 72rem; margin: 0 auto; padding: 2.5rem 1.5rem;
+  display: flex; flex-wrap: wrap; gap: 1.5rem; justify-content: space-between;
+  color: var(--muted); font-size: 0.85rem;
+}
+.site-footer a { color: var(--ink-soft); }
+
+/* =========================== Generic layout ============================= */
+.wrap { max-width: 72rem; margin: 0 auto; padding: 0 1.5rem; }
+.prose-wrap { max-width: 52rem; margin: 0 auto; padding: 0 1.5rem; }
+
+.chip {
+  display: inline-block; font-size: 0.7rem; letter-spacing: 0.08em;
+  text-transform: uppercase; font-weight: 600; color: var(--accent);
+  background: var(--accent-soft); border-radius: 999px; padding: 0.3rem 0.7rem;
+}
+.btn {
+  display: inline-flex; align-items: center; gap: 0.5rem; font-family: var(--sans);
+  font-weight: 600; font-size: 0.92rem; padding: 0.65rem 1.1rem; border-radius: 8px;
+  border: 1px solid var(--line-strong); background: #fff; color: var(--ink);
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { background: var(--link-hover); border-color: var(--link-hover); text-decoration: none; }
+.btn:hover { text-decoration: none; border-color: var(--accent); }
+
+/* =========================== Home ====================================== */
+/* Hero: framed cover beside the welcome copy. */
+.home-hero {
+  display: grid; grid-template-columns: minmax(0, 15rem) 1fr;
+  gap: 2.75rem; align-items: center;
+  padding: 4rem 1.5rem 3.25rem; border-bottom: 1px solid var(--line);
+}
+.cover-figure { margin: 0; }
+.cover-figure img {
+  display: block; width: 100%; height: auto; border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 18px 40px -18px rgba(20, 30, 50, 0.55), 0 2px 8px -3px rgba(0, 0, 0, 0.2);
+}
+.home-hero-copy h1 { font-size: clamp(1.9rem, 3.6vw, 2.9rem); letter-spacing: -0.02em; margin: 1rem 0 0; }
+.home-hero-copy h1 em { font-style: italic; color: var(--accent); }
+.home-hero-copy .lead { font-size: 1.18rem; color: var(--ink-soft); max-width: 46ch; margin: 1.15rem 0 0; }
+.home-hero-copy .cta { margin-top: 1.9rem; display: flex; gap: 0.75rem; flex-wrap: wrap; }
+
+/* Prose sections on the home page. */
+.home-note, .home-guide, .home-authors, .home-cite { padding: 2.75rem 0 0; }
+.home-note h2, .home-guide h2, .home-authors h2, .home-cite h2 {
+  font-size: 1.5rem; margin: 0 0 1rem;
+}
+.home-note p, .home-cite p { color: var(--ink-soft); max-width: 64ch; margin: 0 0 1rem; }
+.home-authors-intro { color: var(--ink-soft); max-width: 64ch; margin: 0 0 1.75rem; }
+
+/* Author bio cards. */
+.authors { display: grid; gap: 1.1rem; }
+.author { display: grid; grid-template-columns: 3.5rem 1fr; gap: 1.1rem; align-items: start; }
+.author-photo {
+  width: 3.5rem; height: 3.5rem; border-radius: 999px; object-fit: cover;
+  border: 1px solid var(--line-strong); background: var(--paper-2);
+}
+.author-name { font-family: var(--serif); font-weight: 600; font-size: 1.08rem; color: var(--ink); }
+.author-aff {
+  font-family: var(--sans); font-size: 0.74rem; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--accent); margin-top: 0.1rem;
+}
+.author-bio { margin: 0.45rem 0 0; color: var(--muted); font-size: 0.96rem; line-height: 1.55; }
+
+/* Citation block. */
+.cite-block {
+  font-family: var(--mono); font-size: 0.82rem; line-height: 1.5;
+  background: var(--paper-2); border: 1px solid var(--line); border-radius: 8px;
+  padding: 1rem; overflow-x: auto; margin: 0;
+}
+
+.pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+.pillar { border: 1px solid var(--line); border-radius: 12px; padding: 1.5rem; background: #fff; }
+.pillar h3 { margin: 0.25rem 0 0.5rem; font-size: 1.15rem; }
+.pillar p { margin: 0; color: var(--muted); font-size: 0.98rem; }
+.pillar .k { font-family: var(--sans); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+
+/* =========================== Book index ================================ */
+.part-head {
+  margin: 3rem 0 1rem; font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--muted); border-bottom: 1px solid var(--line); padding-bottom: 0.5rem;
+}
+.chapter-list { display: grid; gap: 0.4rem; }
+.chapter-row {
+  display: grid; grid-template-columns: 2.5rem 1fr auto; align-items: baseline; gap: 1rem;
+  padding: 0.85rem 0.75rem; border-radius: 8px; border: 1px solid transparent;
+}
+.chapter-row:hover { background: #fff; border-color: var(--line); text-decoration: none; }
+.chapter-row .num { font-family: var(--mono); color: var(--accent); font-size: 0.95rem; }
+.chapter-row .name { font-family: var(--serif); font-size: 1.12rem; color: var(--ink); }
+.chapter-row .tags { font-family: var(--sans); font-size: 0.72rem; color: var(--muted); display: flex; gap: 0.5rem; }
+.chapter-row .tag-ex { color: var(--link); }
+.chapter-row .tag-soon { color: var(--muted); opacity: 0.7; }
+
+/* =========================== Chapter page ============================== */
+.chapter-header { border-bottom: 1px solid var(--line); padding: 3rem 0 1.75rem; margin-bottom: 2rem; }
+.chapter-header .kicker { font-family: var(--mono); color: var(--accent); font-size: 0.9rem; }
+.chapter-header h1 { font-size: clamp(1.9rem, 4vw, 2.8rem); letter-spacing: -0.015em; margin: 0.5rem 0 0; }
+
+/* Three-column reading grid: TOC (left) · text · margin notes (right).
+   Sidenotes float into the empty right column; the TOC lives on the left so the
+   two never collide. */
+.chapter-grid {
+  display: grid;
+  grid-template-columns: var(--toc-col) var(--measure) var(--margin-col);
+  gap: var(--gutter);
+  max-width: calc(var(--toc-col) + var(--measure) + var(--margin-col) + 2 * var(--gutter));
+  margin: 0 auto; padding: 0 1.5rem;
+}
+.chapter-main { min-width: 0; }
+.chapter-toc { font-family: var(--sans); font-size: 0.82rem; color: var(--muted); }
+.chapter-toc .toc { position: sticky; top: 6rem; max-height: calc(100vh - 8rem); overflow-y: auto; }
+.chapter-toc .toc h4 { font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin: 0 0 0.6rem; }
+.chapter-toc .toc a { display: block; color: var(--ink-soft); padding: 0.18rem 0; line-height: 1.3; }
+.chapter-toc .toc a.sub { padding-left: 0.9rem; font-size: 0.78rem; color: var(--muted); }
+.chapter-toc .toc a.active { color: var(--accent); }
+
+/* Practice / Watch rails */
+.rail { border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem; margin: 2.5rem 0; background: var(--paper-2); }
+.rail h3 { font-family: var(--sans); font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 0 0 0.9rem; }
+.rail ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.rail li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 0.7rem 0.9rem; }
+.rail .nb-name { font-family: var(--mono); font-size: 0.9rem; color: var(--ink); }
+.rail .nb-links { display: flex; gap: 0.75rem; font-family: var(--sans); font-size: 0.82rem; }
+
+.pager { display: flex; justify-content: space-between; gap: 1rem; margin: 3.5rem 0 1rem; border-top: 1px solid var(--line); padding-top: 1.5rem; }
+.pager a { font-family: var(--sans); font-size: 0.9rem; max-width: 45%; }
+.pager .lbl { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+
+@media (max-width: 62rem) {
+  .chapter-grid { grid-template-columns: 1fr; max-width: 44rem; }
+  .chapter-toc { display: none; }
+  .pillars { grid-template-columns: 1fr; }
+  .home-hero {
+    grid-template-columns: 1fr; gap: 1.75rem; justify-items: center; text-align: center;
+    padding-top: 2.75rem;
+  }
+  .cover-figure { max-width: 15rem; }
+  .home-hero-copy .lead { margin-left: auto; margin-right: auto; }
+  .home-hero-copy .cta { justify-content: center; }
+}

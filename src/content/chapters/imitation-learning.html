@@ -1,0 +1,782 @@
+
+<div id="p1" class="ltx_para">
+<p class="ltx_p">In <span class="ltx_ref">the referenced item</span>, we introduced a strategy for autonomous robot decision making that requires a very manual and sometimes intractable process of specifying desired actions from every possible state.
+Then, in <span class="ltx_ref">the referenced item</span> and <span class="ltx_ref">the referenced item</span>, we formulated the sequential decision making problem as an optimization problem where we must specify a cost or reward function that we want the robot to minimize or maximize.
+This optimization-based approach is more general and scalable, but it still requires us to figure out how to appropriately embed our preferences into the form of a mathematical function.
+Reward design can be very challenging in practice, and by the nature of optimization-based approaches, the cost or reward function can be inadvertently exploited in undesirable ways.
+Additionally, in the reinforcement learning context, we require continuous and exploratory interactions with the environment that could be costly or unsafe<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="p1.p1" class="ltx_para">
+<span class="ltx_p">For example, some robots operate in close collaboration with humans or in other safety-critical environments where the risk of exploring sub-optimal actions is significant.</span>
+</span></span></span></span></span> as well as sophisticated learning algorithms that are able to learn from experience.</p>
+</div>
+<div id="p2" class="ltx_para">
+<p class="ltx_p">In practice, it can sometimes be easier, more efficient, or safer for human experts to <em class="ltx_emph ltx_font_italic">demonstrate</em> the desired task or behavior than it is to precisely program it, try to encode it in a cost function, or let the robot freely interact with the environment.
+The goal of <em class="ltx_emph ltx_font_italic">imitation learning</em> in the context of robotics is to leverage a limited set of expert demonstrations to accelerate or completely train a robot to autonomously perform a desired behavior.
+In this chapter, we begin in Section&#160;<a href="#S1" title="19.1 Imitation Learning in Robotics" class="ltx_ref"><span class="ltx_text ltx_ref_tag">19.1</span></a> by introducing the concept of imitation learning in the context of robotics, provide a formal problem formulation, and discuss key design considerations.
+We then present a canonical imitation learning approach known as <em class="ltx_emph ltx_font_italic">Behavior Cloning</em> in Section&#160;<a href="#S2" title="19.2 Behavior Cloning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">19.2</span></a>, which aims to directly learn a policy from expert demonstrations.
+Lastly, in Section&#160;<a href="#S3" title="19.3 Inverse Reinforcement Learning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">19.3</span></a>, we introduce <em class="ltx_emph ltx_font_italic">Inverse Reinforcement Learning</em>, an alternative approach to imitation learning that learns a reward function from expert demonstrations.</p>
+</div>
+<section id="S1" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">19.1 </span>Imitation Learning in Robotics</h2>
+
+<div id="S1.p1" class="ltx_para">
+<p class="ltx_p">Imitation learning is a class of methods that enable skills to be transferred from an expert to a learner.
+In the context of robotics, the expert is typically a human operator or a pre-existing control policy, and the learner is the robot that aims to mimic the expert’s behavior.
+While the literature on imitation learning is vast, in this section, we focus on core design decisions and concepts essential for understanding and applying imitation learning to robotic systems.
+Specifically, when designing an imitation learning system, several key aspects must be considered:</p>
+</div>
+<section id="S1.SS0.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Is imitation learning the right approach?</h4>
+
+<div id="S1.SS0.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">Imitation learning might not always be the most suitable method for learning a task.
+For example, reinforcement learning might be a more effective approach if it is inexpensive for us to obtain samples from the environment<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS0.SSS0.Px1.p1.p1" class="ltx_para">
+<span class="ltx_p">Such as if we have a good <em class="ltx_emph ltx_font_italic">simulator</em> for the task because it could be very safe and cheap to collect data.</span>
+</span></span></span></span></span>.
+Moreover, if the expert’s behavior is suboptimal or inconsistent, imitation learning may not yield the desired performance.
+Therefore, it is crucial to evaluate whether imitation learning is the most appropriate method for the given task.</p>
+</div>
+</section>
+<section id="S1.SS0.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">What should we learn to imitate?</h4>
+
+<div id="S1.SS0.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">Expert demonstrations often contain a substantial amount of information that is irrelevant to the task at hand.
+For example, not all sensor measurements or control signals observed in a demonstration are necessary for successful task execution.
+Consequently, a central challenge is to identify and extract the aspects of the expert’s behavior that are truly relevant and should be imitated by the learner.</p>
+</div>
+</section>
+<section id="S1.SS0.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Who is the expert?</h4>
+
+<div id="S1.SS0.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">The choice of expert can significantly impact the quality of the learned behavior.
+In many cases, the expert is a human operator who demonstrates the task.
+However, the expert could also be a pre-existing control policy, a set of historical data, or a mixture of multiple experts.
+Understanding which expert to learn from is crucial for the success of the imitation learning process.</p>
+</div>
+</section>
+<section id="S1.SS0.SSS0.Px4" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">How should we represent the policy?</h4>
+
+<div id="S1.SS0.SSS0.Px4.p1" class="ltx_para">
+<p class="ltx_p">The choice of policy representation can greatly influence the learning process.
+For instance, expert behavior can equivalently be represented at different levels of abstraction, such as low-level motor commands, high-level symbolic actions, or trajectory-level demonstrations.
+Moreover, different functional forms of the policy, such as whether the policy is defined as a linear function or a neural network, can impact the expressiveness and generalization capabilities of the learned policy.</p>
+</div>
+</section>
+<section id="S1.SS0.SSS0.Px5" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">What learning algorithm is most suitable?</h4>
+
+<div id="S1.SS0.SSS0.Px5.p1" class="ltx_para">
+<p class="ltx_p">The choice of learning algorithm can significantly impact the efficiency and performance of the imitation learning process.
+Many algorithms have been proposed for imitation learning, each with its own strengths and limitations.
+Understanding the characteristics of different algorithms and their suitability for the given task is essential for designing an effective imitation learning system.</p>
+</div>
+</section>
+<section id="S1.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">19.1.1 </span>Differences Among Imitation Learning, Supervised Learning, and Reinforcement Learning</h3>
+
+<div id="S1.SS1.p1" class="ltx_para">
+<p class="ltx_p">Imitation learning is often compared with supervised learning and reinforcement learning, as all three paradigms involve learning from data.
+While these methods share similarities, they also differ in several key aspects.</p>
+</div>
+<div id="S1.SS1.p2" class="ltx_para">
+<p class="ltx_p">Supervised learning aims to learn a mapping from input data to output labels<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS1.p2.p1" class="ltx_para">
+<span class="ltx_p">For example, from camera image inputs to object category outputs.</span>
+</span></span></span></span></span> based on a dataset of input-output pairs.
+While the imitation learning task of deriving a policy from a dataset of expert demonstrations is closely related to supervised learning, there are several key differences.
+First, in imitation learning, the solution may have inherent structural properties, such as physical constraints or temporal dependencies<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS1.p2.p2" class="ltx_para">
+<span class="ltx_p">For example, in robot planning and control we often have actuation limits.</span>
+</span></span></span></span></span>, that are not present in standard supervised learning tasks.
+Second, in a traditional supervised learning setting, we assume that the source domain, which includes the dataset used for training, and the target domain, which includes the test data, are the same.
+In imitation learning, we may not be able to directly transfer the expert’s behavior to the learner’s environment.
+For example, the embodiment of the expert may differ from the learner, such as if the expert is a human and the learner is a robot, leading to expert demonstrations of actions that are not directly executable by the robot.
+Imitation learning is also typically exposed to the <em class="ltx_emph ltx_font_italic">covariate shift</em> problem, where the distribution of the expert’s data may differ from the distribution of the learner’s data.
+Specifically, the learner may encounter situations not represented in the expert’s demonstrations, requiring it to generalize beyond the expert’s behavior<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS1.p2.p3" class="ltx_para">
+<span class="ltx_p">Strategies for addressing the issues arising from covariate shift will be discussed in more depth later in this chapter.</span>
+</span></span></span></span></span>.
+Lastly, obtaining expert demonstrations can be costly or time-consuming, making data collection a significant concern.</p>
+</div>
+<div id="S1.SS1.p3" class="ltx_para">
+<p class="ltx_p">Imitation learning is also closely related to reinforcement learning, as both paradigms involve learning a policy from data that maximizes a reward.
+However, reinforcement learning methods typically require a predefined reward function to guide the robot’s behavior.
+In contrast, imitation learning assumes that the expert directly provides optimal, or at least good, behavior, bypassing the need for a reward function.</p>
+</div>
+</section>
+<section id="S1.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">19.1.2 </span>Problem Formulation</h3>
+
+<div id="S1.SS2.p1" class="ltx_para">
+<p class="ltx_p">In imitation learning problems, we typically assume that we have access to a dataset, <math id="S1.SS2.p1.m1" class="ltx_Math" alttext="\mathcal{D}" display="inline"><mi class="ltx_font_mathcaligraphic">𝒟</mi></math>, of expert demonstrations.
+The dataset generally consists of a set of trajectories and contexts, and we denote it mathematically as <math id="S1.SS2.p1.m2" class="ltx_Math" alttext="\mathcal{D}=\{(\tau_{i},s_{i})\}_{i=1}^{N}" display="inline"><mrow><mi class="ltx_font_mathcaligraphic">𝒟</mi><mo>=</mo><msubsup><mrow><mo stretchy="false">{</mo><mrow><mo stretchy="false">(</mo><msub><mi>τ</mi><mi>i</mi></msub><mo>,</mo><msub><mi>s</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow><mo stretchy="false">}</mo></mrow><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></msubsup></mrow></math> where <math id="S1.SS2.p1.m3" class="ltx_Math" alttext="N" display="inline"><mi>N</mi></math> is the number of samples and <math id="S1.SS2.p1.m4" class="ltx_Math" alttext="\tau_{i}=\{\bm{x}_{i,0},\bm{u}_{i,0},\ldots,\bm{x}_{i,T}\}" display="inline"><mrow><msub><mi>τ</mi><mi>i</mi></msub><mo>=</mo><mrow><mo stretchy="false">{</mo><msub><mi>𝒙</mi><mrow><mi>i</mi><mo>,</mo><mn>0</mn></mrow></msub><mo>,</mo><msub><mi>𝒖</mi><mrow><mi>i</mi><mo>,</mo><mn>0</mn></mrow></msub><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msub><mi>𝒙</mi><mrow><mi>i</mi><mo>,</mo><mi>T</mi></mrow></msub><mo stretchy="false">}</mo></mrow></mrow></math> is a trajectory executed by the expert in a given context, <math id="S1.SS2.p1.m5" class="ltx_Math" alttext="s_{i}" display="inline"><msub><mi>s</mi><mi>i</mi></msub></math>.
+The context <math id="S1.SS2.p1.m6" class="ltx_Math" alttext="s_{i}" display="inline"><msub><mi>s</mi><mi>i</mi></msub></math> may represent a task description, an environmental configuration, or any other relevant information characterizing the expert’s behavior.
+Alternatively, the dataset may consist of state-action pairs, where we would write <math id="S1.SS2.p1.m7" class="ltx_Math" alttext="\mathcal{D}=\{(\bm{x}_{i},\bm{u}_{i})\}_{i=1}^{N}" display="inline"><mrow><mi class="ltx_font_mathcaligraphic">𝒟</mi><mo>=</mo><msubsup><mrow><mo stretchy="false">{</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>i</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow><mo stretchy="false">}</mo></mrow><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></msubsup></mrow></math>.</p>
+</div>
+<div id="S1.SS2.p2" class="ltx_para">
+<p class="ltx_p">Given such a dataset, we can broadly identify two main strategies for reproducing the expert’s behavior.
+A first approach is to directly learn a mapping from contexts to trajectories, or from states to actions, using supervised learning techniques.
+That is, to learn:</p>
+<table id="S1.Ex1" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex1.m1" class="ltx_Math" alttext="\pi(s)=\tau\quad\text{or}\quad\pi(\bm{x})=\bm{u}." display="block"><mrow><mrow><mrow><mrow><mi>π</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>s</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mi>τ</mi><mspace width="1em"></mspace><mtext>or</mtext></mrow></mrow><mspace width="1em"></mspace><mrow><mrow><mi>π</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mi>𝒖</mi></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">This approach is commonly referred to as <span class="ltx_text ltx_font_italic">Behavior Cloning</span> (BC)<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">7</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">7.</span> Osa, T., Pajarinen, J., Neumann, G., Bagnell, A., Abbeel, P., Peters, J. “An Algorithmic Perspective on Imitation Learning.” 2018.</span></span></span>.</p>
+</div>
+<div id="S1.SS2.p3" class="ltx_para">
+<p class="ltx_p">Alternatively, we can use the expert demonstrations to learn a reward function, <math id="S1.SS2.p3.m1" class="ltx_Math" alttext="R(\bm{x},\bm{u})" display="inline"><mrow><mi>R</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒙</mi><mo>,</mo><mi>𝒖</mi><mo stretchy="false">)</mo></mrow></mrow></math>, that implicitly defines the expert’s behavior, and then infer a policy that maximizes this reward:</p>
+<table id="S1.Ex2" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.Ex2.m1" class="ltx_Math" alttext="\pi^{*}(\bm{x})=\operatorname*{arg\,max}_{\pi}V^{\pi}=\operatorname*{arg\,max}%
+_{\pi}\mathbb{E}_{\tau\sim p_{\pi}(\tau)}\left[\sum_{t=0}^{T-1}\gamma^{t}R(\bm%
+{x}_{t},\bm{u}_{t})\right]," display="block"><mrow><mrow><mrow><msup><mi>π</mi><mo>∗</mo></msup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><munder><mrow><mi>arg</mi><mo lspace="0.170em">⁢</mo><mi>max</mi></mrow><mi>π</mi></munder><mo>⁡</mo><msup><mi>V</mi><mi>π</mi></msup></mrow><mo>=</mo><mrow><mrow><munder><mrow><mi>arg</mi><mo lspace="0.170em">⁢</mo><mi>max</mi></mrow><mi>π</mi></munder><mo>⁡</mo><msub><mi>𝔼</mi><mrow><mi>τ</mi><mo>∼</mo><mrow><msub><mi>p</mi><mi>π</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></msub></mrow><mo>⁢</mo><mrow><mo>[</mo><mrow><munderover><mo lspace="0em" movablelimits="false">∑</mo><mrow><mi>t</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></munderover><mrow><msup><mi>γ</mi><mi>t</mi></msup><mo>⁢</mo><mi>R</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>]</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S1.SS2.p3.m2" class="ltx_Math" alttext="V^{\pi}" display="inline"><msup><mi>V</mi><mi>π</mi></msup></math> is the expected sum of future rewards for policy <math id="S1.SS2.p3.m3" class="ltx_Math" alttext="\pi" display="inline"><mi>π</mi></math> where the expectation is over possible trajectories <math id="S1.SS2.p3.m4" class="ltx_Math" alttext="\tau" display="inline"><mi>τ</mi></math> that are distributed according to <math id="S1.SS2.p3.m5" class="ltx_Math" alttext="p(\tau)" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow></mrow></math>.
+This approach is known as <em class="ltx_emph ltx_font_italic">Inverse Reinforcement Learning</em> (IRL)<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">8</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">8.</span> Arora, S., Doshi, P. “A survey of inverse reinforcement learning: Challenges, methods and progress.” <em>Artificial Intelligence</em> 297, 103500, 2021.</span></span></span> or <em class="ltx_emph ltx_font_italic">Inverse Optimal Control</em> (IOC).</p>
+</div>
+<div id="S1.SS2.p4" class="ltx_para">
+<p class="ltx_p">Behavior cloning and inverse reinforcement learning are the two primary approaches to imitation learning, each with distinct strengths and limitations.
+In the following sections, we discuss these approaches in more detail and provide insights into when each method is most appropriate.</p>
+</div>
+</section>
+</section>
+<section id="S2" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">19.2 </span>Behavior Cloning</h2>
+
+<div id="S2.p1" class="ltx_para">
+<p class="ltx_p">Behavior cloning is an approach to imitation learning that focuses on directly learning a mapping from states (or contexts) to actions (or trajectories) without explicitly modeling the reward function.
+The behavior cloning task can be formulated as a supervised learning problem, where the policy <math id="S2.p1.m1" class="ltx_Math" alttext="\pi" display="inline"><mi>π</mi></math> is learned by solving a regression problem.
+We outline the general procedure for behavior cloning in Algorithm&#160;<a href="#algorithm1" title="In 19.2 Behavior Cloning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">1</span></a>.</p>
+</div>
+<figure id="algorithm1" class="ltx_float ltx_algorithm">
+<div class="ltx_listing ltx_lst_numbers_left ltx_listing">
+<div class="ltx_listingline">Collect a dataset, <math id="algorithm1.m1" class="ltx_Math" alttext="\mathcal{D}" display="inline"><mi class="ltx_font_mathcaligraphic">𝒟</mi></math>, of expert demonstrations. </div>
+<div class="ltx_listingline">Define a model architecture for the policy, <math id="algorithm1.m2" class="ltx_Math" alttext="\pi_{\bm{\theta}}" display="inline"><msub><mi>π</mi><mi>𝜽</mi></msub></math>. </div>
+<div class="ltx_listingline">Define a loss function, <math id="algorithm1.m3" class="ltx_Math" alttext="\mathcal{L}" display="inline"><mi class="ltx_font_mathcaligraphic">ℒ</mi></math>. </div>
+<div class="ltx_listingline">Optimize the loss function, <math id="algorithm1.m4" class="ltx_Math" alttext="\mathcal{L}" display="inline"><mi class="ltx_font_mathcaligraphic">ℒ</mi></math>, with respect to the model parameters, <math id="algorithm1.m5" class="ltx_Math" alttext="\bm{\theta}" display="inline"><mi>𝜽</mi></math>. </div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">return</span> Trained policy, <math id="algorithm1.m6" class="ltx_Math" alttext="\pi_{\bm{\theta}}" display="inline"><msub><mi>π</mi><mi>𝜽</mi></msub></math>.</div>
+</div>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_float"><span class="ltx_text ltx_font_bold">Algorithm 1</span> </span>Behavior Cloning</figcaption>
+</figure>
+<div id="S2.p2" class="ltx_para">
+<p class="ltx_p">The first step consists of collecting a dataset <math id="S2.p2.m1" class="ltx_Math" alttext="\mathcal{D}" display="inline"><mi class="ltx_font_mathcaligraphic">𝒟</mi></math> of expert demonstrations, for example from logged data generated by a human operator.
+Next, a model architecture for the policy <math id="S2.p2.m2" class="ltx_Math" alttext="\pi_{\bm{\theta}}" display="inline"><msub><mi>π</mi><mi>𝜽</mi></msub></math> is specified, which may take the form of a neural network, a linear model, or another function class described by parameters <math id="S2.p2.m3" class="ltx_Math" alttext="\bm{\theta}" display="inline"><mi>𝜽</mi></math>.
+The choice of model architecture depends on the complexity of the task and the amount of available data, since the model must be expressive enough to capture the expert’s behavior, yet not excessively complex to avoid overfitting.
+Then, a loss function <math id="S2.p2.m4" class="ltx_Math" alttext="\mathcal{L}" display="inline"><mi class="ltx_font_mathcaligraphic">ℒ</mi></math> is defined to quantify the discrepancy between the actions predicted by the policy and those demonstrated by the expert.
+Common choices include mean squared error, <math id="S2.p2.m5" class="ltx_Math" alttext="\ell_{1}" display="inline"><msub><mi mathvariant="normal">ℓ</mi><mn>1</mn></msub></math> loss, hinge loss, and Kullback–Leibler divergence.
+Finally, the policy parameters <math id="S2.p2.m6" class="ltx_Math" alttext="\bm{\theta}" display="inline"><mi>𝜽</mi></math> are optimized by minimizing the loss function <math id="S2.p2.m7" class="ltx_Math" alttext="\mathcal{L}" display="inline"><mi class="ltx_font_mathcaligraphic">ℒ</mi></math> over the demonstration dataset.</p>
+</div>
+<div id="S2.p3" class="ltx_para">
+<p class="ltx_p">Behavior cloning methods are an attractive approach to learning-based decision making, primarily due to their simplicity, effectiveness, and broad applicability.
+However, ensuring the learned policy performs reliably in real-world settings presents significant challenges.
+One of the primary obstacles to trustworthy deployment of policies learned through behavior cloning is the issue of <em class="ltx_emph ltx_font_italic">covariate shift</em>.</p>
+</div>
+<section id="S2.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">19.2.1 </span>The Covariate Shift Problem</h3>
+
+<div id="S2.SS1.p1" class="ltx_para">
+<p class="ltx_p">Formally, covariate shift refers to a mismatch between the distribution of data encountered during training and the distribution observed at deployment.
+In the context of behavior cloning, this issue arises when the learned policy is executed in the environment, causing small prediction errors to <span class="ltx_text ltx_font_italic">accumulate</span> over time.
+As these errors compound, the learner is increasingly likely to visit states that were rarely or never encountered in the expert’s demonstrations, thereby drifting into poorly represented regions of the state space.
+As a result, the agent is forced to make decisions in unfamiliar situations, leading to poor performance and potentially catastrophic failures.</p>
+</div>
+<div id="S2.SS1.p2" class="ltx_para">
+<p class="ltx_p">While it is impractical to gather data covering all possible states a robot might encounter, several strategies have been developed to mitigate the impact of covariate shift.
+These strategies typically follow an iterative process that alternates between updating the robot’s policy and targeted data collection based on the robot’s current state distribution.
+In this section, we outline two primary approaches to address covariate shift: <em class="ltx_emph ltx_font_italic">confidence-based methods</em> and <em class="ltx_emph ltx_font_italic">data aggregation methods</em>.</p>
+</div>
+<section id="S2.SS1.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Confidence-Based Methods.</h4>
+
+<div id="S2.SS1.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">In the class of confidence-based methods<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">9</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">9.</span> Chernova, S., Veloso, M. “Interactive policy learning through confidence-based autonomy.” <em>Journal of Artificial Intelligence Research</em> 34(1), 1–25, 2009.</span></span></span>, the agent is endowed with a mechanism for estimating uncertainty in its predictions.
+This uncertainty estimate is used to identify situations in which the learned policy is likely to make errors, thereby enabling targeted corrective interventions.
+A common strategy exploits the uncertainty measure to detect regions of the state space where the agent’s decisions are unreliable, after which additional data is collected in those regions to improve policy performance.
+In some cases, this data collection is also prompted by expert intervention, where the expert temporarily takes control to correct the agent’s actions.</p>
+</div>
+<div id="S2.SS1.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">At a high level, methods based on this iterative refinement process seek to empirically align the training data distribution with the state distribution induced by the learned policy, thereby mitigating the effects of covariate shift.
+A schematic overview of this approach is presented in Algorithm <a href="#algorithm2" title="In Confidence-Based Methods. ‣ 19.2.1 The Covariate Shift Problem ‣ 19.2 Behavior Cloning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">2</span></a>.</p>
+</div>
+<figure id="algorithm2" class="ltx_float ltx_algorithm">
+<div class="ltx_listing ltx_lst_numbers_left ltx_listing">
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Data:</span> Dataset of expert demonstrations, <math id="algorithm2.m1" class="ltx_Math" alttext="\mathcal{D}" display="inline"><mi class="ltx_font_mathcaligraphic">𝒟</mi></math>, confidence estimation function, <math id="algorithm2.m2" class="ltx_Math" alttext="c(\bm{x})" display="inline"><mrow><mi>c</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow></math>, confidence threshold, <math id="algorithm2.m3" class="ltx_Math" alttext="c_{0}" display="inline"><msub><mi>c</mi><mn>0</mn></msub></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Result:</span> Trained policy, <math id="algorithm2.m4" class="ltx_Math" alttext="\pi_{\bm{\theta}}" display="inline"><msub><mi>π</mi><mi>𝜽</mi></msub></math></div>
+<div class="ltx_listingline">Train a policy, <math id="algorithm2.m5" class="ltx_Math" alttext="\pi_{\bm{\theta}}" display="inline"><msub><mi>π</mi><mi>𝜽</mi></msub></math>, on the dataset, <math id="algorithm2.m6" class="ltx_Math" alttext="\mathcal{D}" display="inline"><mi class="ltx_font_mathcaligraphic">𝒟</mi></math>. </div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">while</span> <em class="ltx_emph ltx_font_italic">true</em> <span class="ltx_text ltx_font_bold">do</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Observe the state, <math id="algorithm2.m7" class="ltx_Math" alttext="\bm{x}_{t}" display="inline"><msub><mi>𝒙</mi><mi>t</mi></msub></math>. </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Compute the confidence estimate, <math id="algorithm2.m8" class="ltx_Math" alttext="c(\bm{x}_{t})" display="inline"><mrow><mi>c</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></math>. </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <span class="ltx_text ltx_font_bold">if</span> <em class="ltx_emph ltx_font_italic"><math id="algorithm2.m9" class="ltx_Math" alttext="c(\bm{x}_{t})&lt;c_{0}" display="inline"><mrow><mrow><mi>c</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝐱</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>&lt;</mo><msub><mi>c</mi><mn>0</mn></msub></mrow></math> <span class="ltx_text ltx_font_bold">or</span> expert intervention is necessary</em> <span class="ltx_text ltx_font_bold">then</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>     <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Compute additional demonstration data, <math id="algorithm2.m10" class="ltx_Math" alttext="(\bm{x}_{t},\bm{u}_{t}^{\text{expert}})" display="inline"><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msubsup><mi>𝒖</mi><mi>t</mi><mtext>expert</mtext></msubsup><mo stretchy="false">)</mo></mrow></math>. </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>     <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm2.m11" class="ltx_Math" alttext="\mathcal{D}\leftarrow\mathcal{D}\cup\{(\bm{x}_{t},\bm{u}_{t}^{\text{expert}})\}" display="inline"><mrow><mi class="ltx_font_mathcaligraphic">𝒟</mi><mo stretchy="false">←</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒟</mi><mo>∪</mo><mrow><mo stretchy="false">{</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msubsup><mi>𝒖</mi><mi>t</mi><mtext>expert</mtext></msubsup><mo stretchy="false">)</mo></mrow><mo stretchy="false">}</mo></mrow></mrow></mrow></math>. </div>
+<div class="ltx_listingline">&#160;</div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Train the policy, <math id="algorithm2.m12" class="ltx_Math" alttext="\pi_{\bm{\theta}}" display="inline"><msub><mi>π</mi><mi>𝜽</mi></msub></math>, on the updated dataset, <math id="algorithm2.m13" class="ltx_Math" alttext="\mathcal{D}" display="inline"><mi class="ltx_font_mathcaligraphic">𝒟</mi></math>. </div>
+<div class="ltx_listingline">&#160;</div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">return</span> Trained policy, <math id="algorithm2.m14" class="ltx_Math" alttext="\pi_{\bm{\theta}}" display="inline"><msub><mi>π</mi><mi>𝜽</mi></msub></math>.</div>
+</div>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_float"><span class="ltx_text ltx_font_bold">Algorithm 2</span> </span>Confidence-based Methods</figcaption>
+</figure>
+</section>
+<section id="S2.SS1.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Data Aggregation Methods.</h4>
+
+<div id="S2.SS1.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">Data aggregation methods constitute another major class of approaches within behavior cloning.
+A prominent example is <span class="ltx_text ltx_markedasmath">DA<span class="ltx_text" style="font-size:80%;">GGER</span></span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">10</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">10.</span> Ross, S., Gordon, G., Bagnell, D. “A Reduction of Imitation Learning and Structured Prediction to No-Regret Online Learning.” In <em>Proceedings of the Fourteenth International Conference on Artificial Intelligence and Statistics</em>, 627–635, 2011.</span></span></span>, which mitigates covariate shift by explicitly collecting expert demonstrations under the state distribution induced by the learner’s own policy.</p>
+</div>
+<div id="S2.SS1.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">As outlined in Algorithm&#160;<a href="#algorithm3" title="In Data Aggregation Methods. ‣ 19.2.1 The Covariate Shift Problem ‣ 19.2 Behavior Cloning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">3</span></a>, <span class="ltx_text ltx_markedasmath">DA<span class="ltx_text" style="font-size:80%;">GGER</span></span> follows an iterative two-step procedure.
+First, the agent is allowed to interact with the environment, thereby generating states according to its current policy and induced state distribution.
+Second, these visited states are relabeled with expert actions, and the resulting data is aggregated into the training set to refine the policy.</p>
+</div>
+<figure id="algorithm3" class="ltx_float ltx_algorithm">
+<div class="ltx_listing ltx_lst_numbers_left ltx_listing">
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Data:</span> Initial dataset of expert demonstrations, <math id="algorithm3.m3" class="ltx_Math" alttext="\mathcal{D}" display="inline"><mi class="ltx_font_mathcaligraphic">𝒟</mi></math>, initial policy, <math id="algorithm3.m4" class="ltx_Math" alttext="\pi_{\bm{\theta}}^{1}" display="inline"><msubsup><mi>π</mi><mi>𝜽</mi><mn>1</mn></msubsup></math>, number of iterations, <math id="algorithm3.m5" class="ltx_Math" alttext="N" display="inline"><mi>N</mi></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Result:</span> Trained policy, <math id="algorithm3.m6" class="ltx_Math" alttext="\pi_{\bm{\theta}}^{N}" display="inline"><msubsup><mi>π</mi><mi>𝜽</mi><mi>N</mi></msubsup></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">for</span> <em class="ltx_emph ltx_font_italic"><math id="algorithm3.m7" class="ltx_Math" alttext="i=1,2,\ldots,N" display="inline"><mrow><mi>i</mi><mo>=</mo><mrow><mn>1</mn><mo>,</mo><mn>2</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mi>N</mi></mrow></mrow></math></em> <span class="ltx_text ltx_font_bold">do</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Collect trajectories, <math id="algorithm3.m8" class="ltx_Math" alttext="\tau=\{(\bm{x}_{t},\bm{u}_{t}^{\text{robot}})\}" display="inline"><mrow><mi>τ</mi><mo>=</mo><mrow><mo stretchy="false">{</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msubsup><mi>𝒖</mi><mi>t</mi><mtext>robot</mtext></msubsup><mo stretchy="false">)</mo></mrow><mo stretchy="false">}</mo></mrow></mrow></math>, using the policy <math id="algorithm3.m9" class="ltx_Math" alttext="\pi_{\bm{\theta}}^{i}" display="inline"><msubsup><mi>π</mi><mi>𝜽</mi><mi>i</mi></msubsup></math>. </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Gather dataset of states visited by the robot and actions given by the expert, <math id="algorithm3.m10" class="ltx_Math" alttext="\mathcal{D}^{i}=\{(\bm{x}_{t},\bm{u}_{t}^{\text{expert}})\}" display="inline"><mrow><msup><mi class="ltx_font_mathcaligraphic">𝒟</mi><mi>i</mi></msup><mo>=</mo><mrow><mo stretchy="false">{</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msubsup><mi>𝒖</mi><mi>t</mi><mtext>expert</mtext></msubsup><mo stretchy="false">)</mo></mrow><mo stretchy="false">}</mo></mrow></mrow></math>. </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Aggregate the dataset, <math id="algorithm3.m11" class="ltx_Math" alttext="\mathcal{D}\leftarrow\mathcal{D}\cup\mathcal{D}^{i}" display="inline"><mrow><mi class="ltx_font_mathcaligraphic">𝒟</mi><mo stretchy="false">←</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒟</mi><mo>∪</mo><msup><mi class="ltx_font_mathcaligraphic">𝒟</mi><mi>i</mi></msup></mrow></mrow></math>. </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Train the policy, <math id="algorithm3.m12" class="ltx_Math" alttext="\pi_{\bm{\theta}}^{i+1}" display="inline"><msubsup><mi>π</mi><mi>𝜽</mi><mrow><mi>i</mi><mo>+</mo><mn>1</mn></mrow></msubsup></math>, on the updated dataset, <math id="algorithm3.m13" class="ltx_Math" alttext="\mathcal{D}" display="inline"><mi class="ltx_font_mathcaligraphic">𝒟</mi></math>. </div>
+<div class="ltx_listingline">&#160;</div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">return</span> Trained policy, <math id="algorithm3.m14" class="ltx_Math" alttext="\pi_{\bm{\theta}}^{N}" display="inline"><msubsup><mi>π</mi><mi>𝜽</mi><mi>N</mi></msubsup></math>.</div>
+</div>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_float"><span class="ltx_text ltx_font_bold">Algorithm 3</span> </span><span class="ltx_text ltx_markedasmath">DA<span class="ltx_text" style="font-size:80%;">GGER</span></span> Algorithm</figcaption>
+</figure>
+<div id="S2.SS1.SSS0.Px2.p3" class="ltx_para">
+<p class="ltx_p">In its simplest form, <span class="ltx_text ltx_markedasmath">DA<span class="ltx_text" style="font-size:80%;">GGER</span></span> begins by initializing the policy, <math id="S2.SS1.SSS0.Px2.p3.m2" class="ltx_Math" alttext="\pi_{\bm{\theta}}^{1}" display="inline"><msubsup><mi>π</mi><mi>𝜽</mi><mn>1</mn></msubsup></math>, using a set of previously collected expert demonstrations.
+The robot then interacts with the environment with policy <math id="S2.SS1.SSS0.Px2.p3.m3" class="ltx_Math" alttext="\pi_{\bm{\theta}}^{1}" display="inline"><msubsup><mi>π</mi><mi>𝜽</mi><mn>1</mn></msubsup></math>, collecting trajectories <math id="S2.SS1.SSS0.Px2.p3.m4" class="ltx_Math" alttext="\tau" display="inline"><mi>τ</mi></math> that reflect the state distribution under the current policy.
+These trajectories are subsequently relabeled using the expert’s actions for the visited states.
+The relabeled trajectories are used to train an updated policy <math id="S2.SS1.SSS0.Px2.p3.m5" class="ltx_Math" alttext="\pi_{\theta}^{2}" display="inline"><msubsup><mi>π</mi><mi>θ</mi><mn>2</mn></msubsup></math>, which is then employed to collect additional trajectories under the state distribution induced by the updated policy.
+This process is repeated for a fixed number of iterations, resulting in the final trained policy <math id="S2.SS1.SSS0.Px2.p3.m6" class="ltx_Math" alttext="\pi_{\theta}^{N}" display="inline"><msubsup><mi>π</mi><mi>θ</mi><mi>N</mi></msubsup></math>.</p>
+</div>
+<div id="S2.SS1.SSS0.Px2.p4" class="ltx_para">
+<p class="ltx_p">By collecting expert demonstrations under the learner’s state distribution, <span class="ltx_text ltx_markedasmath">DA<span class="ltx_text" style="font-size:80%;">GGER</span></span> effectively reduces covariate shift and enhances the performance of the learned policy.
+The method can be viewed as a form of interactive supervised learning, in which the agent actively gathers data to refine its performance.
+This iterative process minimizes the amount of expert data required and has proven highly effective across a wide range of tasks.</p>
+</div>
+<div id="S2.SS1.SSS0.Px2.p5" class="ltx_para">
+<p class="ltx_p">In summary, confidence-based methods and data aggregation techniques both provide solutions for addressing the covariate shift problem in behavior cloning.
+While there are many variations of these methods, the core principles we outline in Algorithm&#160;<a href="#algorithm2" title="In Confidence-Based Methods. ‣ 19.2.1 The Covariate Shift Problem ‣ 19.2 Behavior Cloning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">2</span></a> and Algorithm&#160;<a href="#algorithm3" title="In Data Aggregation Methods. ‣ 19.2.1 The Covariate Shift Problem ‣ 19.2 Behavior Cloning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">3</span></a> provide a foundational understanding of how to mitigate covariate shift through targeted data collection.
+However, methods following these principles still suffer from other common limitations of behavior cloning, such as dependence on the quality of expert demonstrations.
+In Section&#160;<a href="#S2.SS2" title="19.2.2 Reinforcement Learning via Supervised Learning (RvS) ‣ 19.2 Behavior Cloning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">19.2.2</span></a>, we discuss approaches that leverage ideas from behavior cloning to learn from broader, and potentially suboptimal, sets of expert demonstrations.</p>
+</div>
+</section>
+</section>
+<section id="S2.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">19.2.2 </span>Reinforcement Learning via Supervised Learning (RvS)</h3>
+
+<div id="S2.SS2.p1" class="ltx_para">
+<p class="ltx_p">Recent work<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">11</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">11.</span> Emmons, S., Eysenbach, B., Kostrikov, I., Levine, S. “RvS: What is Essential for Offline RL via Supervised Learning?.” 2021.</span></span></span> has explored the idea of converting the reinforcement learning problem, which we discussed in <span class="ltx_ref">the referenced item</span>, into a <em class="ltx_emph ltx_font_italic">conditional</em>, <em class="ltx_emph ltx_font_italic">filtered</em>, or <em class="ltx_emph ltx_font_italic">weighted</em> imitation learning problem.
+These approaches are motivated by a simple but powerful insight: rather than relying exclusively on optimal demonstrations, one can leverage a much broader collection of demonstrations generated by suboptimal policies or gathered across diverse—yet related—tasks.
+Methods in this class are often referred to as <span class="ltx_text ltx_font_italic">reinforcement learning via supervised learning</span> (RvS).
+These approaches typically operate by conditioning the policy on goals or desired reward levels, and may additionally incorporate mechanisms for reweighting or filtering demonstrations</p>
+</div>
+<section id="S2.SS2.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Filtering or Weighting Demonstrations.</h4>
+
+<div id="S2.SS2.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">One common approach to RvS is to filter or weight the expert demonstrations based on their quality or relevance to the task.
+For example, one might assign higher weights to expert demonstrations that obtain higher rewards.
+Revisiting the outline of the behavior cloning algorithm in Algorithm&#160;<a href="#algorithm1" title="In 19.2 Behavior Cloning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">1</span></a>, this idea can be instantiated by modifying the dataset to retain only high-quality demonstrations, as measured by reward information.</p>
+</div>
+<div id="S2.SS2.SSS0.Px1.p2" class="ltx_para">
+<p class="ltx_p">A simple instantiation of this approach proceeds as follows.
+First, expert demonstrations are ranked according to their <em class="ltx_emph ltx_font_italic">return</em><span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.SS2.SSS0.Px1.p2.p1" class="ltx_para">
+<span class="ltx_p">The <em class="ltx_emph ltx_font_italic">return</em> of a trajectory is the sum of rewards accumulated along the trajectory. When ranking trajectories, it is generally desirable to consider long-term performance rather than immediate rewards.</span>
+</span></span></span></span></span>:</p>
+<table id="S2.Ex3" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex3.m1" class="ltx_Math" alttext="r(\tau)=\sum_{t=0}^{T-1}\gamma^{t}R(\bm{x}_{t},\bm{u}_{t})." display="block"><mrow><mrow><mrow><mi>r</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.111em">=</mo><mrow><munderover><mo movablelimits="false">∑</mo><mrow><mi>t</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></munderover><mrow><msup><mi>γ</mi><mi>t</mi></msup><mo>⁢</mo><mi>R</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Then, the original dataset <math id="S2.SS2.SSS0.Px1.p2.m1" class="ltx_Math" alttext="\mathcal{D}" display="inline"><mi class="ltx_font_mathcaligraphic">𝒟</mi></math> is filtered to retain only the top <math id="S2.SS2.SSS0.Px1.p2.m2" class="ltx_Math" alttext="k\%" display="inline"><mrow><mi>k</mi><mo>%</mo></mrow></math> of trajectories based on their return:</p>
+<table id="S2.Ex4" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex4.m1" class="ltx_Math" alttext="\tilde{\mathcal{D}}=\{\tau\in\mathcal{D}\mid r(\tau)\geq\bar{r}\}." display="block"><mrow><mrow><mover accent="true"><mi class="ltx_font_mathcaligraphic">𝒟</mi><mo>~</mo></mover><mo>=</mo><mrow><mo stretchy="false">{</mo><mrow><mi>τ</mi><mo>∈</mo><mi class="ltx_font_mathcaligraphic">𝒟</mi></mrow><mo fence="true" lspace="0em" rspace="0em">∣</mo><mrow><mrow><mi>r</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow></mrow><mo>≥</mo><mover accent="true"><mi>r</mi><mo>¯</mo></mover></mrow><mo stretchy="false">}</mo></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S2.SS2.SSS0.Px1.p2.m3" class="ltx_Math" alttext="\bar{r}" display="inline"><mover accent="true"><mi>r</mi><mo>¯</mo></mover></math> denotes the return threshold such that <math id="S2.SS2.SSS0.Px1.p2.m4" class="ltx_Math" alttext="k\%" display="inline"><mrow><mi>k</mi><mo>%</mo></mrow></math> of the trajectories in <math id="S2.SS2.SSS0.Px1.p2.m5" class="ltx_Math" alttext="\mathcal{D}" display="inline"><mi class="ltx_font_mathcaligraphic">𝒟</mi></math> achieve a return greater than or equal to this value.
+Finally, the policy <math id="S2.SS2.SSS0.Px1.p2.m6" class="ltx_Math" alttext="\pi_{\bm{\theta}}" display="inline"><msub><mi>π</mi><mi>𝜽</mi></msub></math> is trained using the filtered dataset <math id="S2.SS2.SSS0.Px1.p2.m7" class="ltx_Math" alttext="\tilde{\mathcal{D}}" display="inline"><mover accent="true"><mi class="ltx_font_mathcaligraphic">𝒟</mi><mo>~</mo></mover></math>.</p>
+</div>
+<div id="S2.SS2.SSS0.Px1.p3" class="ltx_para">
+<p class="ltx_p">This process represents a simple instance of RvS, in which expert trajectories are filtered according to their return.
+More sophisticated variants instead operate at the level of individual transitions, rather than filtering entire trajectories.
+In these cases, the quality of individual actions can be assessed using their <em class="ltx_emph ltx_font_italic">advantage</em><span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.SS2.SSS0.Px1.p3.p1" class="ltx_para">
+<span class="ltx_p">Recall from <span class="ltx_ref">the referenced item</span> that the advantage of an action is defined as the difference between the action-value function and the value function, <math id="S2.SS2.SSS0.Px1.p3.p1.m1" class="ltx_Math" alttext="A(x_{t},u_{t})=Q(x_{t},u_{t})-V(x_{t})" display="inline"><mrow><mrow><mi>A</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo>,</mo><msub><mi>u</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mrow><mi>Q</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo>,</mo><msub><mi>u</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo>−</mo><mrow><mi>V</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow></math>. Intuitively, the advantage quantifies how much better an action is relative to the average action in a given state.</span>
+</span></span></span></span></span> or, equivalently, their <em class="ltx_emph ltx_font_italic">Q-value</em>, instead of relying solely on immediate rewards.</p>
+</div>
+<div id="S2.SS2.SSS0.Px1.p4" class="ltx_para">
+<p class="ltx_p">Once action weights have been computed, they can be incorporated into the behavior cloning procedure by modifying the loss function in Algorithm&#160;<a href="#algorithm1" title="In 19.2 Behavior Cloning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">1</span></a> as:</p>
+<table id="S2.Ex5" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex5.m1" class="ltx_Math" alttext="\mathcal{L}(\bm{\theta})=\mathbb{E}_{(\bm{x},\bm{u})\sim\tilde{\mathcal{D}}}%
+\left[-\log\pi_{\bm{\theta}}(\bm{u}\mid\bm{x})A(\bm{x},\bm{u})\right]." display="block"><mrow><mrow><mrow><mi class="ltx_font_mathcaligraphic">ℒ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝜽</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><msub><mi>𝔼</mi><mrow><mrow><mo stretchy="false">(</mo><mi>𝒙</mi><mo>,</mo><mi>𝒖</mi><mo stretchy="false">)</mo></mrow><mo>∼</mo><mover accent="true"><mi class="ltx_font_mathcaligraphic">𝒟</mi><mo>~</mo></mover></mrow></msub><mo>⁢</mo><mrow><mo>[</mo><mrow><mo rspace="0.167em">−</mo><mrow><mrow><mi>log</mi><mo lspace="0.167em">⁡</mo><msub><mi>π</mi><mi>𝜽</mi></msub></mrow><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>𝒖</mi><mo>∣</mo><mi>𝒙</mi></mrow><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mi>A</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒙</mi><mo>,</mo><mi>𝒖</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>]</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">This objective can be interpreted as a weighted version of the standard behavior cloning loss, where the log-likelihood of each action is scaled by its corresponding advantage.
+This method, commonly referred to as <em class="ltx_emph ltx_font_italic">advantage-weighted behavior cloning</em>, has been shown to improve the empirical performance of behavior cloning by upweighting higher-quality actions during training.</p>
+</div>
+</section>
+<section id="S2.SS2.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Goal or Reward Conditioning.</h4>
+
+<div id="S2.SS2.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">Another common approach to RvS is to condition the policy on a goal or reward value.
+This approach is particularly useful in settings where the expert demonstrations are suboptimal or collected from a different task.
+Consider a dataset of previously collected trajectories, <math id="S2.SS2.SSS0.Px2.p1.m1" class="ltx_Math" alttext="\mathcal{D}=\{\tau_{i}\}" display="inline"><mrow><mi class="ltx_font_mathcaligraphic">𝒟</mi><mo>=</mo><mrow><mo stretchy="false">{</mo><msub><mi>τ</mi><mi>i</mi></msub><mo stretchy="false">}</mo></mrow></mrow></math>.
+Each trajectory <math id="S2.SS2.SSS0.Px2.p1.m2" class="ltx_Math" alttext="\tau_{i}" display="inline"><msub><mi>τ</mi><mi>i</mi></msub></math> might be described using different outcomes<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S2.SS2.SSS0.Px2.p1.p1" class="ltx_para">
+<span class="ltx_p">In other words, a condition that is verified during or at the end of the trajectory.</span>
+</span></span></span></span></span>, such as the final state of the trajectory, the total reward obtained, or a specific state visited during the trajectory.
+Let <math id="S2.SS2.SSS0.Px2.p1.m3" class="ltx_Math" alttext="\omega" display="inline"><mi>ω</mi></math> denote a specific outcome occurring in a trajectory <math id="S2.SS2.SSS0.Px2.p1.m4" class="ltx_Math" alttext="\tau" display="inline"><mi>τ</mi></math>.
+The goal of conditioning-based RvS is to learn an outcome-conditioned policy, <math id="S2.SS2.SSS0.Px2.p1.m5" class="ltx_Math" alttext="\pi_{\bm{\theta}}(\bm{u}\mid\bm{x},\omega)" display="inline"><mrow><msub><mi>π</mi><mi>𝜽</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>𝒖</mi><mo>∣</mo><mrow><mi>𝒙</mi><mo>,</mo><mi>ω</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></math>, that optimizes:</p>
+<table id="S2.Ex6" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.Ex6.m1" class="ltx_Math" alttext="\mathcal{L}(\bm{\theta})=\mathbb{E}_{(\bm{x},\bm{u},\omega)\sim\mathcal{D}}%
+\left[-\log\pi_{\bm{\theta}}(\bm{u}\mid\bm{x},\omega)\right]." display="block"><mrow><mrow><mrow><mi class="ltx_font_mathcaligraphic">ℒ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝜽</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><msub><mi>𝔼</mi><mrow><mrow><mo stretchy="false">(</mo><mi>𝒙</mi><mo>,</mo><mi>𝒖</mi><mo>,</mo><mi>ω</mi><mo stretchy="false">)</mo></mrow><mo>∼</mo><mi class="ltx_font_mathcaligraphic">𝒟</mi></mrow></msub><mo>⁢</mo><mrow><mo>[</mo><mrow><mo rspace="0.167em">−</mo><mrow><mrow><mi>log</mi><mo lspace="0.167em">⁡</mo><msub><mi>π</mi><mi>𝜽</mi></msub></mrow><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>𝒖</mi><mo>∣</mo><mrow><mi>𝒙</mi><mo>,</mo><mi>ω</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>]</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+</div>
+<div id="S2.SS2.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">Among the various conditioning strategies, <em class="ltx_emph ltx_font_italic">goal-conditioned</em> and <em class="ltx_emph ltx_font_italic">state-conditioned</em> RvS are particularly relevant.
+In these approaches, the policy is conditioned on a desired outcome, typically specified as a target state or goal <math id="S2.SS2.SSS0.Px2.p2.m1" class="ltx_Math" alttext="\omega=x\in\mathcal{X}" display="inline"><mrow><mi>ω</mi><mo>=</mo><mi>x</mi><mo>∈</mo><mi class="ltx_font_mathcaligraphic">𝒳</mi></mrow></math> that the agent is expected to reach.
+For instance, in a robotic manipulation task, the policy may be conditioned on achieving a specific end-effector configuration.
+Another widely used conditioning strategy is <em class="ltx_emph ltx_font_italic">reward-conditioned</em> RvS, in which the policy is conditioned on a target reward value, <math id="S2.SS2.SSS0.Px2.p2.m2" class="ltx_Math" alttext="\omega=\sum_{t=0}^{T-1}R(x_{t},u_{t})" display="inline"><mrow><mi>ω</mi><mo rspace="0.111em">=</mo><mrow><msubsup><mo>∑</mo><mrow><mi>t</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></msubsup><mrow><mi>R</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>x</mi><mi>t</mi></msub><mo>,</mo><msub><mi>u</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow></math>.
+In this setting, the conditioning variable encodes the desired level of performance, allowing the policy to adapt its behavior accordingly.</p>
+</div>
+<div id="S2.SS2.SSS0.Px2.p3" class="ltx_para">
+<p class="ltx_p">In both cases, conditioning on outcomes enables the robot to extract meaningful information from suboptimal or diverse expert demonstrations, often leading to improved performance in practice.
+For example, consider two policies, <math id="S2.SS2.SSS0.Px2.p3.m1" class="ltx_Math" alttext="\pi_{\bm{\theta}_{1}}(\bm{u}\mid\bm{x})" display="inline"><mrow><msub><mi>π</mi><msub><mi>𝜽</mi><mn>1</mn></msub></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>𝒖</mi><mo>∣</mo><mi>𝒙</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></math> and <math id="S2.SS2.SSS0.Px2.p3.m2" class="ltx_Math" alttext="\pi_{\bm{\theta}_{2}}(\bm{u}\mid\bm{x},\omega)" display="inline"><mrow><msub><mi>π</mi><msub><mi>𝜽</mi><mn>2</mn></msub></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>𝒖</mi><mo>∣</mo><mrow><mi>𝒙</mi><mo>,</mo><mi>ω</mi></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></math>, that are trained on the same dataset <math id="S2.SS2.SSS0.Px2.p3.m3" class="ltx_Math" alttext="\mathcal{D}" display="inline"><mi class="ltx_font_mathcaligraphic">𝒟</mi></math>.
+Suppose <math id="S2.SS2.SSS0.Px2.p3.m4" class="ltx_Math" alttext="\pi_{\bm{\theta}_{1}}" display="inline"><msub><mi>π</mi><msub><mi>𝜽</mi><mn>1</mn></msub></msub></math> is trained to imitate expert demonstrations that implicitly optimize a specific reward function.
+This reward-centric approach restricts <math id="S2.SS2.SSS0.Px2.p3.m5" class="ltx_Math" alttext="\pi_{\bm{\theta}_{1}}" display="inline"><msub><mi>π</mi><msub><mi>𝜽</mi><mn>1</mn></msub></msub></math> to behaviors that closely follow the expert’s trajectory distribution.
+On the other hand, <math id="S2.SS2.SSS0.Px2.p3.m6" class="ltx_Math" alttext="\pi_{\bm{\theta}_{2}}" display="inline"><msub><mi>π</mi><msub><mi>𝜽</mi><mn>2</mn></msub></msub></math> is goal-conditioned and trained to achieve any specified goal state, <math id="S2.SS2.SSS0.Px2.p3.m7" class="ltx_Math" alttext="\omega" display="inline"><mi>ω</mi></math>, independent of the underlying reward function.
+By explicitly incorporating the goal into its policy, <math id="S2.SS2.SSS0.Px2.p3.m8" class="ltx_Math" alttext="\pi_{\bm{\theta}_{2}}" display="inline"><msub><mi>π</mi><msub><mi>𝜽</mi><mn>2</mn></msub></msub></math> decouples the process of achieving desired outcomes from the reward structure.
+As a result, <math id="S2.SS2.SSS0.Px2.p3.m9" class="ltx_Math" alttext="\pi_{\bm{\theta}_{2}}" display="inline"><msub><mi>π</mi><msub><mi>𝜽</mi><mn>2</mn></msub></msub></math> is likely to generalize better to novel tasks or unseen goal states, as it learns a flexible mapping from states and goals to actions.
+In contrast, <math id="S2.SS2.SSS0.Px2.p3.m10" class="ltx_Math" alttext="\pi_{\bm{\theta}_{1}}" display="inline"><msub><mi>π</mi><msub><mi>𝜽</mi><mn>1</mn></msub></msub></math> remains constrained by the expert’s reward-aligned demonstrations, making it less adaptable to scenarios with divergent or ambiguous reward structures.</p>
+</div>
+</section>
+</section>
+</section>
+<section id="S3" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">19.3 </span>Inverse Reinforcement Learning</h2>
+
+<div id="S3.p1" class="ltx_para">
+<p class="ltx_p">In the previous section, we discussed behavior cloning as a form of imitation learning that directly learns a policy from expert demonstrations.
+Inverse reinforcement learning<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">12</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">12.</span> Ng, A., Russell, S. “Algorithms for Inverse Reinforcement Learning.” In <em>Proceedings of the Seventeenth International Conference on Machine Learning</em>, 663–670, 2000.</span></span></span> takes an orthogonal approach to imitation learning by attempting to recover a reward function from a policy, or from demonstrations of a policy.
+In certain cases, identifying the reward function can offer deeper insights into the task’s underlying structure, making it potentially more informative than directly learning a policy.
+Additionally, a policy that is optimal for the expert may not be optimal for the agent if they have different dynamics, morphologies, or capabilities<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S3.p1.p1" class="ltx_para">
+<span class="ltx_p">Learned reward representations can also potentially generalize across different robot platforms that tackle similar problems.</span>
+</span></span></span></span></span>.</p>
+</div>
+<div id="S3.Thmexample1" class="ltx_theorem ltx_theorem_example">
+<h6 class="ltx_title ltx_runin ltx_title_theorem">
+<span class="ltx_tag ltx_tag_theorem"><span class="ltx_text ltx_font_bold">Example 19.3.1</span></span><span class="ltx_text ltx_font_bold"> </span>(Inverse Reinforcement Learning vs Behavior Cloning)<span class="ltx_text ltx_font_bold">.</span>
+</h6>
+<div id="S3.Thmexample1.p1" class="ltx_para">
+<p class="ltx_p">Consider a scenario where the robot’s objective is to drive across a city as quickly as possible.
+In the context of imitation learning, we assume the reward function is unknown, but an expert provides example routes to navigate the city.
+Behavior cloning approaches attempt to replicate the expert’s actions, such as by learning to turn right at a particular intersection.
+This strategy lacks robustness since it can fail when the robot encounters intersections that the expert never visited.
+Inverse reinforcement learning approaches offer a more generalizable alternative by focusing on identifying key features of the expert’s trajectories, rather than just mimicking actions.
+For example, instead of merely copying the expert’s turns, the robot could learn to recognize useful patterns, such as preferring roads with higher speed limits or fewer stop signs.
+The robot can then develop a policy that takes routes with similar advantageous characteristics, even if they differ from the exact paths the expert took.</p>
+</div>
+</div>
+<div id="S3.p2" class="ltx_para">
+<p class="ltx_p">Formally, the goal of inverse reinforcement learning is to recover a reward function, <math id="S3.p2.m1" class="ltx_Math" alttext="R:\mathcal{X}\times\mathcal{U}\rightarrow\mathbb{R}" display="inline"><mrow><mi>R</mi><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mrow><mi class="ltx_font_mathcaligraphic">𝒳</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi class="ltx_font_mathcaligraphic">𝒰</mi></mrow><mo stretchy="false">→</mo><mi>ℝ</mi></mrow></mrow></math>, from a set of expert demonstrations, <math id="S3.p2.m2" class="ltx_Math" alttext="\mathcal{D}=\{\tau_{i}\}" display="inline"><mrow><mi class="ltx_font_mathcaligraphic">𝒟</mi><mo>=</mo><mrow><mo stretchy="false">{</mo><msub><mi>τ</mi><mi>i</mi></msub><mo stretchy="false">}</mo></mrow></mrow></math>, where <math id="S3.p2.m3" class="ltx_Math" alttext="\tau_{i}=\{(\bm{x}_{0},\bm{u}_{0},\ldots,\bm{x}_{T})\}" display="inline"><mrow><msub><mi>τ</mi><mi>i</mi></msub><mo>=</mo><mrow><mo stretchy="false">{</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mn>0</mn></msub><mo>,</mo><msub><mi>𝒖</mi><mn>0</mn></msub><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msub><mi>𝒙</mi><mi>T</mi></msub><mo stretchy="false">)</mo></mrow><mo stretchy="false">}</mo></mrow></mrow></math> is an example trajectory.
+The recovered reward function can then be used to train a policy that is optimal with respect to this reward.
+In particular, given a parametric representation of the reward function with parameters <math id="S3.p2.m4" class="ltx_Math" alttext="w" display="inline"><mi>w</mi></math>, inverse reinforcement learning seeks a parameter configuration that best explains the observed expert behavior.</p>
+</div>
+<div id="S3.p3" class="ltx_para">
+<p class="ltx_p">However, the inverse reinforcement learning problem is inherently ill-posed: multiple reward functions may induce the same optimal policy, making the reward unidentifiable from demonstrations alone.
+To mitigate this ambiguity, a variety of alternative objectives have been proposed in the literature, including maximum-margin formulations that separate optimal and suboptimal policies<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">13</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">13.</span> Ratliff, N., Bagnell, J. A., Zinkevich, M. “Maximum Margin Planning.” In <em>Proceedings of the 23rd International Conference on Machine Learning</em>, 729–736, 2006.</span></span></span>, as well as maximum-entropy approaches that prefer the least-committal reward function consistent with the demonstrations<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">14</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">14.</span> Ziebart, B. D., Maas, A., Bagnell, J. A., Dey, A. K. “Maximum Entropy Inverse Reinforcement Learning.” In <em>Proceedings of the Twenty-Third AAAI Conference on Artificial Intelligence</em>, 1433–1438, 2008.</span></span></span>.</p>
+</div>
+<div id="S3.p4" class="ltx_para">
+<p class="ltx_p">In practice, most inverse reinforcement learning algorithms follow an iterative optimization procedure involving two coupled steps.
+First, the reward function parameters <math id="S3.p4.m1" class="ltx_Math" alttext="w" display="inline"><mi>w</mi></math> are updated according to an algorithm-specific objective.
+Second, the policy parameters <math id="S3.p4.m2" class="ltx_Math" alttext="\bm{\theta}" display="inline"><mi>𝜽</mi></math> are adjusted to maximize the expected return under the current reward estimate.
+These steps are repeated until convergence.
+Although individual inverse reinforcement learning methods differ in how these updates are performed, Algorithm <a href="#algorithm4" title="In 19.3 Inverse Reinforcement Learning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">4</span></a> provides a high-level schematic overview of the inverse reinforcement learning process.</p>
+</div>
+<figure id="algorithm4" class="ltx_float ltx_algorithm">
+<div class="ltx_listing ltx_lst_numbers_left ltx_listing">
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Data:</span> Expert demonstrations, <math id="algorithm4.m1" class="ltx_Math" alttext="\mathcal{D}" display="inline"><mi class="ltx_font_mathcaligraphic">𝒟</mi></math>, initialized reward function parameters, <math id="algorithm4.m2" class="ltx_Math" alttext="\bm{w}" display="inline"><mi>𝒘</mi></math>, initialized policy parameters, <math id="algorithm4.m3" class="ltx_Math" alttext="\bm{\theta}" display="inline"><mi>𝜽</mi></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Result:</span> Learned reward function parameters, <math id="algorithm4.m4" class="ltx_Math" alttext="\bm{w}" display="inline"><mi>𝒘</mi></math>, learned policy parameters, <math id="algorithm4.m5" class="ltx_Math" alttext="\bm{\theta}" display="inline"><mi>𝜽</mi></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">while</span> <em class="ltx_emph ltx_font_italic">not converged</em> <span class="ltx_text ltx_font_bold">do</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Update the reward function parameters, <math id="algorithm4.m6" class="ltx_Math" alttext="\bm{w}" display="inline"><mi>𝒘</mi></math>. </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Update the policy parameters, <math id="algorithm4.m7" class="ltx_Math" alttext="\bm{\theta}" display="inline"><mi>𝜽</mi></math>, to maximize the current estimate of the reward function. </div>
+<div class="ltx_listingline">&#160;</div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">return</span> Optimized reward and policy parameters: <math id="algorithm4.m8" class="ltx_Math" alttext="\bm{w}" display="inline"><mi>𝒘</mi></math>, <math id="algorithm4.m9" class="ltx_Math" alttext="\bm{\theta}" display="inline"><mi>𝜽</mi></math>.</div>
+</div>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_float"><span class="ltx_text ltx_font_bold">Algorithm 4</span> </span>High-level IRL Algorithm</figcaption>
+</figure>
+<div id="S3.p5" class="ltx_para">
+<p class="ltx_p">In the following sections, we first introduce the concept of <em class="ltx_emph ltx_font_italic">feature expectation</em> and then discuss three popular inverse reinforcement learning methods: apprenticeship learning, maximum margin planning, and maximum entropy IRL.</p>
+</div>
+<section id="S3.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">19.3.1 </span>Feature Expectation</h3>
+
+<div id="S3.SS1.p1" class="ltx_para">
+<p class="ltx_p">We begin by assuming the existence of a true reward function <math id="S3.SS1.p1.m1" class="ltx_Math" alttext="R^{*}" display="inline"><msup><mi>R</mi><mo>∗</mo></msup></math> that can be expressed as a linear combination of features:</p>
+<table id="S3.Ex7" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex7.m1" class="ltx_Math" alttext="R^{*}(x,u)={\bm{w}^{*}}^{\top}\phi(x,u)," display="block"><mrow><mrow><mrow><msup><mi>R</mi><mo>∗</mo></msup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>u</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mmultiscripts><mi>𝒘</mi><mrow></mrow><mo>∗</mo><mrow></mrow><mo>⊤</mo></mmultiscripts><mo>⁢</mo><mi>ϕ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>u</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S3.SS1.p1.m2" class="ltx_Math" alttext="\phi:\mathcal{X}\times\mathcal{U}\rightarrow[0,1]^{d}" display="inline"><mrow><mi>ϕ</mi><mo lspace="0.278em" rspace="0.278em">:</mo><mrow><mrow><mi class="ltx_font_mathcaligraphic">𝒳</mi><mo lspace="0.222em" rspace="0.222em">×</mo><mi class="ltx_font_mathcaligraphic">𝒰</mi></mrow><mo stretchy="false">→</mo><msup><mrow><mo stretchy="false">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo stretchy="false">]</mo></mrow><mi>d</mi></msup></mrow></mrow></math> denotes a vector of feature functions<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S3.SS1.p1.p1" class="ltx_para">
+<span class="ltx_p">To ensure that rewards are bounded by 1, we assume <math id="S3.SS1.p1.p1.m1" class="ltx_Math" alttext="\|\bm{w}^{*}\|_{2}\leq 1" display="inline"><mrow><msub><mrow><mo stretchy="false">‖</mo><msup><mi>𝒘</mi><mo>∗</mo></msup><mo stretchy="false">‖</mo></mrow><mn>2</mn></msub><mo>≤</mo><mn>1</mn></mrow></math>.</span>
+</span></span></span></span></span>.
+In <span class="ltx_ref">the referenced item</span>, we saw that the value function for a policy <math id="S3.SS1.p1.m3" class="ltx_Math" alttext="\pi" display="inline"><mi>π</mi></math> is defined as the expected cumulative discounted reward as:</p>
+<table id="S3.E1" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.E1.m1" class="ltx_Math" alttext="V_{T}^{\pi}(\bm{x})=\mathbb{E}_{\tau\sim p_{\pi}(\tau)}\left[\sum_{t=0}^{T-1}%
+\gamma^{t}R(\bm{x}_{t},\pi(\bm{x}_{t}))\mid\bm{x}_{0}=\bm{x}\right]." display="block"><mrow><mrow><mrow><msubsup><mi>V</mi><mi>T</mi><mi>π</mi></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><msub><mi>𝔼</mi><mrow><mi>τ</mi><mo>∼</mo><mrow><msub><mi>p</mi><mi>π</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></msub><mo>⁢</mo><mrow><mo>[</mo><mrow><mrow><mrow><munderover><mo lspace="0em" movablelimits="false">∑</mo><mrow><mi>t</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></munderover><mrow><msup><mi>γ</mi><mi>t</mi></msup><mo>⁢</mo><mi>R</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><mrow><mi>π</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>∣</mo><msub><mi>𝒙</mi><mn>0</mn></msub></mrow><mo>=</mo><mi>𝒙</mi></mrow><mo>]</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(19.1)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Substituting the linear reward model <math id="S3.SS1.p1.m4" class="ltx_Math" alttext="R(x,u)=\bm{w}^{\top}\phi(x,u)" display="inline"><mrow><mrow><mi>R</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>u</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><msup><mi>𝒘</mi><mo>⊤</mo></msup><mo>⁢</mo><mi>ϕ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>x</mi><mo>,</mo><mi>u</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></math> into the expression above yields:</p>
+<table id="S3.E2" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.E2.m1" class="ltx_Math" alttext="V_{T}^{\pi}(\bm{x})=\bm{w}^{\top}\mu(\pi,\bm{x})," display="block"><mrow><mrow><mrow><msubsup><mi>V</mi><mi>T</mi><mi>π</mi></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><msup><mi>𝒘</mi><mo>⊤</mo></msup><mo>⁢</mo><mi>μ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>π</mi><mo>,</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(19.2)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where:</p>
+<table id="S3.Ex8" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex8.m1" class="ltx_Math" alttext="\mu(\pi,\bm{x})=\mathbb{E}_{\tau\sim p_{\pi}(\tau)}\left[\sum_{t=0}^{T-1}%
+\gamma^{t}\phi(\bm{x}_{t},\pi(\bm{x}_{t}))\mid\bm{x}_{0}=\bm{x}\right]." display="block"><mrow><mrow><mrow><mi>μ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>π</mi><mo>,</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><msub><mi>𝔼</mi><mrow><mi>τ</mi><mo>∼</mo><mrow><msub><mi>p</mi><mi>π</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow></mrow></mrow></msub><mo>⁢</mo><mrow><mo>[</mo><mrow><mrow><mrow><munderover><mo lspace="0em" movablelimits="false">∑</mo><mrow><mi>t</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></munderover><mrow><msup><mi>γ</mi><mi>t</mi></msup><mo>⁢</mo><mi>ϕ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><mrow><mi>π</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>∣</mo><msub><mi>𝒙</mi><mn>0</mn></msub></mrow><mo>=</mo><mi>𝒙</mi></mrow><mo>]</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">The quantity <math id="S3.SS1.p1.m5" class="ltx_Math" alttext="\mu(\pi,x)" display="inline"><mrow><mi>μ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>π</mi><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow></math> is referred to as the <em class="ltx_emph ltx_font_italic">feature expectation</em> of policy <math id="S3.SS1.p1.m6" class="ltx_Math" alttext="\pi" display="inline"><mi>π</mi></math><span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S3.SS1.p1.p2" class="ltx_para">
+<span class="ltx_p">For brevity, we may also denote <math id="S3.SS1.p1.p2.m1" class="ltx_Math" alttext="\mu(\pi,x)" display="inline"><mrow><mi>μ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>π</mi><mo>,</mo><mi>x</mi><mo stretchy="false">)</mo></mrow></mrow></math> simply as <math id="S3.SS1.p1.p2.m2" class="ltx_Math" alttext="\mu(\pi)" display="inline"><mrow><mi>μ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>π</mi><mo stretchy="false">)</mo></mrow></mrow></math> when the dependence on the initial state is clear or omitted.</span>
+</span></span></span></span></span>.</p>
+</div>
+<div id="S3.SS1.p2" class="ltx_para">
+<p class="ltx_p">An important insight is that, by definition, the optimal expert policy <math id="S3.SS1.p2.m1" class="ltx_Math" alttext="\pi^{*}" display="inline"><msup><mi>π</mi><mo>∗</mo></msup></math> will always yield a value function greater than or equal to that of any other policy and therefore:</p>
+<table id="S3.Ex9" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex9.m1" class="ltx_Math" alttext="V_{T}^{\pi^{*}}(\bm{x})\geq V_{T}^{\pi}(\bm{x}),\quad\forall\bm{x}\in\mathcal{%
+X},\quad\forall\pi." display="block"><mrow><mrow><mrow><mrow><msubsup><mi>V</mi><mi>T</mi><msup><mi>π</mi><mo>∗</mo></msup></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow><mo>≥</mo><mrow><msubsup><mi>V</mi><mi>T</mi><mi>π</mi></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo rspace="1.167em">,</mo><mrow><mrow><mo rspace="0.167em">∀</mo><mi>𝒙</mi></mrow><mo>∈</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒳</mi><mo rspace="1.167em">,</mo><mrow><mo rspace="0.167em">∀</mo><mi>π</mi></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Using the feature-expectation formulation of the value function in Equation&#160;<a href="#S3.E2" title="In 19.3.1 Feature Expectation ‣ 19.3 Inverse Reinforcement Learning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">19.2</span></a>, this condition can be equivalently expressed as:</p>
+<table id="S3.E3" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.E3.m1" class="ltx_Math" alttext="{\bm{w}^{*}}^{\top}\mu(\pi^{*},\bm{x})\geq{\bm{w}^{*}}^{\top}\mu(\pi,\bm{x}),%
+\quad\forall\bm{x}\in\mathcal{X},\quad\forall\pi." display="block"><mrow><mrow><mrow><mrow><mmultiscripts><mi>𝒘</mi><mrow></mrow><mo>∗</mo><mrow></mrow><mo>⊤</mo></mmultiscripts><mo>⁢</mo><mi>μ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msup><mi>π</mi><mo>∗</mo></msup><mo>,</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow><mo>≥</mo><mrow><mmultiscripts><mi>𝒘</mi><mrow></mrow><mo>∗</mo><mrow></mrow><mo>⊤</mo></mmultiscripts><mo>⁢</mo><mi>μ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>π</mi><mo>,</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo rspace="1.167em">,</mo><mrow><mrow><mo rspace="0.167em">∀</mo><mi>𝒙</mi></mrow><mo>∈</mo><mrow><mi class="ltx_font_mathcaligraphic">𝒳</mi><mo rspace="1.167em">,</mo><mrow><mo rspace="0.167em">∀</mo><mi>π</mi></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(19.3)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">In principle, one could attempt to recover the expert’s reward vector <math id="S3.SS1.p2.m2" class="ltx_Math" alttext="\bm{w}^{*}" display="inline"><msup><mi>𝒘</mi><mo>∗</mo></msup></math> by finding a vector <math id="S3.SS1.p2.m3" class="ltx_Math" alttext="\bm{w}" display="inline"><mi>𝒘</mi></math> that satisfies the inequality in Equation&#160;<a href="#S3.E3" title="In 19.3.1 Feature Expectation ‣ 19.3 Inverse Reinforcement Learning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">19.3</span></a>.
+However, this formulation is inherently ambiguous.
+For example, the trivial choice <math id="S3.SS1.p2.m4" class="ltx_Math" alttext="\bm{w}=\bm{0}" display="inline"><mrow><mi>𝒘</mi><mo>=</mo><mn>𝟎</mn></mrow></math> satisfies the inequality for all policies without conveying any meaningful preference.
+More generally, multiple reward functions may induce the same optimal policy, a phenomenon known as <em class="ltx_emph ltx_font_italic">reward ambiguity</em>.
+This issue lies at the core of inverse reinforcement learning<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">15</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">15.</span> Ng, A., Russell, S. “Algorithms for Inverse Reinforcement Learning.” In <em>Proceedings of the Seventeenth International Conference on Machine Learning</em>, 663–670, 2000.</span></span></span>, and the algorithms discussed below introduce additional structure or optimization criteria to resolve this ambiguity.</p>
+</div>
+</section>
+<section id="S3.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">19.3.2 </span>Apprenticeship Learning</h3>
+
+<div id="S3.SS2.p1" class="ltx_para">
+<p class="ltx_p">The apprenticeship learning algorithm<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">16</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">16.</span> Abbeel, P., Ng, A. “Apprenticeship Learning via Inverse Reinforcement Learning.” In <em>Proceedings of the Twenty-First International Conference on Machine Learning</em>, 2004.</span></span></span> addresses the problem of reward ambiguity by finding a policy <math id="S3.SS2.p1.m1" class="ltx_Math" alttext="\pi" display="inline"><mi>π</mi></math> such that the feature expectation induced by <math id="S3.SS2.p1.m2" class="ltx_Math" alttext="\pi" display="inline"><mi>π</mi></math> is close to that of the expert policy <math id="S3.SS2.p1.m3" class="ltx_Math" alttext="\pi^{*}" display="inline"><msup><mi>π</mi><mo>∗</mo></msup></math>.
+Mathematically, the goal of apprenticeship learning is to find a policy such that <math id="S3.SS2.p1.m4" class="ltx_Math" alttext="\lVert\mu(\pi,\bm{x})-\mu(\pi^{*},\bm{x})\rVert_{2}\leq\epsilon" display="inline"><mrow><msub><mrow><mo fence="true" rspace="0em">∥</mo><mrow><mrow><mi>μ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>π</mi><mo>,</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow><mo>−</mo><mrow><mi>μ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msup><mi>π</mi><mo>∗</mo></msup><mo>,</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo fence="true" lspace="0em">∥</mo></mrow><mn>2</mn></msub><mo>≤</mo><mi>ϵ</mi></mrow></math> for all <math id="S3.SS2.p1.m5" class="ltx_Math" alttext="\bm{x}\in\mathcal{X}" display="inline"><mrow><mi>𝒙</mi><mo>∈</mo><mi class="ltx_font_mathcaligraphic">𝒳</mi></mrow></math>, where <math id="S3.SS2.p1.m6" class="ltx_Math" alttext="\epsilon" display="inline"><mi>ϵ</mi></math> is a small positive constant.
+For such a policy <math id="S3.SS2.p1.m7" class="ltx_Math" alttext="\pi" display="inline"><mi>π</mi></math>, we would have that for any <math id="S3.SS2.p1.m8" class="ltx_Math" alttext="\bm{w}" display="inline"><mi>𝒘</mi></math> with <math id="S3.SS2.p1.m9" class="ltx_Math" alttext="\lVert\bm{w}\rVert_{2}\leq 1" display="inline"><mrow><msub><mrow><mo fence="true" rspace="0em">∥</mo><mi>𝒘</mi><mo fence="true" lspace="0em">∥</mo></mrow><mn>2</mn></msub><mo>≤</mo><mn>1</mn></mrow></math>:</p>
+<table id="S3.E4" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.E4.m1" class="ltx_math_unparsed" alttext="\begin{split}\lvert V_{T}^{\pi}(\bm{x})-V_{T}^{\pi^{*}}(\bm{x})\rvert&amp;=\lvert%
+\bm{w}^{\top}\mu(\pi,\bm{x})-\bm{w}^{\top}\mu(\pi^{*},\bm{x})\rvert,\\
+&amp;\leq\lVert\bm{w}\rVert_{2}\lVert\mu(\pi,\bm{x})-\mu(\pi^{*},\bm{x})\rVert_{2}%
+\\
+&amp;\leq 1\cdot\epsilon=\epsilon,\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mo stretchy="false">|</mo><mrow><mrow><msubsup><mi>V</mi><mi>T</mi><mi>π</mi></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow><mo>−</mo><mrow><msubsup><mi>V</mi><mi>T</mi><msup><mi>π</mi><mo>∗</mo></msup></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo stretchy="false">|</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>=</mo><mrow><mo stretchy="false">|</mo><mrow><mrow><msup><mi>𝒘</mi><mo>⊤</mo></msup><mo>⁢</mo><mi>μ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>π</mi><mo>,</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow><mo>−</mo><mrow><msup><mi>𝒘</mi><mo>⊤</mo></msup><mo>⁢</mo><mi>μ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msup><mi>π</mi><mo>∗</mo></msup><mo>,</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo stretchy="false">|</mo></mrow></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mi></mi><mo rspace="0.1389em">≤</mo><mrow><msub><mrow><mo fence="true" lspace="0.1389em" rspace="0em">∥</mo><mi>𝒘</mi><mo fence="true" lspace="0em">∥</mo></mrow><mn>2</mn></msub><mo lspace="0em">⁢</mo><msub><mrow><mo fence="true" rspace="0em">∥</mo><mrow><mrow><mi>μ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>π</mi><mo>,</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow><mo>−</mo><mrow><mi>μ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msup><mi>π</mi><mo>∗</mo></msup><mo>,</mo><mi>𝒙</mi><mo stretchy="false">)</mo></mrow></mrow></mrow><mo fence="true" lspace="0em">∥</mo></mrow><mn>2</mn></msub></mrow></mrow></mtd></mtr><mtr><mtd></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo>≤</mo><mrow><mn>1</mn><mo lspace="0.222em" rspace="0.222em">⋅</mo><mi>ϵ</mi></mrow><mo>=</mo><mi>ϵ</mi></mrow><mo>,</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(19.4)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where the first equality follows from the definition of the value function as a function of the feature expectation in Equation&#160;<a href="#S3.E2" title="In 19.3.1 Feature Expectation ‣ 19.3 Inverse Reinforcement Learning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">19.2</span></a>, the first inequality follows from the fact that <math id="S3.SS2.p1.m10" class="ltx_Math" alttext="\lvert x^{\top}y\rvert\leq\lVert x\rVert_{2}\lVert y\rVert_{2}" display="inline"><mrow><mrow><mo stretchy="false">|</mo><mrow><msup><mi>x</mi><mo>⊤</mo></msup><mo>⁢</mo><mi>y</mi></mrow><mo stretchy="false">|</mo></mrow><mo rspace="0.1389em">≤</mo><mrow><msub><mrow><mo fence="true" lspace="0.1389em" rspace="0em">∥</mo><mi>x</mi><mo fence="true" lspace="0em">∥</mo></mrow><mn>2</mn></msub><mo lspace="0em">⁢</mo><msub><mrow><mo fence="true" rspace="0em">∥</mo><mi>y</mi><mo fence="true" lspace="0em">∥</mo></mrow><mn>2</mn></msub></mrow></mrow></math> for any vectors <math id="S3.SS2.p1.m11" class="ltx_Math" alttext="x" display="inline"><mi>x</mi></math> and <math id="S3.SS2.p1.m12" class="ltx_Math" alttext="y" display="inline"><mi>y</mi></math>, and the second inequality follows from the assumption that <math id="S3.SS2.p1.m13" class="ltx_Math" alttext="\lVert\bm{w}\rVert_{2}\leq 1" display="inline"><mrow><msub><mrow><mo fence="true" rspace="0em">∥</mo><mi>𝒘</mi><mo fence="true" lspace="0em">∥</mo></mrow><mn>2</mn></msub><mo>≤</mo><mn>1</mn></mrow></math>.
+This result motivates a practical reformulation of the inverse reinforcement learning problem: rather than attempting to recover the true reward parameters <math id="S3.SS2.p1.m14" class="ltx_Math" alttext="\bm{w}^{*}" display="inline"><msup><mi>𝒘</mi><mo>∗</mo></msup></math>, it suffices to learn a policy whose feature expectations match those of the expert within a small tolerance.
+Under this condition, the learned policy is guaranteed to achieve performance comparable to that of the expert, even when the recovered reward function differs from the true underlying reward.</p>
+</div>
+<div id="S3.SS2.p2" class="ltx_para">
+<p class="ltx_p">Within this framework, the inverse reinforcement learning problem reduces to finding a policy <math id="S3.SS2.p2.m1" class="ltx_Math" alttext="\pi" display="inline"><mi>π</mi></math> whose induced feature expectation <math id="S3.SS2.p2.m2" class="ltx_Math" alttext="\mu(\pi)" display="inline"><mrow><mi>μ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>π</mi><mo stretchy="false">)</mo></mrow></mrow></math> closely matches the one of the expert policy, <math id="S3.SS2.p2.m3" class="ltx_Math" alttext="\mu(\pi^{*})" display="inline"><mrow><mi>μ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msup><mi>π</mi><mo>∗</mo></msup><mo stretchy="false">)</mo></mrow></mrow></math>.
+A schematic overview of the apprenticeship learning algorithm is provided in Algorithm&#160;<a href="#algorithm5" title="In 19.3.2 Apprenticeship Learning ‣ 19.3 Inverse Reinforcement Learning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">5</span></a>.</p>
+</div>
+<figure id="algorithm5" class="ltx_float ltx_algorithm">
+<div class="ltx_listing ltx_lst_numbers_left ltx_listing">
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Data:</span> Expert’s feature expectations, <math id="algorithm5.m1" class="ltx_Math" alttext="\mu^{*}=\mu(\pi^{*})" display="inline"><mrow><msup><mi>μ</mi><mo>∗</mo></msup><mo>=</mo><mrow><mi>μ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msup><mi>π</mi><mo>∗</mo></msup><mo stretchy="false">)</mo></mrow></mrow></mrow></math>, initial policy, <math id="algorithm5.m2" class="ltx_Math" alttext="\pi_{0}" display="inline"><msub><mi>π</mi><mn>0</mn></msub></math></div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">Result:</span> Learned parameters, <math id="algorithm5.m3" class="ltx_Math" alttext="\bm{w}" display="inline"><mi>𝒘</mi></math>, and policy, <math id="algorithm5.m4" class="ltx_Math" alttext="\hat{\pi}^{*}" display="inline"><msup><mover accent="true"><mi>π</mi><mo>^</mo></mover><mo>∗</mo></msup></math></div>
+<div class="ltx_listingline"><math id="algorithm5.m5" class="ltx_Math" alttext="i\leftarrow 1" display="inline"><mrow><mi>i</mi><mo stretchy="false">←</mo><mn>1</mn></mrow></math> </div>
+<div class="ltx_listingline"><span class="ltx_text ltx_font_bold">while</span> <em class="ltx_emph ltx_font_italic">true</em> <span class="ltx_text ltx_font_bold">do</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Compute <math id="algorithm5.m6" class="ltx_Math" alttext="\mu^{(i-1)}=\mu(\pi_{i-1})" display="inline"><mrow><msup><mi>μ</mi><mrow><mo stretchy="false">(</mo><mrow><mi>i</mi><mo>−</mo><mn>1</mn></mrow><mo stretchy="false">)</mo></mrow></msup><mo>=</mo><mrow><mi>μ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>π</mi><mrow><mi>i</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="false">)</mo></mrow></mrow></mrow></math> (or approximate via Monte Carlo methods). </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Compute <math id="algorithm5.m7" class="ltx_Math" alttext="t^{(i)}=\max_{w:\lVert w\rVert_{2}\leq 1}\min_{j\in\{0,\ldots,(i-1)\}}\bm{w}^{%\top}\left(\mu^{*}-\mu^{(j)}\right)" display="inline"><mrow><msup><mi>t</mi><mrow><mo stretchy="false">(</mo><mi>i</mi><mo stretchy="false">)</mo></mrow></msup><mo>=</mo><mrow><mrow><msub><mi>max</mi><mrow><mi>w</mi><mo lspace="0.278em">:</mo><mrow><msub><mrow><mo fence="true" lspace="0.111em" rspace="0em">∥</mo><mi>w</mi><mo fence="true" lspace="0em" rspace="0.1389em">∥</mo></mrow><mn>2</mn></msub><mo lspace="0.1389em">≤</mo><mn>1</mn></mrow></mrow></msub><mo lspace="0.167em">⁡</mo><mrow><msub><mi>min</mi><mrow><mi>j</mi><mo>∈</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><mo stretchy="false">(</mo><mrow><mi>i</mi><mo>−</mo><mn>1</mn></mrow><mo stretchy="false">)</mo></mrow><mo stretchy="false">}</mo></mrow></mrow></msub><mo lspace="0.167em">⁡</mo><msup><mi>𝒘</mi><mo>⊤</mo></msup></mrow></mrow><mo>⁢</mo><mrow><mo>(</mo><mrow><msup><mi>μ</mi><mo>∗</mo></msup><mo>−</mo><msup><mi>μ</mi><mrow><mo stretchy="false">(</mo><mi>j</mi><mo stretchy="false">)</mo></mrow></msup></mrow><mo>)</mo></mrow></mrow></mrow></math> by solving:<table id="S3.E5" class="ltx_equation ltx_eqn_table"><tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline"><td class="ltx_eqn_cell ltx_eqn_center_padleft"></td><td class="ltx_eqn_cell ltx_align_center"><math id="S3.E5.m1" class="ltx_math_unparsed" alttext="\begin{split}(\bm{w}_{i},t_{i})\leftarrow\underset{[}{\text{maximize}}\quad\bm%{w},t]&amp;t,\\\text{subject to}\quad&amp;\bm{w}^{\top}\mu^{*}\geq\bm{w}^{\top}\mu^{(j)}+t,\quad%\forall j\in\{0,\dots,(i-1)\},\\&amp;\lVert\bm{w}\rVert_{2}\leq 1.\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mo stretchy="false">(</mo><msub><mi>𝒘</mi><mi>i</mi></msub><mo>,</mo><msub><mi>t</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow><mo stretchy="false">←</mo><munder accentunder="true"><mtext>maximize</mtext><mo fence="false">[</mo></munder><mspace width="1em"></mspace><mi>𝒘</mi><mo>,</mo><mi>t</mi><mo stretchy="false">]</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mi>t</mi><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mtext>subject to</mtext></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><mrow><msup><mi>𝒘</mi><mo>⊤</mo></msup><mo>⁢</mo><msup><mi>μ</mi><mo>∗</mo></msup></mrow><mo>≥</mo><mrow><mrow><msup><mi>𝒘</mi><mo>⊤</mo></msup><mo>⁢</mo><msup><mi>μ</mi><mrow><mo stretchy="false">(</mo><mi>j</mi><mo stretchy="false">)</mo></mrow></msup></mrow><mo>+</mo><mi>t</mi></mrow></mrow><mo rspace="1.167em">,</mo><mrow><mrow><mo rspace="0.167em">∀</mo><mi>j</mi></mrow><mo>∈</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><mo stretchy="false">(</mo><mrow><mi>i</mi><mo>−</mo><mn>1</mn></mrow><mo stretchy="false">)</mo></mrow><mo stretchy="false">}</mo></mrow></mrow></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><msub><mrow><mo fence="true" rspace="0em">∥</mo><mi>𝒘</mi><mo fence="true" lspace="0em">∥</mo></mrow><mn>2</mn></msub><mo>≤</mo><mn>1</mn></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td><td class="ltx_eqn_cell ltx_eqn_center_padright"></td><td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(19.5)</span></td></tr></tbody></table><span class="ltx_text ltx_font_bold">if</span> <em class="ltx_emph ltx_font_italic"><math id="algorithm5.m8" class="ltx_Math" alttext="t_{i}\leq\epsilon" display="inline"><mrow><msub><mi>t</mi><mi>i</mi></msub><mo>≤</mo><mi>ϵ</mi></mrow></math></em> <span class="ltx_text ltx_font_bold">then</span></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>     <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm5.m9" class="ltx_Math" alttext="\hat{\pi}^{*}\xleftarrow{}" display="inline"><mrow><msup><mover accent="true"><mi>π</mi><mo>^</mo></mover><mo>∗</mo></msup><mover accent="true"><mo stretchy="false">←</mo><mi></mi></mover><mi></mi></mrow></math> best feature matching policy from <math id="algorithm5.m10" class="ltx_Math" alttext="\{\pi_{0},\dots,\pi_{i-1}\}" display="inline"><mrow><mo stretchy="false">{</mo><msub><mi>π</mi><mn>0</mn></msub><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msub><mi>π</mi><mrow><mi>i</mi><mo>−</mo><mn>1</mn></mrow></msub><mo stretchy="false">}</mo></mrow></math></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>     <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm5.m11" class="ltx_Math" alttext="\hat{\bm{w}}^{*}\xleftarrow{}\bm{w}_{i}" display="inline"><mrow><msup><mover accent="true"><mi>𝒘</mi><mo>^</mo></mover><mo>∗</mo></msup><mover accent="true"><mo stretchy="false">←</mo><mi></mi></mover><msub><mi>𝒘</mi><mi>i</mi></msub></mrow></math> </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>     <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <span class="ltx_text ltx_font_bold">return</span> <math id="algorithm5.m12" class="ltx_Math" alttext="\hat{\pi}^{*}" display="inline"><msup><mover accent="true"><mi>π</mi><mo>^</mo></mover><mo>∗</mo></msup></math>, <math id="algorithm5.m13" class="ltx_Math" alttext="\hat{\bm{w}}^{*}" display="inline"><msup><mover accent="true"><mi>𝒘</mi><mo>^</mo></mover><mo>∗</mo></msup></math></div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   Compute an optimal policy, <math id="algorithm5.m14" class="ltx_Math" alttext="\pi_{i}" display="inline"><msub><mi>π</mi><mi>i</mi></msub></math>, for the reward function defined by <math id="algorithm5.m15" class="ltx_Math" alttext="\hat{\bm{w}}" display="inline"><mover accent="true"><mi>𝒘</mi><mo>^</mo></mover></math>. </div>
+<div class="ltx_listingline">  <span class="ltx_rule" style="width:1px;height:100%;background:black;display:inline-block;"> </span>   <math id="algorithm5.m16" class="ltx_Math" alttext="i\leftarrow i+1" display="inline"><mrow><mi>i</mi><mo stretchy="false">←</mo><mrow><mi>i</mi><mo>+</mo><mn>1</mn></mrow></mrow></math> </div>
+<div class="ltx_listingline">&#160;</div>
+<div class="ltx_listingline">&#160;</div>
+</div>
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_float"><span class="ltx_text ltx_font_bold">Algorithm 5</span> </span>Apprenticeship Learning</figcaption>
+</figure>
+<div id="S3.SS2.p3" class="ltx_para">
+<p class="ltx_p">At iteration <math id="S3.SS2.p3.m1" class="ltx_Math" alttext="i" display="inline"><mi>i</mi></math> of Algorithm&#160;<a href="#algorithm5" title="In 19.3.2 Apprenticeship Learning ‣ 19.3 Inverse Reinforcement Learning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">5</span></a>, we have already identified a set of policies <math id="S3.SS2.p3.m2" class="ltx_Math" alttext="\pi_{0},\pi_{1},\ldots,\pi_{i-1}" display="inline"><mrow><msub><mi>π</mi><mn>0</mn></msub><mo>,</mo><msub><mi>π</mi><mn>1</mn></msub><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msub><mi>π</mi><mrow><mi>i</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow></math> along with their corresponding feature expectations <math id="S3.SS2.p3.m3" class="ltx_Math" alttext="\mu^{(0)},\mu^{(1)},\ldots,\mu^{(i-1)}" display="inline"><mrow><msup><mi>μ</mi><mrow><mo stretchy="false">(</mo><mn>0</mn><mo stretchy="false">)</mo></mrow></msup><mo>,</mo><msup><mi>μ</mi><mrow><mo stretchy="false">(</mo><mn>1</mn><mo stretchy="false">)</mo></mrow></msup><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><msup><mi>μ</mi><mrow><mo stretchy="false">(</mo><mrow><mi>i</mi><mo>−</mo><mn>1</mn></mrow><mo stretchy="false">)</mo></mrow></msup></mrow></math>. Within the inner loop, we solve the optimization problem defined in Equation&#160;<a href="#S3.E5" title="In 5 ‣ 19.3.2 Apprenticeship Learning ‣ 19.3 Inverse Reinforcement Learning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">19.5</span></a> to estimate a reward parameter vector <math id="S3.SS2.p3.m4" class="ltx_Math" alttext="\bm{w}" display="inline"><mi>𝒘</mi></math> that explains the expert’s behavior.
+Specifically, using the feature-expectation formulation of the value function in Equation&#160;<a href="#S3.E2" title="In 19.3.1 Feature Expectation ‣ 19.3 Inverse Reinforcement Learning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">19.2</span></a>, the constraint:</p>
+<table id="S3.Ex10" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex10.m1" class="ltx_Math" alttext="\bm{w}^{\top}\mu^{*}\geq\bm{w}^{\top}\mu^{(j)}+t," display="block"><mrow><mrow><mrow><msup><mi>𝒘</mi><mo>⊤</mo></msup><mo>⁢</mo><msup><mi>μ</mi><mo>∗</mo></msup></mrow><mo>≥</mo><mrow><mrow><msup><mi>𝒘</mi><mo>⊤</mo></msup><mo>⁢</mo><msup><mi>μ</mi><mrow><mo stretchy="false">(</mo><mi>j</mi><mo stretchy="false">)</mo></mrow></msup></mrow><mo>+</mo><mi>t</mi></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">can be rewritten as:</p>
+<table id="S3.Ex11" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex11.m1" class="ltx_Math" alttext="V_{T}^{\pi^{*}}(\bm{x}_{0})\geq V_{T}^{\pi_{j}}(\bm{x}_{0})+t," display="block"><mrow><mrow><mrow><msubsup><mi>V</mi><mi>T</mi><msup><mi>π</mi><mo>∗</mo></msup></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mn>0</mn></msub><mo stretchy="false">)</mo></mrow></mrow><mo>≥</mo><mrow><mrow><msubsup><mi>V</mi><mi>T</mi><msub><mi>π</mi><mi>j</mi></msub></msubsup><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mn>0</mn></msub><mo stretchy="false">)</mo></mrow></mrow><mo>+</mo><mi>t</mi></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">meaning that, under the recovered reward function, the expert outperforms each previously learned policy by a margin of at least <math id="S3.SS2.p3.m5" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math>.
+Given the resulting reward parameters <math id="S3.SS2.p3.m6" class="ltx_Math" alttext="\bm{w}_{i}" display="inline"><msub><mi>𝒘</mi><mi>i</mi></msub></math>, we then compute a new policy <math id="S3.SS2.p3.m7" class="ltx_Math" alttext="\pi_{i}" display="inline"><msub><mi>π</mi><mi>i</mi></msub></math><span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S3.SS2.p3.p1" class="ltx_para">
+<span class="ltx_p">For example, using reinforcement learning methods introduced in <span class="ltx_ref">the referenced item</span>.</span>
+</span></span></span></span></span> that is optimal with respect to this reward.
+This iterative procedure continues until the margin <math id="S3.SS2.p3.m8" class="ltx_Math" alttext="t_{i}" display="inline"><msub><mi>t</mi><mi>i</mi></msub></math> falls below a predefined threshold <math id="S3.SS2.p3.m9" class="ltx_Math" alttext="\epsilon" display="inline"><mi>ϵ</mi></math>, indicating that the feature expectations of the learned policy sufficiently match those of the expert.</p>
+</div>
+</section>
+<section id="S3.SS3" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">19.3.3 </span>Maximum Margin Planning</h3>
+
+<div id="S3.SS3.p1" class="ltx_para">
+<p class="ltx_p">Maximum margin planning (MMP)<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">17</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">17.</span> Ratliff, N., Bagnell, J. A., Zinkevich, M. “Maximum Margin Planning.” In <em>Proceedings of the 23rd International Conference on Machine Learning</em>, 729–736, 2006.</span></span></span> is a generalization of apprenticeship learning that aims to find a reward function that maximally separates the expert policy from a set of policies.
+Specifically, MMP modifies Equation&#160;<a href="#S3.E5" title="In 5 ‣ 19.3.2 Apprenticeship Learning ‣ 19.3 Inverse Reinforcement Learning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">19.5</span></a> from the apprenticeship learning algorithm as follows:</p>
+<table id="S3.E6" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.E6.m1" class="ltx_math_unparsed" alttext="\begin{split}\hat{\bm{w}}^{*}=\underset{\bm{w},\xi}{\arg\min}\quad&amp;\lVert\bm{w%
+}\rVert_{2}^{2}+C\xi,\\
+\text{subject to}\quad&amp;\bm{w}^{\top}\mu^{*}\geq\bm{w}^{\top}\mu^{(j)}+m(\pi^{*%
+},\pi^{(j)})-\xi,\quad\forall j\in\{0,\dots,(i-1)\},\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><msup><mover accent="true"><mi>𝒘</mi><mo>^</mo></mover><mo>∗</mo></msup><mo>=</mo><munder accentunder="true"><mrow><mi>arg</mi><mo lspace="0.167em">⁡</mo><mi>min</mi></mrow><mrow><mi>𝒘</mi><mo>,</mo><mi>ξ</mi></mrow></munder></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><msubsup><mrow><mo fence="true" rspace="0em">∥</mo><mi>𝒘</mi><mo fence="true" lspace="0em">∥</mo></mrow><mn>2</mn><mn>2</mn></msubsup><mo>+</mo><mrow><mi>C</mi><mo>⁢</mo><mi>ξ</mi></mrow></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mtext>subject to</mtext></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mrow><mrow><msup><mi>𝒘</mi><mo>⊤</mo></msup><mo>⁢</mo><msup><mi>μ</mi><mo>∗</mo></msup></mrow><mo>≥</mo><mrow><mrow><mrow><msup><mi>𝒘</mi><mo>⊤</mo></msup><mo>⁢</mo><msup><mi>μ</mi><mrow><mo stretchy="false">(</mo><mi>j</mi><mo stretchy="false">)</mo></mrow></msup></mrow><mo>+</mo><mrow><mi>m</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msup><mi>π</mi><mo>∗</mo></msup><mo>,</mo><msup><mi>π</mi><mrow><mo stretchy="false">(</mo><mi>j</mi><mo stretchy="false">)</mo></mrow></msup><mo stretchy="false">)</mo></mrow></mrow></mrow><mo>−</mo><mi>ξ</mi></mrow></mrow><mo rspace="1.167em">,</mo><mrow><mrow><mo rspace="0.167em">∀</mo><mi>j</mi></mrow><mo>∈</mo><mrow><mo stretchy="false">{</mo><mn>0</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mrow><mo stretchy="false">(</mo><mrow><mi>i</mi><mo>−</mo><mn>1</mn></mrow><mo stretchy="false">)</mo></mrow><mo stretchy="false">}</mo></mrow></mrow></mrow><mo>,</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(19.6)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S3.SS3.p1.m1" class="ltx_Math" alttext="m(\pi,\pi^{\prime})" display="inline"><mrow><mi>m</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>π</mi><mo>,</mo><msup><mi>π</mi><mo>′</mo></msup><mo stretchy="false">)</mo></mrow></mrow></math> is a distance function<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S3.SS3.p1.p1" class="ltx_para">
+<span class="ltx_p">For example, <math id="S3.SS3.p1.p1.m1" class="ltx_Math" alttext="m(\pi,\pi^{\prime})" display="inline"><mrow><mi>m</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>π</mi><mo>,</mo><msup><mi>π</mi><mo>′</mo></msup><mo stretchy="false">)</mo></mrow></mrow></math> could measure the number of states in which <math id="S3.SS3.p1.p1.m2" class="ltx_Math" alttext="\pi" display="inline"><mi>π</mi></math> and <math id="S3.SS3.p1.p1.m3" class="ltx_Math" alttext="\pi^{\prime}" display="inline"><msup><mi>π</mi><mo>′</mo></msup></math> select different actions.</span>
+</span></span></span></span></span> between two policies <math id="S3.SS3.p1.m2" class="ltx_Math" alttext="\pi" display="inline"><mi>π</mi></math> and <math id="S3.SS3.p1.m3" class="ltx_Math" alttext="\pi^{\prime}" display="inline"><msup><mi>π</mi><mo>′</mo></msup></math>, <math id="S3.SS3.p1.m4" class="ltx_Math" alttext="\xi" display="inline"><mi>ξ</mi></math> is a slack variable that allows for violations of the margin constraints, and <math id="S3.SS3.p1.m5" class="ltx_Math" alttext="C" display="inline"><mi>C</mi></math> is a hyperparameter that controls the penalty for such violations.
+Intuitively, this formulation enforces larger margins for policies that are more dissimilar from the expert policy <math id="S3.SS3.p1.m6" class="ltx_Math" alttext="\pi^{*}" display="inline"><msup><mi>π</mi><mo>∗</mo></msup></math>.</p>
+</div>
+<div id="S3.SS3.p2" class="ltx_para">
+<p class="ltx_p">An advantage of the MMP formulation over the apprenticeship learning approach in Equation&#160;<a href="#S3.E5" title="In 5 ‣ 19.3.2 Apprenticeship Learning ‣ 19.3 Inverse Reinforcement Learning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">19.5</span></a> arises when the expert is suboptimal.
+In such cases, it may be impossible to find a reward vector <math id="S3.SS3.p2.m1" class="ltx_Math" alttext="\bm{w}" display="inline"><mi>𝒘</mi></math> that makes the expert policy outperform all other policies.
+As a result, the apprenticeship learning optimization problem may yield trivial solutions such as <math id="S3.SS3.p2.m2" class="ltx_Math" alttext="\bm{w}_{i}=\bm{0}" display="inline"><mrow><msub><mi>𝒘</mi><mi>i</mi></msub><mo>=</mo><mn>𝟎</mn></mrow></math> and <math id="S3.SS3.p2.m3" class="ltx_Math" alttext="t_{i}=0" display="inline"><mrow><msub><mi>t</mi><mi>i</mi></msub><mo>=</mo><mn>0</mn></mrow></math>.
+By contrast, the MMP formulation introduces slack variables that relax the margin constraints, enabling the computation of a nontrivial and informative reward vector even when the expert demonstrations are imperfect.
+This added flexibility allows MMP to remain effective in realistic scenarios where expert behavior may be noisy or suboptimal.</p>
+</div>
+</section>
+<section id="S3.SS4" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">19.3.4 </span>Maximum Entropy Inverse Reinforcement Learning</h3>
+
+<div id="S3.SS4.p1" class="ltx_para">
+<p class="ltx_p">As we described in Section&#160;<a href="#S3" title="19.3 Inverse Reinforcement Learning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">19.3</span></a>, the inverse reinforcement learning problem is inherently ill-posed since there are infinitely many reward functions that could explain the expert’s behavior.
+While maximum margin approaches are highly effective when there is a single reward function that is clearly better than alternatives, in some cases, optimizing for a distribution of reward functions is more appropriate.
+Maximum entropy inverse reinforcement learning (MaxEnt IRL)<span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">18</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">18.</span> Ziebart, B. D., Maas, A., Bagnell, J. A., Dey, A. K. “Maximum Entropy Inverse Reinforcement Learning.” In <em>Proceedings of the Twenty-Third AAAI Conference on Artificial Intelligence</em>, 1433–1438, 2008.</span></span></span> aims to find a distribution over reward functions that explains the expert’s behavior, that matches the feature expectations of the expert<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S3.SS4.p1.p1" class="ltx_para">
+<span class="ltx_p">Similar to maximum margin methods.</span>
+</span></span></span></span></span>, and has maximum entropy<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S3.SS4.p1.p2" class="ltx_para">
+<span class="ltx_p">That is, remaining as non-committal or “random” as possible beyond the imposed constraints.</span>
+</span></span></span></span></span>.</p>
+</div>
+<div id="S3.SS4.p2" class="ltx_para">
+<p class="ltx_p">Let us denote the distribution over trajectories induced by a policy <math id="S3.SS4.p2.m1" class="ltx_Math" alttext="\pi" display="inline"><mi>π</mi></math> as <math id="S3.SS4.p2.m2" class="ltx_Math" alttext="p_{\pi}(\tau)" display="inline"><mrow><msub><mi>p</mi><mi>π</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow></mrow></math>. The feature expectations can be rewritten in terms of this distribution as:</p>
+<table id="S3.Ex12" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex12.m1" class="ltx_Math" alttext="\mu(\pi)=\mathbb{E}_{\pi}\left[f(\tau)\right]=\int p_{\pi}(\tau)f(\tau)d\tau," display="block"><mrow><mrow><mrow><mi>μ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>π</mi><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><msub><mi>𝔼</mi><mi>π</mi></msub><mo>⁢</mo><mrow><mo>[</mo><mrow><mi>f</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow></mrow><mo>]</mo></mrow></mrow><mo rspace="0.111em">=</mo><mrow><mo>∫</mo><mrow><msub><mi>p</mi><mi>π</mi></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mi>f</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow><mo lspace="0em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><mi>τ</mi></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S3.SS4.p2.m3" class="ltx_Math" alttext="f(\tau)=\sum_{t=0}^{T-1}\gamma^{t}\phi(\bm{x}_{t},\pi(\bm{x}_{t}))" display="inline"><mrow><mrow><mi>f</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.111em">=</mo><mrow><msubsup><mo>∑</mo><mrow><mi>t</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></msubsup><mrow><msup><mi>γ</mi><mi>t</mi></msup><mo>⁢</mo><mi>ϕ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><mrow><mi>π</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><msub><mi>𝒙</mi><mi>t</mi></msub><mo stretchy="false">)</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow></math>.
+Within this framework, MaxEnt IRL seeks a trajectory distribution that maximizes entropy:</p>
+<table id="S3.E7" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.E7.m1" class="ltx_Math" alttext="\mathcal{H}(p(\tau))=\int-p(\tau)\log p(\tau)d\tau," display="block"><mrow><mrow><mrow><mi class="ltx_font_mathcaligraphic">ℋ</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.111em">=</mo><mrow><mo rspace="0em">∫</mo><mo lspace="0em">−</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow><mo lspace="0.167em">⁢</mo><mrow><mi>log</mi><mo lspace="0.167em">⁡</mo><mi>p</mi></mrow><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mi>d</mi><mo>⁢</mo><mi>τ</mi></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(19.7)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">subject to the constraints:</p>
+<table id="S3.E8" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.E8.m1" class="ltx_Math" alttext="\begin{split}\int p(\tau)f(\tau)d\tau&amp;=\int p_{\pi^{*}}(\tau)f(\tau)d\tau,\\
+\int p(\tau)d\tau=1,\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mo>∫</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mi>f</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow><mo lspace="0em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><mi>τ</mi></mrow></mrow></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><mi></mi><mo rspace="0.111em">=</mo><mrow><mo>∫</mo><mrow><msub><mi>p</mi><msup><mi>π</mi><mo>∗</mo></msup></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mi>f</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow><mo lspace="0em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><mi>τ</mi></mrow></mrow></mrow></mrow><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><mrow><mrow><mo>∫</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow><mo lspace="0em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><mi>τ</mi></mrow></mrow></mrow><mo>=</mo><mn>1</mn></mrow><mo>,</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(19.8)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where the first constraint enforces that the feature expectations of the learned behavior match those of the expert policy, while the second ensures that <math id="S3.SS4.p2.m4" class="ltx_Math" alttext="p(\tau)" display="inline"><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow></mrow></math> is a valid probability distribution.</p>
+</div>
+<div id="S3.SS4.p3" class="ltx_para">
+<p class="ltx_p">Among the distributions that satisfy the constraint:</p>
+<table id="S3.Ex13" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex13.m1" class="ltx_Math" alttext="\int p(\tau)f(\tau)d\tau=\int p_{\pi^{*}}(\tau)f(\tau)d\tau," display="block"><mrow><mrow><mrow><mo>∫</mo><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mi>f</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow><mo lspace="0em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><mi>τ</mi></mrow></mrow></mrow><mo rspace="0.111em">=</mo><mrow><mo>∫</mo><mrow><msub><mi>p</mi><msup><mi>π</mi><mo>∗</mo></msup></msub><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow><mo>⁢</mo><mi>f</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow><mo lspace="0em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><mi>τ</mi></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">the maximum entropy distribution follows the exponential form:</p>
+<table id="S3.Ex14" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex14.m1" class="ltx_Math" alttext="p(\tau)\propto\exp(\bm{w}^{\top}f(\tau))." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow></mrow><mo>∝</mo><mrow><mi>exp</mi><mo>⁡</mo><mrow><mo stretchy="false">(</mo><mrow><msup><mi>𝒘</mi><mo>⊤</mo></msup><mo>⁢</mo><mi>f</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Specifically, we can express the trajectory distribution as a function of <math id="S3.SS4.p3.m1" class="ltx_Math" alttext="\bm{w}" display="inline"><mi>𝒘</mi></math> as:</p>
+<table id="S3.E9" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.E9.m1" class="ltx_Math" alttext="p(\tau\mid\bm{w})=\frac{1}{Z(\bm{w})}\exp\left(\bm{w}^{\top}f(\tau)\right)," display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>τ</mi><mo>∣</mo><mi>𝒘</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mfrac><mn>1</mn><mrow><mi>Z</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒘</mi><mo stretchy="false">)</mo></mrow></mrow></mfrac><mo lspace="0.167em">⁢</mo><mrow><mi>exp</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><msup><mi>𝒘</mi><mo>⊤</mo></msup><mo>⁢</mo><mi>f</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow></mrow><mo>)</mo></mrow></mrow></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(19.9)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S3.SS4.p3.m2" class="ltx_Math" alttext="Z(\bm{w})" display="inline"><mrow><mi>Z</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒘</mi><mo stretchy="false">)</mo></mrow></mrow></math> is the partition function given by <math id="S3.SS4.p3.m3" class="ltx_Math" alttext="Z(\bm{w})=\int\exp\left(\bm{w}^{\top}f(\tau)\right)d\tau" display="inline"><mrow><mrow><mi>Z</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒘</mi><mo stretchy="false">)</mo></mrow></mrow><mo rspace="0.111em">=</mo><mrow><mo>∫</mo><mrow><mrow><mi>exp</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><msup><mi>𝒘</mi><mo>⊤</mo></msup><mo>⁢</mo><mi>f</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow></mrow><mo>)</mo></mrow></mrow><mo lspace="0em">⁢</mo><mrow><mo rspace="0em">𝑑</mo><mi>τ</mi></mrow></mrow></mrow></mrow></math>.</p>
+</div>
+<div id="S3.SS4.p4" class="ltx_para">
+<p class="ltx_p">However, Equation&#160;<a href="#S3.E9" title="In 19.3.4 Maximum Entropy Inverse Reinforcement Learning ‣ 19.3 Inverse Reinforcement Learning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">19.9</span></a> only holds for deterministic environments where the next state is fully determined by the current state and action.
+In stochastic environments, the trajectory distribution is also influenced by the random environment dynamics, and in this case we express the distribution over trajectories as:</p>
+<table id="S3.E10" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.E10.m1" class="ltx_Math" alttext="p(\tau\mid\bm{w})=\frac{1}{Z(\bm{w})}\exp\left(\bm{w}^{\top}f(\tau)\right)%
+\prod_{t=0}^{T-1}p(\bm{x}_{t+1}\mid\bm{x}_{t},\bm{u}_{t})." display="block"><mrow><mrow><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>τ</mi><mo>∣</mo><mi>𝒘</mi></mrow><mo stretchy="false">)</mo></mrow></mrow><mo>=</mo><mrow><mfrac><mn>1</mn><mrow><mi>Z</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>𝒘</mi><mo stretchy="false">)</mo></mrow></mrow></mfrac><mo lspace="0.167em">⁢</mo><mrow><mi>exp</mi><mo>⁡</mo><mrow><mo>(</mo><mrow><msup><mi>𝒘</mi><mo>⊤</mo></msup><mo>⁢</mo><mi>f</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mi>τ</mi><mo stretchy="false">)</mo></mrow></mrow><mo>)</mo></mrow></mrow><mo>⁢</mo><mrow><munderover><mo movablelimits="false">∏</mo><mrow><mi>t</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>T</mi><mo>−</mo><mn>1</mn></mrow></munderover><mrow><mi>p</mi><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><msub><mi>𝒙</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>∣</mo><mrow><msub><mi>𝒙</mi><mi>t</mi></msub><mo>,</mo><msub><mi>𝒖</mi><mi>t</mi></msub></mrow></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(19.10)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">We can therefore obtain the parameter vector <math id="S3.SS4.p4.m1" class="ltx_Math" alttext="\bm{w}" display="inline"><mi>𝒘</mi></math> for the reward function by maximizing the likelihood of the observed data under the maximum entropy distribution defined in Equation&#160;<a href="#S3.E10" title="In 19.3.4 Maximum Entropy Inverse Reinforcement Learning ‣ 19.3 Inverse Reinforcement Learning" class="ltx_ref"><span class="ltx_text ltx_ref_tag">19.10</span></a> as:</p>
+<table id="S3.E11" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.E11.m1" class="ltx_Math" alttext="\hat{\bm{w}}^{*}=\arg\max_{\bm{w}}\mathcal{L}_{\mathrm{MLE}}=\arg\max_{\bm{w}}%
+\sum_{\tau\in\mathcal{D}}\ln p(\tau\mid\bm{w})." display="block"><mrow><mrow><msup><mover accent="true"><mi>𝒘</mi><mo>^</mo></mover><mo>∗</mo></msup><mo>=</mo><mrow><mi>arg</mi><mo lspace="0.167em">⁡</mo><mrow><munder><mi>max</mi><mi>𝒘</mi></munder><mo lspace="0.167em">⁡</mo><msub><mi class="ltx_font_mathcaligraphic">ℒ</mi><mi>MLE</mi></msub></mrow></mrow><mo>=</mo><mrow><mrow><mi>arg</mi><mo lspace="0.167em">⁡</mo><munder><mi>max</mi><mi>𝒘</mi></munder></mrow><mo>⁢</mo><mrow><munder><mo movablelimits="false">∑</mo><mrow><mi>τ</mi><mo>∈</mo><mi class="ltx_font_mathcaligraphic">𝒟</mi></mrow></munder><mrow><mrow><mi>ln</mi><mo lspace="0.167em">⁡</mo><mi>p</mi></mrow><mo>⁢</mo><mrow><mo stretchy="false">(</mo><mrow><mi>τ</mi><mo>∣</mo><mi>𝒘</mi></mrow><mo stretchy="false">)</mo></mrow></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(19.11)</span></td>
+</tr></tbody>
+</table>
+</div>
+</section>
+</section>
+<section id="S4" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">19.4 </span>Summary</h2>
+
+<div id="S4.p1" class="ltx_para">
+<p class="ltx_p">In this chapter, we introduced imitation learning, a paradigm for learning control policies by demonstration.
+We began by formally defining the imitation learning problem, discussing key design considerations, and highlighting its relationship with, and key differences from, supervised and reinforcement learning.
+Central to this formulation, we identified two primary strategies: directly learning a policy and inferring an underlying reward function.</p>
+</div>
+<div id="S4.p2" class="ltx_para">
+<p class="ltx_p">The first strategy, behavior cloning, was presented as a straightforward approach that treats imitation as a supervised learning problem, mapping expert states to actions.
+We discussed its primary limitation, the covariate shift problem, where small errors accumulate and lead the robot to unfamiliar states.
+To address this, we explored interactive methods like <span class="ltx_text ltx_markedasmath">DA<span class="ltx_text" style="font-size:80%;">GGER</span></span>, which mitigate covariate shift by collecting new demonstrations in states visited by the learner’s policy.
+We also introduced reinforcement learning via supervised learning, an extension that leverages suboptimal or diverse demonstration data by filtering, weighting, or conditioning the policy on outcomes like rewards or goals.</p>
+</div>
+<div id="S4.p3" class="ltx_para">
+<p class="ltx_p">The second strategy, inverse reinforcement learning, was introduced as an alternative that seeks to recover the expert’s underlying reward function from demonstrations.
+We highlighted that this approach can lead to more generalizable and robust policies, as it captures the expert’s intent rather than their exact actions.
+We discussed the core concept of feature expectation matching and explored several prominent inverse reinforcement learning algorithms, including Apprenticeship Learning, Maximum Margin Planning, and Maximum Entropy IRL, each offering a different method to resolve the inherent ambiguity in recovering a reward function.</p>
+</div>
+<section id="S4.SS0.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">To learn more.</h4>
+
+<div id="S4.SS0.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">For a comprehensive survey of imitation learning in robotics, including behavior cloning and its variants, we refer the reader to <span class="ltx_cite">Osa et al. (2018)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">1</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">1.</span> Osa, T., Pajarinen, J., Neumann, G., Bagnell, A., Abbeel, P., Peters, J. “An Algorithmic Perspective on Imitation Learning.” 2018.</span></span></span>.
+The seminal paper on the <span class="ltx_text ltx_markedasmath">DA<span class="ltx_text" style="font-size:80%;">GGER</span></span> algorithm is presented by <span class="ltx_cite">Ross et al. (2011)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">2</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">2.</span> Ross, S., Gordon, G., Bagnell, D. “A Reduction of Imitation Learning and Structured Prediction to No-Regret Online Learning.” In <em>Proceedings of the Fourteenth International Conference on Artificial Intelligence and Statistics</em>, 627–635, 2011.</span></span></span>.
+For an introduction to inverse reinforcement learning, the foundational work by <span class="ltx_cite">Ng and Russell (2000)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">3</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">3.</span> Ng, A., Russell, S. “Algorithms for Inverse Reinforcement Learning.” In <em>Proceedings of the Seventeenth International Conference on Machine Learning</em>, 663–670, 2000.</span></span></span> is essential.
+A modern survey on inverse reinforcement learning methods can be found in <span class="ltx_cite">Arora and Doshi (2021)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">4</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">4.</span> Arora, S., Doshi, P. “A survey of inverse reinforcement learning: Challenges, methods and progress.” <em>Artificial Intelligence</em> 297, 103500, 2021.</span></span></span>.
+Specific influential algorithms, such as Apprenticeship Learning and Maximum Entropy IRL, are detailed in <span class="ltx_cite">Abbeel and Ng (2004)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">5</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">5.</span> Abbeel, P., Ng, A. “Apprenticeship Learning via Inverse Reinforcement Learning.” In <em>Proceedings of the Twenty-First International Conference on Machine Learning</em>, 2004.</span></span></span> and <span class="ltx_cite">Ziebart et al. (2008)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">6</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">6.</span> Ziebart, B. D., Maas, A., Bagnell, J. A., Dey, A. K. “Maximum Entropy Inverse Reinforcement Learning.” In <em>Proceedings of the Twenty-Third AAAI Conference on Artificial Intelligence</em>, 1433–1438, 2008.</span></span></span>, respectively.
+
+</p>
+</div>
+</section>
+</section>

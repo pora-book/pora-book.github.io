@@ -1,0 +1,157 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { publishedChapters } from '../data/book.js';
+const first = publishedChapters().find((c) => c.number === 1);
+
+const authors = [
+  {
+    name: 'Daniele Gammelli',
+    slug: 'gammelli',
+    affiliation: 'Stanford University',
+    bio: 'Postdoctoral Scholar in Aeronautics & Astronautics at Stanford (PhD, Technical University of Denmark). Works on the algorithmic foundations of Physical AI for safe, reliable robotics, with an emphasis on aerospace autonomy and next-generation mobility.',
+  },
+  {
+    name: 'Joseph Lorenzetti',
+    slug: 'lorenzetti',
+    affiliation: 'Zoox',
+    bio: 'Senior Software Engineer on the Autonomy Behaviors team at Zoox (PhD, Aeronautics & Astronautics, Stanford; NDSEG Fellow). Develops decision-making algorithms for autonomous vehicles deployed in the real world.',
+  },
+  {
+    name: 'Katie Luo',
+    slug: 'luo',
+    affiliation: 'Stanford University',
+    bio: 'Postdoctoral Researcher at Stanford (PhD, Cornell; NVIDIA Fellow, AAUW American Doctoral Fellow). Research on the visual understanding of the world — 3D perception and multi-modal learning.',
+  },
+  {
+    name: 'Gioele Zardini',
+    slug: 'zardini',
+    affiliation: 'MIT',
+    bio: 'Rudge (1948) and Nancy Allen Career Development Professor at MIT (LIDS, CEE, IDSS). Builds computational and algorithmic tools for designing complex interconnected systems and autonomous decision-making; created the Autonomy Talks series.',
+  },
+  {
+    name: 'Marco Pavone',
+    slug: 'pavone',
+    affiliation: 'Stanford University · NVIDIA',
+    bio: 'Associate Professor of Aeronautics & Astronautics at Stanford and Senior Director of Autonomous Vehicle Research at NVIDIA (PhD, MIT). Research on Physical AI; recipient of the Presidential Early Career Award for Scientists and Engineers.',
+  },
+];
+
+const bibtex = `@book{pora,
+  title     = {Principles of Robot Autonomy},
+  author    = {Gammelli, Daniele and Lorenzetti, Joseph and Luo, Katie
+               and Zardini, Gioele and Pavone, Marco},
+  year      = {2026},
+  publisher = {Cambridge University Press}
+}`;
+---
+<BaseLayout description="The official companion site for Principles of Robot Autonomy — the full book online, interactive exercises, and lecture recordings on how modern autonomous robots perceive, decide, and act.">
+  <section class="home-hero prose-wrap">
+    <figure class="cover-figure">
+      <picture>
+        <source srcset="/pora-cover.webp" type="image/webp" />
+        <img src="/pora-cover.jpg" width="900" height="1286"
+             alt="Cover of Principles of Robot Autonomy" loading="eager" />
+      </picture>
+    </figure>
+    <div class="home-hero-copy">
+      <span class="chip">The official companion site</span>
+      <h1>Welcome to <em>Principles of Robot Autonomy</em>.</h1>
+      <p class="lead">
+        We've gathered the full book, interactive exercises, and lecture recordings
+        in one place — everything you need to learn how modern autonomous robots
+        perceive, decide, and act.
+      </p>
+      <div class="cta">
+        <a class="btn primary" href={`/book/${first?.slug}/`}>Start reading</a>
+        <a class="btn" href="/book/">Table of contents</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="prose-wrap">
+    <section class="home-note">
+      <h2>Why we wrote this book</h2>
+      <p>
+        <em>Principles of Robot Autonomy</em> is a hands-on introduction to modern robot
+        autonomy — written for students, engineers, and researchers entering one of
+        today's fastest-growing fields. Whether you come from controls, machine learning,
+        or robotics, our goal is to give you a single, coherent place to start.
+      </p>
+      <p>
+        In less than a decade, autonomy has moved from the lab into everyday life:
+        self-driving cars share city streets, delivery robots navigate sidewalks, drones
+        inspect infrastructure, and humanoids and quadrupeds are entering warehouses and
+        homes. Robot autonomy is no longer only an academic pursuit — it's a set of mature,
+        field-tested methods that practitioners rely on. That shift changes what you need
+        to learn: not just an algorithm in isolation, but how it fits into a full autonomy
+        stack running asynchronously in the real world.
+      </p>
+      <p>
+        Most existing books mirror the field's old divisions — classical robotics on one
+        side, modern machine learning on the other. Real systems can't afford that split.
+        So we set out to develop the modern autonomy stack under one unified framework,
+        bridging classical foundations and contemporary physical AI. And because autonomy
+        is a fundamentally practical discipline, nearly every chapter ships with interactive
+        Jupyter notebooks. You learn by doing — implementing the algorithms, tuning them,
+        breaking them, and watching how they respond to noisy data and edge cases.
+      </p>
+    </section>
+
+    <section class="home-guide">
+      <h2>How to use this site</h2>
+      <div class="pillars">
+        <a class="pillar" href="/book/">
+          <div class="k">Read</div>
+          <h3>The full book online</h3>
+          <p>Every chapter as a native web page — real typeset math, figures, and cross-references.</p>
+        </a>
+        <a class="pillar" href="/exercises/">
+          <div class="k">Practice</div>
+          <h3>Interactive exercises</h3>
+          <p>Jupyter notebooks per chapter, runnable in Colab, that turn theory into working code.</p>
+        </a>
+        <a class="pillar" href="/lectures/">
+          <div class="k">Watch</div>
+          <h3>Lecture recordings</h3>
+          <p>Stanford lectures aligned to the chapters — released progressively.</p>
+        </a>
+      </div>
+    </section>
+
+    <section class="home-authors">
+      <h2>Who we are</h2>
+      <p class="home-authors-intro">
+        This book grew out of the <em>Principles of Robot Autonomy</em> course series
+        (AA174A/AA274A and AA274B), taught at Stanford since 2017 and refined year after
+        year with feedback from hundreds of students. We are active researchers whose work
+        spans self-driving cars, aerial vehicles, space robotics, and large-scale robot
+        systems.
+      </p>
+      <div class="authors">
+        {authors.map((a) => (
+          <div class="author">
+            <picture>
+              <source srcset={`/authors/${a.slug}.webp`} type="image/webp" />
+              <img class="author-photo" src={`/authors/${a.slug}.jpg`} width="112" height="112"
+                   alt={a.name} loading="lazy" />
+            </picture>
+            <div class="author-body">
+              <div class="author-name">{a.name}</div>
+              <div class="author-aff">{a.affiliation}</div>
+              <p class="author-bio">{a.bio}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section class="home-cite" id="cite">
+      <h2>Cite this book</h2>
+      <p>
+        <em>Principles of Robot Autonomy</em> is published by Cambridge University Press.
+        If you use the book or its materials, please cite it as:
+      </p>
+      <pre class="cite-block">{bibtex}</pre>
+    </section>
+  </div>
+</BaseLayout>

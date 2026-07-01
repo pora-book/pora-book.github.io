@@ -1,0 +1,193 @@
+/* =========================================================================
+   Styling for LaTeXML-converted chapter bodies (.ltx_document).
+   Maps LaTeXML's ltx_* classes onto the editorial theme.
+   ========================================================================= */
+
+.ltx_document { font-size: 1.075rem; line-height: 1.62; }
+.ltx_document .ltx_para { margin: 0 0 1.15rem; }
+.ltx_document p, .ltx_document .ltx_p { margin: 0 0 1.15rem; }
+
+/* Headings */
+.ltx_document .ltx_title_section {
+  font-family: var(--serif); font-size: 1.6rem; font-weight: 600;
+  margin: 2.75rem 0 1rem; padding-bottom: 0.35rem; border-bottom: 1px solid var(--line);
+  scroll-margin-top: 5.5rem;
+}
+.ltx_document .ltx_title_subsection {
+  font-family: var(--serif); font-size: 1.25rem; font-weight: 600;
+  margin: 2rem 0 0.75rem; scroll-margin-top: 5.5rem;
+}
+.ltx_document .ltx_title_subsubsection { font-size: 1.08rem; font-weight: 600; margin: 1.5rem 0 0.6rem; }
+.ltx_document .ltx_tag_section, .ltx_document .ltx_tag_subsection { color: var(--accent); font-family: var(--mono); font-size: 0.85em; margin-right: 0.5rem; }
+
+/* Links & refs */
+.ltx_document .ltx_ref { color: var(--link); }
+.ltx_document .ltx_ref:hover { color: var(--link-hover); }
+
+/* ---- Math (native MathML) ---- */
+.ltx_document math { font-size: 1.02em; }
+.ltx_document .ltx_Math { font-size: 1.02em; }
+/* Block equations & aligned groups render as tables; empty pad cells (50% each)
+   center the math, content cells keep their natural width. Keep the tables as
+   real tables (no display overrides) so the layout stays correct. */
+.ltx_document .ltx_equation,
+.ltx_document .ltx_equationgroup { margin: 1.4rem 0; }
+.ltx_document table.ltx_eqn_table { border-collapse: collapse; margin: 0.2rem auto; }
+.ltx_document .ltx_eqn_cell { padding: 0; border: 0; }
+/* A single display equation spans the column; the empty 50% pad cells center it. */
+.ltx_document table.ltx_equation { width: 100%; }
+.ltx_document table.ltx_equation td.ltx_eqn_center_padleft,
+.ltx_document table.ltx_equation td.ltx_eqn_center_padright { width: 50%; }
+/* An aligned group shrinks to its content and centers as one block, so the
+   alignment columns line up across rows (instead of both pads eating 50%). */
+.ltx_document table.ltx_equationgroup { width: auto; max-width: 100%; }
+.ltx_document .ltx_tag_equation { color: var(--muted); font-family: var(--sans); font-size: 0.85rem; white-space: nowrap; padding-left: 1rem; }
+
+/* ---- Theorem / definition / example boxes ---- */
+.ltx_document .ltx_theorem {
+  margin: 1.75rem 0; padding: 1rem 1.15rem 1rem 1.25rem;
+  border-left: 3px solid var(--line-strong); background: #fff;
+  border-radius: 0 8px 8px 0;
+}
+.ltx_document .ltx_theorem .ltx_title_theorem {
+  font-family: var(--sans); font-size: 0.95rem; font-weight: 600; margin: 0 0 0.5rem; display: block;
+}
+.ltx_document .ltx_theorem .ltx_tag_theorem { color: var(--accent); }
+.ltx_document .ltx_theorem_definition { border-left-color: var(--link); background: color-mix(in srgb, var(--link) 5%, #fff); }
+.ltx_document .ltx_theorem_theorem    { border-left-color: var(--accent); background: color-mix(in srgb, var(--accent) 5%, #fff); }
+.ltx_document .ltx_theorem_example    { border-left-color: var(--line-strong); background: var(--paper-2); }
+.ltx_document .ltx_theorem p:last-child, .ltx_document .ltx_theorem .ltx_para:last-child { margin-bottom: 0; }
+
+/* ---- Figures ---- */
+.ltx_document .ltx_figure, .ltx_document figure { margin: 1.75rem 0; text-align: center; }
+.ltx_document .ltx_graphics, .ltx_document img { max-width: 100%; height: auto; }
+.ltx_document .ltx_caption, .ltx_document figcaption {
+  font-family: var(--sans); font-size: 0.86rem; color: var(--muted);
+  margin-top: 0.6rem; text-align: left; line-height: 1.45;
+}
+.ltx_document .ltx_tag_figure, .ltx_document .ltx_tag_table { font-weight: 600; color: var(--ink-soft); }
+
+/* Subfigures (subcaption): lay the panels out side by side, caption under each. */
+.ltx_document .ltx_flex_figure {
+  display: flex; flex-wrap: wrap; gap: 1rem 1.25rem;
+  align-items: flex-start; justify-content: center; margin: 0.5rem 0;
+}
+.ltx_document .ltx_flex_cell { flex: 1 1 0; min-width: 0; margin: 0; }
+.ltx_document .ltx_flex_break { flex-basis: 100%; height: 0; }
+.ltx_document .ltx_figure_panel { margin: 0; }
+.ltx_document .ltx_figure_panel img { width: 100%; height: auto; }
+.ltx_document .ltx_figure_panel .ltx_caption { text-align: center; font-size: 0.82rem; }
+
+/* ---- Algorithms (algorithm2e) & code listings ---- */
+.ltx_document .ltx_float.ltx_algorithm, .ltx_document .ltx_float.ltx_algorithm .ltx_listing {
+  margin: 1.75rem 0; background: #fff; border: 1px solid var(--line);
+  border-radius: 8px; padding: 0.9rem 1rem; overflow-x: auto;
+}
+.ltx_document .ltx_float.ltx_algorithm .ltx_listing { margin: 0; border: 0; padding: 0; }
+
+/* Code listings: rendered minted-style — left-aligned, tight, grey box,
+   monospace, with the book's syntax colours (deep-blue keywords, green
+   strings, grey comments). The float is a <figure>, so undo figure centring. */
+.ltx_document .ltx_float_listing { margin: 1.75rem 0; text-align: left; }
+.ltx_document .ltx_lstlisting {
+  position: relative; background: #f6f6f4; border: 1px solid var(--line);
+  border-radius: 8px; padding: 0.85rem 1rem; overflow-x: auto;
+  font-family: var(--mono); font-size: 0.82rem;
+}
+.ltx_document .ltx_listingline {
+  font-family: var(--mono); font-size: 0.82rem; line-height: 1.55;
+  white-space: pre-wrap; text-align: left; display: block;
+}
+/* code keeps lines intact (scroll horizontally); algorithm2e steps may wrap. */
+.ltx_document .ltx_lstlisting .ltx_listingline { white-space: pre; }
+/* download-source button -> unobtrusive top-right corner */
+.ltx_document .ltx_lstlisting .ltx_listing_data {
+  position: absolute; top: 0.35rem; right: 0.5rem; margin: 0; line-height: 1;
+}
+.ltx_document .ltx_lstlisting .ltx_listing_data a {
+  color: var(--muted); text-decoration: none; font-size: 0.9rem; opacity: 0.5;
+}
+.ltx_document .ltx_lstlisting .ltx_listing_data a:hover { opacity: 1; }
+/* syntax token colours (match the print book's listings style) */
+.ltx_document .ltx_lst_keyword { color: #000080; font-weight: 600; }
+.ltx_document .ltx_lst_string  { color: #008000; }
+.ltx_document .ltx_lst_comment { color: #6a737d; font-style: italic; }
+.ltx_document .ltx_lst_number, .ltx_document .ltx_lst_directive { color: #6f42c1; }
+
+.ltx_document .ltx_verbatim, .ltx_document pre {
+  font-family: var(--mono); font-size: 0.85rem; background: var(--paper-2);
+  border: 1px solid var(--line); border-radius: 8px; padding: 0.9rem 1rem; overflow-x: auto;
+}
+.ltx_document code, .ltx_document .ltx_text.ltx_font_typewriter { font-family: var(--mono); font-size: 0.9em; }
+/* the listing float caption reads "Algorithm N: ..." — keep it left-aligned */
+.ltx_document .ltx_float_listing .ltx_caption { text-align: left; }
+
+/* ---- Tables ---- */
+.ltx_document .ltx_tabular { border-collapse: collapse; margin: 1.25rem auto; font-size: 0.95rem; }
+.ltx_document .ltx_tabular td, .ltx_document .ltx_tabular th { padding: 0.4rem 0.7rem; border: 0; }
+.ltx_document .ltx_border_t { border-top: 1px solid var(--line-strong); }
+.ltx_document .ltx_border_b, .ltx_document .ltx_border_bb { border-bottom: 1px solid var(--line-strong); }
+
+/* ---- Lists ---- */
+/* LaTeXML puts the bullet/number in a <span class="ltx_tag"> then the item body
+   in a block <div class="ltx_para">, which drops the text to the next line.
+   Flex keeps the marker and text on the same line. */
+.ltx_document .ltx_itemize, .ltx_document .ltx_enumerate { margin: 0 0 1.15rem; padding-left: 0.5rem; list-style: none; }
+.ltx_document .ltx_item { display: flex; gap: 0.55rem; margin: 0.4rem 0; list-style: none; }
+.ltx_document .ltx_item > .ltx_tag { flex: 0 0 auto; color: var(--muted); }
+.ltx_document .ltx_item > .ltx_para { margin: 0; flex: 1 1 auto; min-width: 0; }
+.ltx_document .ltx_item > .ltx_para > .ltx_p:last-child { margin-bottom: 0; }
+
+/* ---- Margin notes (Tufte sidenotes) ---- */
+/* The inline marker stays in the text; the note content floats into the right
+   gutter using a negative margin (classic Tufte technique — no overlap). */
+.ltx_document .ltx_note.ltx_role_margin { display: inline; }
+.ltx_document .ltx_note_mark {
+  color: var(--accent); font-family: var(--sans); font-size: 0.7em;
+  vertical-align: super; line-height: 0;
+}
+.ltx_document .ltx_note.ltx_role_margin .ltx_note_outer {
+  float: right; clear: right; width: var(--margin-col);
+  margin-right: calc(-1 * (var(--margin-col) + var(--gutter)));
+  margin-bottom: 0.9rem; position: relative;
+}
+.ltx_document .ltx_note.ltx_role_margin .ltx_note_content {
+  display: block; font-family: var(--sans); font-size: 0.78rem; line-height: 1.45;
+  color: var(--muted); border-top: 1px solid var(--line-strong); padding-top: 0.4rem;
+}
+.ltx_document .ltx_note_type { display: none; }
+.ltx_document .ltx_note.ltx_role_margin .ltx_note_content > .ltx_note_mark { display: none; }
+
+/* On narrow screens, inline the notes as small callouts instead of floating. */
+@media (max-width: 62rem) {
+  .ltx_document .ltx_note.ltx_role_margin .ltx_note_outer {
+    float: none; width: auto; margin-right: 0; display: block;
+  }
+  .ltx_document .ltx_note.ltx_role_margin .ltx_note_content {
+    background: var(--paper-2); border: 1px solid var(--line); border-radius: 6px;
+    border-top: 1px solid var(--line); padding: 0.6rem 0.8rem; margin: 0.5rem 0;
+  }
+}
+
+/* ---- Citations (built from references.bib in post-processing) ---- */
+/* Inline "Author (Year)" label from \citet/\textcite. */
+.ltx_document .ltx_cite { color: var(--ink); }
+/* The full reference lives in a margin sidenote (reuses .ltx_role_margin).
+   Its running number is repeated at the start of the note. */
+.ltx_document .ltx_note_cite .ltx_cite_num { color: var(--accent); font-weight: 600; }
+.ltx_document .ltx_note_cite .ltx_note_content em { font-style: italic; }
+/* Inline full reference from \fullcite. */
+.ltx_document .ltx_cite_full { font-size: 0.95em; }
+.ltx_document .ltx_cite_missing { color: #b00023; }
+/* A citation nested inside another margin note (e.g. \citet within a \sidenote):
+   don't float again — show the reference inline within the parent note. */
+.ltx_document .ltx_note.ltx_role_margin .ltx_note_cite .ltx_note_outer {
+  float: none; width: auto; margin: 0; display: inline;
+}
+.ltx_document .ltx_note.ltx_role_margin .ltx_note_cite .ltx_note_content {
+  display: inline; border: 0; padding: 0;
+}
+.ltx_document .ltx_note.ltx_role_margin .ltx_note_cite > .ltx_note_mark { display: none; }
+
+/* Hide LaTeXML bibliography-key superscripts styling tweak */
+.ltx_document sup { line-height: 0; }

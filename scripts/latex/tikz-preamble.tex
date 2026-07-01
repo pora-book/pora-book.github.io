@@ -1,0 +1,34 @@
+% Standalone preamble for pre-rendering the book's tikzpicture figures to SVG
+% (LaTeXML can't render them). Mirrors the TikZ setup from the book's preamble.
+\usepackage{amsmath,amssymb,amsfonts,bm,mathtools}
+
+% Shared math macros — loaded BEFORE tikz on purpose: pora-macros defines
+% \node, \edge and \graph (graph-theory shorthands) which would otherwise
+% clobber TikZ's own \node/\edge/\graph commands and collapse every diagram.
+% Loading tikz afterwards lets its definitions win.
+\input{pora-macros.tex}
+
+\usepackage{tikz,pgfplots}
+\usetikzlibrary{backgrounds,positioning,intersections,patterns,calc,cd,fit,
+  quotes,math,decorations.pathmorphing,decorations.markings,shadows,shapes,
+  automata,arrows,arrows.meta}
+\usepgfplotslibrary{patchplots,statistics}
+\pgfplotsset{compat=1.16}
+
+\definecolor{stanfordRed}{HTML}{8C1515}
+\definecolor{deepblue}{rgb}{0,0,0.5}
+\definecolor{deepred}{rgb}{0.6,0,0}
+\definecolor{deepgreen}{rgb}{0,0.5,0}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.95}
+
+\tikzstyle{block} = [draw, rectangle, minimum height=2.5em, minimum width=3.5em]
+\tikzstyle{block1} = [draw, rectangle, minimum height=1.5em, minimum width=2.5em]
+\tikzstyle{blockDyn} = [draw, rectangle, minimum height=2.5em, minimum width=3.5em, align=center, inner sep=10pt, thick, fill=white, copy shadow={draw=black,fill=black,opacity=1,shadow xshift=0.5ex,shadow yshift=-0.5ex}]
+\tikzstyle{blockAlg} = [draw, rectangle, minimum height=1.5em, minimum width=2.5em, align=center, inner sep=10pt, thick]
+\tikzstyle{sum} = [draw,circle]
+\tikzstyle{arrow} = [thick]
+\tikzstyle{input} = [coordinate]
+\tikzstyle{output} = [coordinate]
+\tikzstyle{pinstyle} = [pin edge={to-,thin,black}]
+\tikzstyle{boxCommentPlot}=[rectangle,very thick,draw=stanfordRed,rounded corners,align=center,font=\normalsize,inner sep=8pt]
+\tikzcdset{arrow style=tikz, diagrams={>=To}}

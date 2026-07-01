@@ -1,0 +1,387 @@
+
+<div id="p1" class="ltx_para">
+<p class="ltx_p">In <a class="ltx_ref" href="/book/camera-models/">Chapter 6</a>, we introduced the mathematical relationship between the position of a point, <math id="p1.m1" class="ltx_Math" alttext="P" display="inline"><mi>P</mi></math>, in a scene, expressed in world frame coordinates, <math id="p1.m2" class="ltx_Math" alttext="P_{W}" display="inline"><msub><mi>P</mi><mi>W</mi></msub></math>, and the corresponding point, <math id="p1.m3" class="ltx_Math" alttext="p" display="inline"><mi>p</mi></math>, in pixel coordinates that gets projected onto the image plane of a camera.
+This relationship is based on the pinhole camera model, and requires knowledge about the camera’s intrinsic and extrinsic parameters.
+We also presented methods for camera calibration, which allow us to determine these parameters.
+Given a calibrated camera with known parameters, a fundamental problem in robotic perception is how to leverage images to recover three-dimensional information about the structure of the environment<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="p1.p1" class="ltx_para">
+<span class="ltx_p">While we could use other sensors to recover three-dimensional scene information, such as ultrasonic sensors or laser rangefinders, cameras capture a broad range of information that goes beyond depth sensing and are attractive based on their cost and size.</span>
+</span></span></span></span></span>.
+The camera projection model alone does not provide us with enough information to fully determine the 3D position of a point from a single image, specifically because we cannot determine the point’s <em class="ltx_emph ltx_font_italic">depth</em><span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="p1.p2" class="ltx_para">
+<span class="ltx_p">Unless you are willing to make strong assumptions, for example that you know the physical dimensions of the objects in the environment.</span>
+</span></span></span></span></span>.</p>
+</div>
+<div id="p2" class="ltx_para">
+<p class="ltx_p">In this chapter, we introduce <em class="ltx_emph ltx_font_italic">stereo vision</em> in Section <a href="#S1" title="7.1 Stereo Vision" class="ltx_ref"><span class="ltx_text ltx_ref_tag">7.1</span></a> and <em class="ltx_emph ltx_font_italic">structure from motion</em> in Section <a href="#S3" title="7.3 Structure From Motion" class="ltx_ref"><span class="ltx_text ltx_ref_tag">7.3</span></a>, two approaches for extracting 3D information from camera images.
+Both leverage multiple images of a scene to determine three-dimensional structure: stereo vision uses images from different viewpoints captured simultaneously by two or more cameras, while structure from motion uses images captured sequentially from a single moving camera.
+These techniques form the visual foundation for many robotic applications including navigation, mapping, and manipulation.</p>
+</div>
+<section id="S1" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">7.1 </span>Stereo Vision</h2>
+
+<div id="S1.p1" class="ltx_para">
+<p class="ltx_p">Stereopsis<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.p1.p1" class="ltx_para">
+<span class="ltx_p">From <em class="ltx_emph ltx_font_italic">stereo</em>, meaning solidity, and <em class="ltx_emph ltx_font_italic">opsis</em>, meaning vision or sight.</span>
+</span></span></span></span></span> is the process in visual perception leading to the sensation of depth from two slightly different projections of the world onto the retinas of the two eyes.
+The difference in the two retinal images is called horizontal <em class="ltx_emph ltx_font_italic">disparity</em>, retinal disparity, or binocular disparity, and arises from our eyes’ different positions in the head.
+This disparity enables our brain to fuse the two retinal images into a single percept with depth information.
+For example, if you hold your finger vertically in front of you and alternate closing each eye, you will see that the finger jumps from left to right—this lateral displacement is the disparity between your eyes.</p>
+</div>
+<div id="S1.p2" class="ltx_para">
+<p class="ltx_p">Computational stereopsis, or <em class="ltx_emph ltx_font_italic">stereo vision</em>, is the process of obtaining depth information from images captured by two or more cameras observing the same scene from different perspectives.
+This process consists of two major steps: fusion and reconstruction.
+Fusion involves solving the correspondence problem—identifying which pixels in each image correspond to the same 3D point.
+Reconstruction uses these correspondences to triangulate the 3D position of scene points, including their depth.</p>
+</div>
+<section id="S1.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">7.1.1 </span>Epipolar Geometry</h3>
+
+<div id="S1.SS1.p1" class="ltx_para">
+<p class="ltx_p">The first step in stereo vision is to establish correspondences between images<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S1.SS1.p1.p1" class="ltx_para">
+<span class="ltx_p">We generally assume that the perspectives differ only slightly, such that features appear similar across images.</span>
+</span></span></span></span></span>.
+This task can be challenging, as incorrect matches lead to large reconstruction errors.
+Epipolar geometry provides powerful constraints that simplify correspondence search and improve matching accuracy.</p>
+</div>
+<section id="S1.SS1.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Epipolar constraints.</h4>
+
+<figure id="S1.F1" class="ltx_figure"><img style="width:80%;height:auto" src="/book-assets/stereo-vision/figs__ch09_figs__stereo.png" id="S1.F1.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 7.1</span>: </span><span class="ltx_text" style="font-size:90%;">The point <math id="S1.F1.m10" class="ltx_Math" alttext="P" display="inline"><mi>P</mi></math> in the scene, the optical centers <math id="S1.F1.m11" class="ltx_Math" alttext="O" display="inline"><mi>O</mi></math> and <math id="S1.F1.m12" class="ltx_Math" alttext="O^{\prime}" display="inline"><msup><mi>O</mi><mo>′</mo></msup></math> of the two cameras, and the two image projections <math id="S1.F1.m13" class="ltx_Math" alttext="p" display="inline"><mi>p</mi></math> and <math id="S1.F1.m14" class="ltx_Math" alttext="p^{\prime}" display="inline"><msup><mi>p</mi><mo>′</mo></msup></math> all lie in the same epipolar plane.
+The lines <math id="S1.F1.m15" class="ltx_Math" alttext="l" display="inline"><mi>l</mi></math> and <math id="S1.F1.m16" class="ltx_Math" alttext="l^{\prime}" display="inline"><msup><mi>l</mi><mo>′</mo></msup></math> are the epipolar lines.
+If point <math id="S1.F1.m17" class="ltx_Math" alttext="p" display="inline"><mi>p</mi></math> is observed in one image, its correspondence must lie on the epipolar line <math id="S1.F1.m18" class="ltx_Math" alttext="l^{\prime}" display="inline"><msup><mi>l</mi><mo>′</mo></msup></math> in the other image.</span></figcaption>
+</figure>
+<div id="S1.SS1.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">Consider the image projections <math id="S1.SS1.SSS0.Px1.p1.m1" class="ltx_Math" alttext="p" display="inline"><mi>p</mi></math> and <math id="S1.SS1.SSS0.Px1.p1.m2" class="ltx_Math" alttext="p^{\prime}" display="inline"><msup><mi>p</mi><mo>′</mo></msup></math> of a scene point <math id="S1.SS1.SSS0.Px1.p1.m3" class="ltx_Math" alttext="P" display="inline"><mi>P</mi></math> observed by two cameras with optical centers <math id="S1.SS1.SSS0.Px1.p1.m4" class="ltx_Math" alttext="O" display="inline"><mi>O</mi></math> and <math id="S1.SS1.SSS0.Px1.p1.m5" class="ltx_Math" alttext="O^{\prime}" display="inline"><msup><mi>O</mi><mo>′</mo></msup></math>, as shown in Figure&#160;<a href="#S1.F1" title="Figure 7.1 ‣ Epipolar constraints. ‣ 7.1.1 Epipolar Geometry ‣ 7.1 Stereo Vision" class="ltx_ref"><span class="ltx_text ltx_ref_tag">7.1</span></a>.
+These five points all lie in the <em class="ltx_emph ltx_font_italic">epipolar plane</em>, defined by the two rays <math id="S1.SS1.SSS0.Px1.p1.m6" class="ltx_Math" alttext="OP" display="inline"><mrow><mi>O</mi><mo>⁢</mo><mi>P</mi></mrow></math> and <math id="S1.SS1.SSS0.Px1.p1.m7" class="ltx_Math" alttext="O^{\prime}P" display="inline"><mrow><msup><mi>O</mi><mo>′</mo></msup><mo>⁢</mo><mi>P</mi></mrow></math>.
+The intersection of this plane with each image plane forms the <em class="ltx_emph ltx_font_italic">epipolar lines</em> <math id="S1.SS1.SSS0.Px1.p1.m8" class="ltx_Math" alttext="l" display="inline"><mi>l</mi></math> and <math id="S1.SS1.SSS0.Px1.p1.m9" class="ltx_Math" alttext="l^{\prime}" display="inline"><msup><mi>l</mi><mo>′</mo></msup></math>, which pass through the <em class="ltx_emph ltx_font_italic">epipoles</em> <math id="S1.SS1.SSS0.Px1.p1.m10" class="ltx_Math" alttext="e" display="inline"><mi>e</mi></math> and <math id="S1.SS1.SSS0.Px1.p1.m11" class="ltx_Math" alttext="e^{\prime}" display="inline"><msup><mi>e</mi><mo>′</mo></msup></math>—the projections of each camera center onto the other camera’s image plane.
+This geometric relationship provides a powerful constraint: if <math id="S1.SS1.SSS0.Px1.p1.m12" class="ltx_Math" alttext="p" display="inline"><mi>p</mi></math> and <math id="S1.SS1.SSS0.Px1.p1.m13" class="ltx_Math" alttext="p^{\prime}" display="inline"><msup><mi>p</mi><mo>′</mo></msup></math> are projections of the same point <math id="S1.SS1.SSS0.Px1.p1.m14" class="ltx_Math" alttext="P" display="inline"><mi>P</mi></math>, then <math id="S1.SS1.SSS0.Px1.p1.m15" class="ltx_Math" alttext="p" display="inline"><mi>p</mi></math> must lie on epipolar line <math id="S1.SS1.SSS0.Px1.p1.m16" class="ltx_Math" alttext="l" display="inline"><mi>l</mi></math> and <math id="S1.SS1.SSS0.Px1.p1.m17" class="ltx_Math" alttext="p^{\prime}" display="inline"><msup><mi>p</mi><mo>′</mo></msup></math> must lie on epipolar line <math id="S1.SS1.SSS0.Px1.p1.m18" class="ltx_Math" alttext="l^{\prime}" display="inline"><msup><mi>l</mi><mo>′</mo></msup></math>.
+This <em class="ltx_emph ltx_font_italic">epipolar constraint</em> reduces the correspondence search from a two-dimensional problem to a one-dimensional search along epipolar lines.
+Mathematically, we express this constraint using the coplanarity of the vectors:</p>
+<table id="S1.E1" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E1.m1" class="ltx_Math" alttext="\overline{Op}\cdot[\overline{OO^{\prime}}\times\overline{O^{\prime}p^{\prime}}%
+]=0." display="block"><mrow><mrow><mrow><mover accent="true"><mrow><mi>O</mi><mo>⁢</mo><mi>p</mi></mrow><mo>¯</mo></mover><mo lspace="0.222em" rspace="0.222em">⋅</mo><mrow><mo stretchy="false">[</mo><mrow><mover accent="true"><mrow><mi>O</mi><mo>⁢</mo><msup><mi>O</mi><mo>′</mo></msup></mrow><mo>¯</mo></mover><mo lspace="0.222em" rspace="0.222em">×</mo><mover accent="true"><mrow><msup><mi>O</mi><mo>′</mo></msup><mo>⁢</mo><msup><mi>p</mi><mo>′</mo></msup></mrow><mo>¯</mo></mover></mrow><mo stretchy="false">]</mo></mrow></mrow><mo>=</mo><mn>0</mn></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(7.1)</span></td>
+</tr></tbody>
+</table>
+</div>
+</section>
+<section id="S1.SS1.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Fundamental and essential matrices.</h4>
+
+<div id="S1.SS1.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">When the world reference frame coincides with the first camera’s frame (origin at <math id="S1.SS1.SSS0.Px2.p1.m1" class="ltx_Math" alttext="O" display="inline"><mi>O</mi></math>), we can express the epipolar constraint as:</p>
+<table id="S1.E2" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E2.m1" class="ltx_Math" alttext="p^{\top}Fp^{\prime}=0," display="block"><mrow><mrow><mrow><msup><mi>p</mi><mo>⊤</mo></msup><mo>⁢</mo><mi>F</mi><mo>⁢</mo><msup><mi>p</mi><mo>′</mo></msup></mrow><mo>=</mo><mn>0</mn></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(7.2)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S1.SS1.SSS0.Px2.p1.m2" class="ltx_Math" alttext="F\in\mathbb{R}^{3\times 3}" display="inline"><mrow><mi>F</mi><mo>∈</mo><msup><mi>ℝ</mi><mrow><mn>3</mn><mo lspace="0.222em" rspace="0.222em">×</mo><mn>3</mn></mrow></msup></mrow></math> is the <em class="ltx_emph ltx_font_italic">fundamental matrix</em>.
+The fundamental matrix encodes the epipolar geometry between two views and has seven degrees of freedom (it is defined up to scale and has rank 2).
+It depends only on the cameras’ intrinsic parameters and their relative pose:</p>
+<table id="S1.E3" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E3.m1" class="ltx_Math" alttext="F=K^{-\top}EK^{\prime-1}," display="block"><mrow><mrow><mi>F</mi><mo>=</mo><mrow><msup><mi>K</mi><mrow><mi></mi><mo rspace="0em">−</mo><mo lspace="0em">⊤</mo></mrow></msup><mo>⁢</mo><mi>E</mi><mo>⁢</mo><msup><mi>K</mi><mrow><mo mathsize="142%">′</mo><mo lspace="0em">⁣</mo><mrow><mo>−</mo><mn>1</mn></mrow></mrow></msup></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(7.3)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S1.SS1.SSS0.Px2.p1.m3" class="ltx_Math" alttext="K" display="inline"><mi>K</mi></math> and <math id="S1.SS1.SSS0.Px2.p1.m4" class="ltx_Math" alttext="K^{\prime}" display="inline"><msup><mi>K</mi><mo>′</mo></msup></math> are the intrinsic parameter matrices for the two cameras, and <math id="S1.SS1.SSS0.Px2.p1.m5" class="ltx_Math" alttext="E" display="inline"><mi>E</mi></math> is the <em class="ltx_emph ltx_font_italic">essential matrix</em>:</p>
+<table id="S1.E4" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E4.m1" class="ltx_Math" alttext="E=[t]_{\times}R=\begin{bmatrix}0&amp;-t_{3}&amp;t_{2}\\
+t_{3}&amp;0&amp;-t_{1}\\
+-t_{2}&amp;t_{1}&amp;0\end{bmatrix}R," display="block"><mrow><mrow><mi>E</mi><mo>=</mo><mrow><msub><mrow><mo stretchy="false">[</mo><mi>t</mi><mo stretchy="false">]</mo></mrow><mo>×</mo></msub><mo>⁢</mo><mi>R</mi></mrow><mo>=</mo><mrow><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true" rowspacing="0pt"><mtr><mtd><mn>0</mn></mtd><mtd><mrow><mo>−</mo><msub><mi>t</mi><mn>3</mn></msub></mrow></mtd><mtd><msub><mi>t</mi><mn>2</mn></msub></mtd></mtr><mtr><mtd><msub><mi>t</mi><mn>3</mn></msub></mtd><mtd><mn>0</mn></mtd><mtd><mrow><mo>−</mo><msub><mi>t</mi><mn>1</mn></msub></mrow></mtd></mtr><mtr><mtd><mrow><mo>−</mo><msub><mi>t</mi><mn>2</mn></msub></mrow></mtd><mtd><msub><mi>t</mi><mn>1</mn></msub></mtd><mtd><mn>0</mn></mtd></mtr></mtable><mo>]</mo></mrow><mo>⁢</mo><mi>R</mi></mrow></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(7.4)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">with <math id="S1.SS1.SSS0.Px2.p1.m6" class="ltx_Math" alttext="R" display="inline"><mi>R</mi></math> and <math id="S1.SS1.SSS0.Px2.p1.m7" class="ltx_Math" alttext="t=\left[{t_{1},t_{2},t_{3}}\right]^{\top}" display="inline"><mrow><mi>t</mi><mo>=</mo><msup><mrow><mo>[</mo><msub><mi>t</mi><mn>1</mn></msub><mo>,</mo><msub><mi>t</mi><mn>2</mn></msub><mo>,</mo><msub><mi>t</mi><mn>3</mn></msub><mo>]</mo></mrow><mo>⊤</mo></msup></mrow></math> being the rotation and translation that transform points from the second camera frame to the first.</p>
+</div>
+<div id="S1.SS1.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">The fundamental matrix also defines the epipolar lines: <math id="S1.SS1.SSS0.Px2.p2.m1" class="ltx_Math" alttext="l=Fp^{\prime}" display="inline"><mrow><mi>l</mi><mo>=</mo><mrow><mi>F</mi><mo>⁢</mo><msup><mi>p</mi><mo>′</mo></msup></mrow></mrow></math> and <math id="S1.SS1.SSS0.Px2.p2.m2" class="ltx_Math" alttext="l^{\prime}=F^{\top}p" display="inline"><mrow><msup><mi>l</mi><mo>′</mo></msup><mo>=</mo><mrow><msup><mi>F</mi><mo>⊤</mo></msup><mo>⁢</mo><mi>p</mi></mrow></mrow></math>.
+The epipoles satisfy <math id="S1.SS1.SSS0.Px2.p2.m3" class="ltx_Math" alttext="F^{\top}e=0" display="inline"><mrow><mrow><msup><mi>F</mi><mo>⊤</mo></msup><mo>⁢</mo><mi>e</mi></mrow><mo>=</mo><mn>0</mn></mrow></math> and <math id="S1.SS1.SSS0.Px2.p2.m4" class="ltx_Math" alttext="Fe^{\prime}=0" display="inline"><mrow><mrow><mi>F</mi><mo>⁢</mo><msup><mi>e</mi><mo>′</mo></msup></mrow><mo>=</mo><mn>0</mn></mrow></math>, confirming that <math id="S1.SS1.SSS0.Px2.p2.m5" class="ltx_Math" alttext="F" display="inline"><mi>F</mi></math> is singular (rank 2).
+To estimate <math id="S1.SS1.SSS0.Px2.p2.m6" class="ltx_Math" alttext="F" display="inline"><mi>F</mi></math> from image correspondences, we use the fact that each correspondence <math id="S1.SS1.SSS0.Px2.p2.m7" class="ltx_Math" alttext="(p_{i},p^{\prime}_{i})" display="inline"><mrow><mo stretchy="false">(</mo><msub><mi>p</mi><mi>i</mi></msub><mo>,</mo><msubsup><mi>p</mi><mi>i</mi><mo>′</mo></msubsup><mo stretchy="false">)</mo></mrow></math> provides one linear constraint.
+With <math id="S1.SS1.SSS0.Px2.p2.m8" class="ltx_Math" alttext="p=\left[{u,v,1}\right]^{\top}" display="inline"><mrow><mi>p</mi><mo>=</mo><msup><mrow><mo>[</mo><mi>u</mi><mo>,</mo><mi>v</mi><mo>,</mo><mn>1</mn><mo>]</mo></mrow><mo>⊤</mo></msup></mrow></math> and <math id="S1.SS1.SSS0.Px2.p2.m9" class="ltx_Math" alttext="p^{\prime}=\left[{u^{\prime},v^{\prime},1}\right]^{\top}" display="inline"><mrow><msup><mi>p</mi><mo>′</mo></msup><mo>=</mo><msup><mrow><mo>[</mo><msup><mi>u</mi><mo>′</mo></msup><mo>,</mo><msup><mi>v</mi><mo>′</mo></msup><mo>,</mo><mn>1</mn><mo>]</mo></mrow><mo>⊤</mo></msup></mrow></math> in homogeneous coordinates, we can rewrite the epipolar constraint as:</p>
+<table id="S1.E5" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E5.m1" class="ltx_Math" alttext="\begin{bmatrix}uu^{\prime}&amp;uv^{\prime}&amp;u&amp;vu^{\prime}&amp;vv^{\prime}&amp;v&amp;u^{\prime}&amp;%
+v^{\prime}&amp;1\end{bmatrix}f=0," display="block"><mrow><mrow><mrow><mrow><mo>[</mo><mtable columnspacing="5pt" displaystyle="true"><mtr><mtd><mrow><mi>u</mi><mo>⁢</mo><msup><mi>u</mi><mo>′</mo></msup></mrow></mtd><mtd><mrow><mi>u</mi><mo>⁢</mo><msup><mi>v</mi><mo>′</mo></msup></mrow></mtd><mtd><mi>u</mi></mtd><mtd><mrow><mi>v</mi><mo>⁢</mo><msup><mi>u</mi><mo>′</mo></msup></mrow></mtd><mtd><mrow><mi>v</mi><mo>⁢</mo><msup><mi>v</mi><mo>′</mo></msup></mrow></mtd><mtd><mi>v</mi></mtd><mtd><msup><mi>u</mi><mo>′</mo></msup></mtd><mtd><msup><mi>v</mi><mo>′</mo></msup></mtd><mtd><mn>1</mn></mtd></mtr></mtable><mo>]</mo></mrow><mo>⁢</mo><mi>f</mi></mrow><mo>=</mo><mn>0</mn></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(7.5)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S1.SS1.SSS0.Px2.p2.m10" class="ltx_Math" alttext="f" display="inline"><mi>f</mi></math> is the vectorized form of <math id="S1.SS1.SSS0.Px2.p2.m11" class="ltx_Math" alttext="F" display="inline"><mi>F</mi></math>.
+Given <math id="S1.SS1.SSS0.Px2.p2.m12" class="ltx_Math" alttext="n\geq 8" display="inline"><mrow><mi>n</mi><mo>≥</mo><mn>8</mn></mrow></math> correspondences, we stack these constraints into a matrix equation <math id="S1.SS1.SSS0.Px2.p2.m13" class="ltx_Math" alttext="Wf=0" display="inline"><mrow><mrow><mi>W</mi><mo>⁢</mo><mi>f</mi></mrow><mo>=</mo><mn>0</mn></mrow></math> and solve:</p>
+<table id="S1.E6" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S1.E6.m1" class="ltx_math_unparsed" alttext="\begin{split}\underset{[}{\text{minimize}}\&gt;\quad f]&amp;\lVert Wf\rVert^{2},\\
+\text{subject to}\quad&amp;\lVert f\rVert^{2}=1.\end{split}" display="block"><mtable columnspacing="0pt" displaystyle="true" rowspacing="0pt"><mtr><mtd class="ltx_align_right" columnalign="right"><mrow><munder accentunder="true"><mtext>minimize</mtext><mo fence="false">[</mo></munder><mspace width="1.22222222222222em"></mspace><mi>f</mi><mo stretchy="false">]</mo></mrow></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><msup><mrow><mo fence="true" rspace="0em">∥</mo><mrow><mi>W</mi><mo>⁢</mo><mi>f</mi></mrow><mo fence="true" lspace="0em">∥</mo></mrow><mn>2</mn></msup><mo>,</mo></mrow></mtd></mtr><mtr><mtd class="ltx_align_right" columnalign="right"><mtext>subject to</mtext></mtd><mtd class="ltx_align_left" columnalign="left"><mrow><mrow><msup><mrow><mo fence="true" rspace="0em">∥</mo><mi>f</mi><mo fence="true" lspace="0em">∥</mo></mrow><mn>2</mn></msup><mo>=</mo><mn>1</mn></mrow><mo lspace="0em">.</mo></mrow></mtd></mtr></mtable></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(7.6)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">The solution is the eigenvector corresponding to the smallest eigenvalue of <math id="S1.SS1.SSS0.Px2.p2.m14" class="ltx_Math" alttext="W^{\top}W" display="inline"><mrow><msup><mi>W</mi><mo>⊤</mo></msup><mo>⁢</mo><mi>W</mi></mrow></math>.
+Since the resulting matrix may not have rank 2, we enforce the singularity constraint by computing the SVD of <math id="S1.SS1.SSS0.Px2.p2.m15" class="ltx_Math" alttext="\tilde{F}" display="inline"><mover accent="true"><mi>F</mi><mo>~</mo></mover></math> and setting the smallest singular value to zero.</p>
+</div>
+</section>
+<section id="S1.SS1.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Image rectification.</h4>
+
+<div id="S1.SS1.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">Epipolar rectification transforms stereo image pairs such that epipolar lines become horizontal and aligned across images.
+This transformation simplifies correspondence search to a one-dimensional problem along image rows, significantly reducing computational cost.
+The rectified configuration is equivalent to having two cameras with parallel optical axes and aligned image rows, separated by a baseline distance.</p>
+</div>
+<figure id="S1.F2" class="ltx_figure"><img style="width:70%;height:auto" src="/book-assets/stereo-vision/figs__ch09_figs__rectification.png" id="S1.F2.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 7.2</span>: </span><span class="ltx_text" style="font-size:90%;">Epipolar rectification transforms images so that corresponding points lie on the same horizontal scan line. Original epipolar lines (left) become horizontal and aligned after rectification (right).</span></figcaption>
+</figure>
+<div id="S1.SS1.SSS0.Px3.p2" class="ltx_para">
+<p class="ltx_p">After rectification, as shown in Figure&#160;<a href="#S1.F2" title="Figure 7.2 ‣ Image rectification. ‣ 7.1.1 Epipolar Geometry ‣ 7.1 Stereo Vision" class="ltx_ref"><span class="ltx_text ltx_ref_tag">7.2</span></a>, correspondence search is constrained to horizontal scan lines, making stereo matching algorithms more efficient and robust.</p>
+</div>
+</section>
+</section>
+</section>
+<section id="S2" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">7.2 </span>Correspondence and Reconstruction</h2>
+
+<div id="S2.p1" class="ltx_para">
+<p class="ltx_p">With the geometric constraints established through epipolar geometry and simplified through image rectification, we now turn to the practical challenges of stereo vision.
+The correspondence problem—determining which pixels in each image represent the same scene point—remains the most critical and challenging step, as errors here propagate directly to the reconstructed 3D structure.
+Once reliable correspondences are found, triangulation transforms these matched points into 3D coordinates, with the accuracy depending fundamentally on the system geometry and image measurements.</p>
+</div>
+<section id="S2.SS0.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">The correspondence problem.</h4>
+
+<div id="S2.SS0.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">Even with epipolar constraints and rectification, finding correct correspondences remains challenging.
+Occlusions occur when points visible in one view are hidden in another, while repetitive patterns in textured regions create ambiguous matches where multiple locations appear identical.
+Conversely, uniform regions lack sufficient texture for reliable feature matching, and perspective distortions cause features to appear different across viewpoints despite representing the same scene point.
+Modern stereo matching algorithms address these challenges through robust feature descriptors, correlation-based matching over local windows, or learned representations that capture scene semantics beyond low-level appearance.</p>
+</div>
+</section>
+<section id="S2.SS0.SSS0.Px2" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Triangulation and disparity.</h4>
+
+<div id="S2.SS0.SSS0.Px2.p1" class="ltx_para">
+<p class="ltx_p">Once correspondences are established, we reconstruct 3D points through triangulation.
+For rectified stereo pairs with parallel optical axes separated by baseline <math id="S2.SS0.SSS0.Px2.p1.m1" class="ltx_Math" alttext="b" display="inline"><mi>b</mi></math>, the geometry simplifies considerably, as shown in Figure&#160;<a href="#S2.F3" title="Figure 7.3 ‣ Triangulation and disparity. ‣ 7.2 Correspondence and Reconstruction" class="ltx_ref"><span class="ltx_text ltx_ref_tag">7.3</span></a>.</p>
+</div>
+<figure id="S2.F3" class="ltx_figure"><img style="width:90%;height:auto" src="/book-assets/stereo-vision/figs__ch09_figs__triangulation.png" id="S2.F3.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 7.3</span>: </span><span class="ltx_text" style="font-size:90%;">Triangulation with rectified stereo cameras. The depth <math id="S2.F3.m3" class="ltx_Math" alttext="z" display="inline"><mi>z</mi></math> is inversely proportional to the disparity <math id="S2.F3.m4" class="ltx_Math" alttext="d=p_{u}-p^{\prime}_{u}" display="inline"><mrow><mi>d</mi><mo>=</mo><mrow><msub><mi>p</mi><mi>u</mi></msub><mo>−</mo><msubsup><mi>p</mi><mi>u</mi><mo>′</mo></msubsup></mrow></mrow></math>.</span></figcaption>
+</figure>
+<div id="S2.SS0.SSS0.Px2.p2" class="ltx_para">
+<p class="ltx_p">From similar triangles, we derive the fundamental stereo equation:</p>
+<table id="S2.E7" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S2.E7.m1" class="ltx_Math" alttext="z=\frac{bf}{d}," display="block"><mrow><mrow><mi>z</mi><mo>=</mo><mfrac><mrow><mi>b</mi><mo>⁢</mo><mi>f</mi></mrow><mi>d</mi></mfrac></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(7.7)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S2.SS0.SSS0.Px2.p2.m1" class="ltx_Math" alttext="z" display="inline"><mi>z</mi></math> is depth, <math id="S2.SS0.SSS0.Px2.p2.m2" class="ltx_Math" alttext="b" display="inline"><mi>b</mi></math> is baseline, <math id="S2.SS0.SSS0.Px2.p2.m3" class="ltx_Math" alttext="f" display="inline"><mi>f</mi></math> is focal length, and <math id="S2.SS0.SSS0.Px2.p2.m4" class="ltx_Math" alttext="d\coloneqq p_{u}-p^{\prime}_{u}" display="inline"><mrow><mi>d</mi><mo>≔</mo><mrow><msub><mi>p</mi><mi>u</mi></msub><mo>−</mo><msubsup><mi>p</mi><mi>u</mi><mo>′</mo></msubsup></mrow></mrow></math> is the <em class="ltx_emph ltx_font_italic">disparity</em>—the difference in horizontal coordinates between corresponding points.</p>
+</div>
+<div id="S2.SS0.SSS0.Px2.p3" class="ltx_para">
+<p class="ltx_p">This inverse relationship between depth and disparity has important implications for stereo system design.
+Near objects produce large disparities and thus accurate depth estimates, while distant objects yield small disparities with correspondingly less accurate depth measurements.
+Since depth resolution decreases quadratically with distance, baseline selection becomes critical: larger baselines improve depth accuracy for distant objects but increase occlusions where one camera cannot see points visible to the other.
+This fundamental trade-off must be considered when designing stereo systems for specific applications.</p>
+</div>
+</section>
+<section id="S2.SS0.SSS0.Px3" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Disparity maps.</h4>
+
+<div id="S2.SS0.SSS0.Px3.p1" class="ltx_para">
+<p class="ltx_p">A disparity map encodes the disparity value for each pixel, providing a dense depth representation of the scene.
+Figure&#160;<a href="#S2.F4" title="Figure 7.4 ‣ Disparity maps. ‣ 7.2 Correspondence and Reconstruction" class="ltx_ref"><span class="ltx_text ltx_ref_tag">7.4</span></a> shows an example where brighter regions indicate larger disparities (closer objects) and black regions represent occluded areas where no correspondence exists.
+Dense disparity estimation extends the correspondence problem from sparse feature matching to every pixel, requiring additional regularization to handle ambiguous regions while preserving depth discontinuities at object boundaries.</p>
+</div>
+<figure id="S2.F4" class="ltx_figure"><img style="width:95%;height:auto" src="/book-assets/stereo-vision/figs__ch09_figs__disparitymap.png" id="S2.F4.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption ltx_centering"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 7.4</span>: </span><span class="ltx_text" style="font-size:90%;">Disparity map from stereo images. Brighter values indicate larger disparities (closer objects). Black regions are occlusions where correspondence cannot be established.</span></figcaption>
+</figure>
+</section>
+</section>
+<section id="S3" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">7.3 </span>Structure From Motion</h2>
+
+<div id="S3.p1" class="ltx_para">
+<p class="ltx_p">The <em class="ltx_emph ltx_font_italic">structure from motion (SFM)</em> method uses a similar principle as stereo vision, but uses a single camera to capture multiple images from different perspectives while moving within the scene.
+In this case, the intrinsic camera parameter matrix, <math id="S3.p1.m1" class="ltx_Math" alttext="K" display="inline"><mi>K</mi></math>, will be constant across images, but the extrinsic parameters consisting of the rotation matrix, <math id="S3.p1.m2" class="ltx_Math" alttext="R" display="inline"><mi>R</mi></math>, and relative position vector, <math id="S3.p1.m3" class="ltx_Math" alttext="t" display="inline"><mi>t</mi></math>, will be different for each image.</p>
+</div>
+<figure id="S3.F5" class="ltx_figure"><img style="width:75%;height:auto" src="/book-assets/stereo-vision/figs__ch09_figs__sfm.png" id="S3.F5.g1" class="ltx_graphics ltx_centering" alt="Refer to caption">
+<figcaption class="ltx_caption"><span class="ltx_tag ltx_tag_figure"><span class="ltx_text" style="font-size:90%;">Figure 7.5</span>: </span><span class="ltx_text" style="font-size:90%;">A depiction of the structure from motion (SFM) method.
+A single camera is used to take multiple images from different perspectives, which provides enough information to reconstruct the 3D scene.</span></figcaption>
+</figure>
+<div id="S3.p2" class="ltx_para">
+<p class="ltx_p">Consider a case where we take <math id="S3.p2.m1" class="ltx_Math" alttext="m" display="inline"><mi>m</mi></math> images of <math id="S3.p2.m2" class="ltx_Math" alttext="n" display="inline"><mi>n</mi></math> fixed 3D points from different perspectives.
+This would lead to <math id="S3.p2.m3" class="ltx_Math" alttext="m" display="inline"><mi>m</mi></math> projection matrices, <math id="S3.p2.m4" class="ltx_Math" alttext="\mathcal{P}_{k}=K[R_{k}\&gt;t_{k}]" display="inline"><mrow><msub><mi class="ltx_font_mathcaligraphic">𝒫</mi><mi>k</mi></msub><mo>=</mo><mrow><mi>K</mi><mo>⁢</mo><mrow><mo stretchy="false">[</mo><mrow><msub><mi>R</mi><mi>k</mi></msub><mo>⁢</mo><msub><mi>t</mi><mi>k</mi></msub></mrow><mo stretchy="false">]</mo></mrow></mrow></mrow></math>, and <math id="S3.p2.m5" class="ltx_Math" alttext="n" display="inline"><mi>n</mi></math> 3D points, <math id="S3.p2.m6" class="ltx_Math" alttext="P_{j}" display="inline"><msub><mi>P</mi><mi>j</mi></msub></math>, that we would need to determine by leveraging the projection relationships:</p>
+<table id="S3.Ex1" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.Ex1.m1" class="ltx_Math" alttext="p_{j,k}^{h}=\mathcal{P}_{k}P^{h}_{j},\quad j=1,\dots,n,\quad k=1,\dots,m." display="block"><mrow><mrow><mrow><msubsup><mi>p</mi><mrow><mi>j</mi><mo>,</mo><mi>k</mi></mrow><mi>h</mi></msubsup><mo>=</mo><mrow><msub><mi class="ltx_font_mathcaligraphic">𝒫</mi><mi>k</mi></msub><mo>⁢</mo><msubsup><mi>P</mi><mi>j</mi><mi>h</mi></msubsup></mrow></mrow><mo rspace="1.167em">,</mo><mrow><mrow><mi>j</mi><mo>=</mo><mrow><mn>1</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mi>n</mi></mrow></mrow><mo rspace="1.167em">,</mo><mrow><mi>k</mi><mo>=</mo><mrow><mn>1</mn><mo>,</mo><mi mathvariant="normal">…</mi><mo>,</mo><mi>m</mi></mrow></mrow></mrow></mrow><mo lspace="0em">.</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">Notice that there is quite a bit of similarity between this problem and the camera auto-calibration problem discussed in <a class="ltx_ref" href="/book/camera-models/">Chapter 6</a>, except here we assume we already know the camera intrinsic parameters.</p>
+</div>
+<div id="S3.p3" class="ltx_para">
+<p class="ltx_p">The fundamental challenge in structure from motion is to simultaneously recover both the camera poses and the 3D point positions from only the 2D image observations.
+This requires solving a large optimization problem with many unknowns, which we approach either incrementally by adding one image at a time, or globally by considering all images simultaneously.
+Both approaches rely on establishing feature correspondences across images and minimizing reprojection errors through bundle adjustment.
+Structure from motion methods also have some unique limitations.
+Most notably, there exists an inherent ambiguity in the absolute scale of the scene that cannot be determined from images alone<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S3.p3.p1" class="ltx_para">
+<span class="ltx_p">For example, a bigger object at a longer distance and a smaller object at a closer distance can yield identical projections.</span>
+</span></span></span></span></span>.
+Additionally, errors accumulate over long sequences, leading to drift that must be corrected through loop closure when the camera revisits a previous location.
+Despite these challenges, structure from motion has proven invaluable for robotic applications where carrying multiple cameras is impractical.</p>
+</div>
+<section id="S3.SS1" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">7.3.1 </span>Two-View Geometry</h3>
+
+<div id="S3.SS1.p1" class="ltx_para">
+<p class="ltx_p">The structure from motion pipeline begins with reconstructing the scene from two views, establishing the initial geometry that subsequent images will extend.
+Given correspondences between two images taken from positions <math id="S3.SS1.p1.m1" class="ltx_Math" alttext="O_{1}" display="inline"><msub><mi>O</mi><mn>1</mn></msub></math> and <math id="S3.SS1.p1.m2" class="ltx_Math" alttext="O_{2}" display="inline"><msub><mi>O</mi><mn>2</mn></msub></math>, we first estimate the fundamental matrix using the same techniques described for stereo vision.
+With known intrinsics, we recover the essential matrix <math id="S3.SS1.p1.m3" class="ltx_Math" alttext="E=K^{\top}FK" display="inline"><mrow><mi>E</mi><mo>=</mo><mrow><msup><mi>K</mi><mo>⊤</mo></msup><mo>⁢</mo><mi>F</mi><mo>⁢</mo><mi>K</mi></mrow></mrow></math> and decompose it to obtain the relative camera pose.</p>
+</div>
+<div id="S3.SS1.p2" class="ltx_para">
+<p class="ltx_p">The decomposition of the essential matrix yields four possible solutions for the rotation and translation <math id="S3.SS1.p2.m1" class="ltx_Math" alttext="(R,t)" display="inline"><mrow><mo stretchy="false">(</mo><mi>R</mi><mo>,</mo><mi>t</mi><mo stretchy="false">)</mo></mrow></math>.
+We identify the correct solution by verifying that reconstructed points have positive depth in both camera views.
+Once the relative pose is established, we triangulate the matched features to obtain initial 3D points.
+For each correspondence <math id="S3.SS1.p2.m2" class="ltx_Math" alttext="(p_{j,1},p_{j,2})" display="inline"><mrow><mo stretchy="false">(</mo><msub><mi>p</mi><mrow><mi>j</mi><mo>,</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>p</mi><mrow><mi>j</mi><mo>,</mo><mn>2</mn></mrow></msub><mo stretchy="false">)</mo></mrow></math>, the 3D point <math id="S3.SS1.p2.m3" class="ltx_Math" alttext="P_{j}" display="inline"><msub><mi>P</mi><mi>j</mi></msub></math> satisfies:</p>
+<table id="S3.E8" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.E8.m1" class="ltx_math_unparsed" alttext="\begin{bmatrix}(p_{j,1}\times)\mathcal{P}_{1}\\
+(p_{j,2}\times)\mathcal{P}_{2}\end{bmatrix}P_{j}=0," display="block"><mrow><mrow><mrow><mrow><mo>[</mo><mtable displaystyle="true" rowspacing="0pt"><mtr><mtd><mrow><mrow><mo stretchy="false">(</mo><msub><mi>p</mi><mrow><mi>j</mi><mo>,</mo><mn>1</mn></mrow></msub><mo lspace="0.222em" rspace="0em">×</mo><mo stretchy="false">)</mo></mrow><msub><mi class="ltx_font_mathcaligraphic">𝒫</mi><mn>1</mn></msub></mrow></mtd></mtr><mtr><mtd><mrow><mrow><mo stretchy="false">(</mo><msub><mi>p</mi><mrow><mi>j</mi><mo>,</mo><mn>2</mn></mrow></msub><mo lspace="0.222em" rspace="0em">×</mo><mo stretchy="false">)</mo></mrow><msub><mi class="ltx_font_mathcaligraphic">𝒫</mi><mn>2</mn></msub></mrow></mtd></mtr></mtable><mo>]</mo></mrow><mo>⁢</mo><msub><mi>P</mi><mi>j</mi></msub></mrow><mo>=</mo><mn>0</mn></mrow><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(7.8)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S3.SS1.p2.m4" class="ltx_Math" alttext="\mathcal{P}_{1}" display="inline"><msub><mi class="ltx_font_mathcaligraphic">𝒫</mi><mn>1</mn></msub></math> and <math id="S3.SS1.p2.m5" class="ltx_Math" alttext="\mathcal{P}_{2}" display="inline"><msub><mi class="ltx_font_mathcaligraphic">𝒫</mi><mn>2</mn></msub></math> are the projection matrices for cameras at <math id="S3.SS1.p2.m6" class="ltx_Math" alttext="O_{1}" display="inline"><msub><mi>O</mi><mn>1</mn></msub></math> and <math id="S3.SS1.p2.m7" class="ltx_Math" alttext="O_{2}" display="inline"><msub><mi>O</mi><mn>2</mn></msub></math>, and <math id="S3.SS1.p2.m8" class="ltx_math_unparsed" alttext="(p\times)" display="inline"><mrow><mo stretchy="false">(</mo><mi>p</mi><mo lspace="0.222em" rspace="0em">×</mo><mo stretchy="false">)</mo></mrow></math> denotes the skew-symmetric matrix formed from the homogeneous coordinates of <math id="S3.SS1.p2.m9" class="ltx_Math" alttext="p" display="inline"><mi>p</mi></math>.
+This linear system is solved using least squares, typically with singular value decomposition for numerical stability.</p>
+</div>
+</section>
+<section id="S3.SS2" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">7.3.2 </span>Sequential Reconstruction</h3>
+
+<div id="S3.SS2.p1" class="ltx_para">
+<p class="ltx_p">Sequential structure from motion extends the initial two-view reconstruction by incrementally incorporating new images, as illustrated in Figure&#160;<a href="#S3.F5" title="Figure 7.5 ‣ 7.3 Structure From Motion" class="ltx_ref"><span class="ltx_text ltx_ref_tag">7.5</span></a>.
+Each new image captured from position <math id="S3.SS2.p1.m1" class="ltx_Math" alttext="O_{k}" display="inline"><msub><mi>O</mi><mi>k</mi></msub></math> undergoes pose estimation through perspective-n-point (PnP) solving, which finds the camera position <math id="S3.SS2.p1.m2" class="ltx_Math" alttext="(R_{k},t_{k})" display="inline"><mrow><mo stretchy="false">(</mo><msub><mi>R</mi><mi>k</mi></msub><mo>,</mo><msub><mi>t</mi><mi>k</mi></msub><mo stretchy="false">)</mo></mrow></math> that minimizes reprojection error for correspondences between image points <math id="S3.SS2.p1.m3" class="ltx_Math" alttext="p_{j,k}" display="inline"><msub><mi>p</mi><mrow><mi>j</mi><mo>,</mo><mi>k</mi></mrow></msub></math> and existing 3D points <math id="S3.SS2.p1.m4" class="ltx_Math" alttext="P_{j}" display="inline"><msub><mi>P</mi><mi>j</mi></msub></math>.
+Once registered, the image contributes new scene points through triangulation with previously registered views from positions <math id="S3.SS2.p1.m5" class="ltx_Math" alttext="O_{k-1},O_{k-2},\ldots" display="inline"><mrow><msub><mi>O</mi><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>,</mo><msub><mi>O</mi><mrow><mi>k</mi><mo>−</mo><mn>2</mn></mrow></msub><mo>,</mo><mi mathvariant="normal">…</mi></mrow></math>.</p>
+</div>
+<div id="S3.SS2.p2" class="ltx_para">
+<p class="ltx_p">The critical challenge is maintaining consistency as errors accumulate.
+Bundle adjustment jointly optimizes camera poses and 3D points to minimize total reprojection error:</p>
+<table id="S3.E9" class="ltx_equation ltx_eqn_table">
+
+<tbody><tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+<td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+<td class="ltx_eqn_cell ltx_align_center"><math id="S3.E9.m1" class="ltx_math_unparsed" alttext="\underset{[}{\text{minimize}}\&gt;\quad\{R_{k},t_{k}\},\{P_{j}\}]\sum_{k}\sum_{j%
+\in\mathcal{V}_{k}}\lVert p_{j,k}-\pi(K,R_{k},t_{k},P_{j})\rVert^{2}," display="block"><mrow><munder accentunder="true"><mtext>minimize</mtext><mo fence="false">[</mo></munder><mspace width="1.22222222222222em"></mspace><mrow><mo stretchy="false">{</mo><msub><mi>R</mi><mi>k</mi></msub><mo>,</mo><msub><mi>t</mi><mi>k</mi></msub><mo stretchy="false">}</mo></mrow><mo>,</mo><mrow><mo stretchy="false">{</mo><msub><mi>P</mi><mi>j</mi></msub><mo stretchy="false">}</mo></mrow><mo stretchy="false">]</mo><mo movablelimits="false">∑</mo><msub><mi></mi><mi>k</mi></msub><mo movablelimits="false">∑</mo><msub><mi></mi><mrow><mi>j</mi><mo>∈</mo><msub><mi class="ltx_font_mathcaligraphic">𝒱</mi><mi>k</mi></msub></mrow></msub><mo fence="true" lspace="0em" rspace="0em">∥</mo><msub><mi>p</mi><mrow><mi>j</mi><mo>,</mo><mi>k</mi></mrow></msub><mo>−</mo><mi>π</mi><mrow><mo stretchy="false">(</mo><mi>K</mi><mo>,</mo><msub><mi>R</mi><mi>k</mi></msub><mo>,</mo><msub><mi>t</mi><mi>k</mi></msub><mo>,</mo><msub><mi>P</mi><mi>j</mi></msub><mo stretchy="false">)</mo></mrow><mo fence="true" lspace="0em" rspace="0em">∥</mo><msup><mi></mi><mn>2</mn></msup><mo>,</mo></mrow></math></td>
+<td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+<td rowspan="1" class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right"><span class="ltx_tag ltx_tag_equation ltx_align_right">(7.9)</span></td>
+</tr></tbody>
+</table>
+<p class="ltx_p">where <math id="S3.SS2.p2.m1" class="ltx_Math" alttext="p_{j,k}" display="inline"><msub><mi>p</mi><mrow><mi>j</mi><mo>,</mo><mi>k</mi></mrow></msub></math> represents the observed projection of point <math id="S3.SS2.p2.m2" class="ltx_Math" alttext="P_{j}" display="inline"><msub><mi>P</mi><mi>j</mi></msub></math> in the image taken from camera position <math id="S3.SS2.p2.m3" class="ltx_Math" alttext="O_{k}" display="inline"><msub><mi>O</mi><mi>k</mi></msub></math>, and <math id="S3.SS2.p2.m4" class="ltx_Math" alttext="\mathcal{V}_{k}" display="inline"><msub><mi class="ltx_font_mathcaligraphic">𝒱</mi><mi>k</mi></msub></math> denotes the set of points visible from viewpoint <math id="S3.SS2.p2.m5" class="ltx_Math" alttext="k" display="inline"><mi>k</mi></math>.
+However, global optimization after each image is computationally prohibitive.
+Instead, we perform local bundle adjustment over a sliding window of recent images (typically spanning positions <math id="S3.SS2.p2.m6" class="ltx_Math" alttext="O_{k-w}" display="inline"><msub><mi>O</mi><mrow><mi>k</mi><mo>−</mo><mi>w</mi></mrow></msub></math> through <math id="S3.SS2.p2.m7" class="ltx_Math" alttext="O_{k}" display="inline"><msub><mi>O</mi><mi>k</mi></msub></math>), maintaining local accuracy while deferring global consistency to a final optimization step.
+This windowed approach achieves near-global accuracy at a fraction of the computational cost, making the method practical for long image sequences.
+Image selection order also affects reconstruction quality—we typically choose the next viewpoint that maximizes correspondences with the current reconstruction, balancing accurate pose estimation with effective triangulation of new points.</p>
+</div>
+<section id="S3.SS2.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">Global structure from motion.</h4>
+
+<div id="S3.SS2.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">An alternative to sequential reconstruction is global structure from motion, which estimates all camera poses simultaneously before triangulating points.
+This approach first constructs an epipolar graph connecting all image pairs with sufficient matches, then solves for all rotations and translations globally through rotation and translation averaging.
+While potentially more accurate than incremental methods, global approaches require solving large optimization problems and may be less robust to outliers in practice.
+The choice between sequential and global methods often depends on the specific application requirements and computational resources available.</p>
+</div>
+</section>
+</section>
+<section id="S3.SS3" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">7.3.3 </span>Visual Odometry</h3>
+
+<div id="S3.SS3.p1" class="ltx_para">
+<p class="ltx_p">One particularly important application of the structure from motion concept is <em class="ltx_emph ltx_font_italic">visual odometry</em>, which estimates robot motion in real-time using visual input.
+Visual odometry prioritizes speed and local accuracy over global consistency, maintaining only a sliding window of recent frames and performing limited bundle adjustment.
+This approach operates at camera frame rates by trading global optimality for computational efficiency.
+Visual odometry has proven invaluable for robot navigation, particularly in environments where wheel odometry is unreliable or unavailable.
+Mars rovers, for instance, rely on visual odometry to navigate terrain where wheel slip would cause traditional odometry to fail dramatically<span class="ltx_note ltx_marginpar ltx_role_margin"><sup class="ltx_note_mark">†</sup><span class="ltx_note_outer"><span class="ltx_note_content"><sup class="ltx_note_mark">†</sup><span class="ltx_note_type">margin: </span><span class="ltx_inline-logical-block">
+<span id="S3.SS3.p1.p1" class="ltx_para">
+<span class="ltx_p">The Mars Exploration Rovers Spirit and Opportunity used stereo visual odometry to traverse over 45 kilometers combined, far exceeding their planned 600-meter missions.</span>
+</span></span></span></span></span>.
+The technique also enables navigation for flying robots and underwater vehicles where wheel odometry is impossible.</p>
+</div>
+<div id="S3.SS3.p2" class="ltx_para">
+<p class="ltx_p">Modern visual odometry systems often combine multiple approaches for robustness.
+Feature-based methods track distinctive image features across frames, providing robustness to illumination changes but potentially failing in textureless environments.
+Direct methods minimize photometric error using raw pixel intensities, exploiting all image information but requiring good initialization and small inter-frame motions.
+Hybrid approaches leverage the strengths of both, using features for robustness and direct alignment for accuracy.</p>
+</div>
+</section>
+<section id="S3.SS4" class="ltx_subsection">
+<h3 class="ltx_title ltx_title_subsection">
+<span class="ltx_tag ltx_tag_subsection">7.3.4 </span>Loop Closure and Drift Mitigation</h3>
+
+<div id="S3.SS4.p1" class="ltx_para">
+<p class="ltx_p">Over extended sequences, small errors in structure from motion accumulate into significant drift.
+Loop closure detection identifies when the camera revisits a previous location, providing constraints to correct this accumulated error globally.
+This involves recognizing previously seen places despite changes in viewpoint and lighting, typically using visual vocabularies or learned features, followed by geometric verification and global optimization incorporating the loop constraints.
+Successfully detecting and closing loops transforms structure from motion from a local reconstruction technique into a method capable of mapping large environments—a capability essential for autonomous navigation.</p>
+</div>
+</section>
+</section>
+<section id="S4" class="ltx_section">
+<h2 class="ltx_title ltx_title_section">
+<span class="ltx_tag ltx_tag_section">7.4 </span>Summary</h2>
+
+<div id="S4.p1" class="ltx_para">
+<p class="ltx_p">This chapter presented two fundamental approaches for extracting 3D information from camera images.
+Stereo vision leverages simultaneous views from multiple cameras, using epipolar geometry to constrain correspondence search and enable real-time depth estimation through triangulation.
+Structure from motion reconstructs scene geometry from sequential images captured by a moving camera, trading real-time performance for the flexibility of a single-camera system.
+Both techniques face similar challenges—establishing correspondences between images despite occlusions, repetitive textures, and perspective distortions.
+The reconstruction accuracy depends fundamentally on baseline configuration: stereo systems use fixed baselines while structure from motion adapts its effective baseline through camera motion.
+However, structure from motion suffers from scale ambiguity that must be resolved through additional sensors or known scene dimensions.
+These complementary approaches have enabled numerous robotic applications, from Mars rover navigation using visual odometry to autonomous vehicle perception using stereo depth.
+Modern systems increasingly combine both techniques with other sensors—visual-inertial odometry fuses structure from motion with IMU data to recover metric scale, while stereo visual odometry leverages multiple cameras with motion estimation for robust navigation.</p>
+</div>
+<section id="S4.SS0.SSS0.Px1" class="ltx_paragraph">
+<h4 class="ltx_title ltx_title_paragraph">To learn more.</h4>
+
+<div id="S4.SS0.SSS0.Px1.p1" class="ltx_para">
+<p class="ltx_p">For a comprehensive treatment of stereo vision and structure from motion, including advanced algorithms and practical implementations, readers are encouraged to consult the textbooks <span class="ltx_text ltx_font_italic">Introduction to Autonomous Mobile Robots</span> by <span class="ltx_cite">Siegwart et al. (2011)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">1</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">1.</span> Siegwart, R., Nourbakhsh, I. R., Scaramuzza, D. <em>Introduction to Autonomous Mobile Robots</em>. MIT Press, 2011.</span></span></span> and <span class="ltx_text ltx_font_italic">Computer Vision: A Modern Approach</span> by <span class="ltx_cite">Forsyth and Ponce (2011)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">2</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">2.</span> Forsyth, D. A., Ponce, J. <em>Computer Vision: A Modern Approach</em>. Prentice Hall, 2011.</span></span></span>. Additionally, for a deeper understanding of epipolar geometry and multi-view reconstruction, readers can refer to the works <span class="ltx_cite">Fusiello et al. (2000)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">3</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">3.</span> Fusiello, A., Trucco, E., Verri, A. “A compact algorithm for rectification of stereo pairs.” <em>Machine Vision and Applications</em> 12(1), 16–22, 2000.</span></span></span> and <span class="ltx_cite">Loop and Zhang (1999)</span><span class="ltx_note ltx_role_margin ltx_note_cite"><sup class="ltx_note_mark">4</sup><span class="ltx_note_outer"><span class="ltx_note_content"><span class="ltx_cite_num">4.</span> Loop, C., Zhang, Z. “Computing rectifying homographies for stereo vision.” In <em>IEEE Computer Society Conference on Computer Vision and Pattern Recognition</em>, 125–131, 1999.</span></span></span>.</p>
+</div>
+</section>
+</section>

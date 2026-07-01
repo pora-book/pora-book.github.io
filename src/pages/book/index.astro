@@ -1,0 +1,47 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { PARTS, publishedChapters, chaptersByPart, displayNumber } from '../../data/book.js';
+import exercises from '../../data/exercises.json';
+
+// Which chapter slugs actually have converted content available.
+const converted = new Set(
+  Object.keys(import.meta.glob('../../content/chapters/*.html', { eager: true }))
+    .map((p) => p.split('/').pop().replace('.html', ''))
+);
+const partsWithChapters = PARTS.filter((p) => chaptersByPart(p.id).length > 0);
+---
+<BaseLayout title="The Book" active="book" description="Table of contents for Principles of Robot Autonomy.">
+  <div class="prose-wrap" style="padding-top:2.5rem">
+    <span class="chip">Table of contents</span>
+    <h1 style="font-size:2.2rem;margin:1rem 0 0.5rem">The Book</h1>
+    <p style="color:var(--muted);max-width:48ch">
+      {publishedChapters().filter((c) => displayNumber(c)).length} chapters across
+      four parts, with a getting-started note and closing prospects.
+      {converted.size < publishedChapters().length && <> Chapters marked <em>reading soon</em> are still being converted.</>}
+    </p>
+
+    {partsWithChapters.map((part) => (
+      <>
+        <div class="part-head">{part.title}</div>
+        <div class="chapter-list">
+          {chaptersByPart(part.id).map((c) => {
+            const hasContent = converted.has(c.slug);
+            const nb = c.exercises ? exercises[c.exercises] : null;
+            const href = hasContent ? `/book/${c.slug}/` : null;
+            const Tag = href ? 'a' : 'div';
+            return (
+              <Tag class="chapter-row" href={href}>
+                <span class="num">{displayNumber(c) ?? '—'}</span>
+                <span class="name">{c.title}</span>
+                <span class="tags">
+                  {nb && <span class="tag-ex">{nb.length} exercises</span>}
+                  {!hasContent && <span class="tag-soon">reading soon</span>}
+                </span>
+              </Tag>
+            );
+          })}
+        </div>
+      </>
+    ))}
+  </div>
+</BaseLayout>

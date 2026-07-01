@@ -1,0 +1,14 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+.astro/
+
+# generated content (produced by the conversion pipeline in CI)
+# committed selectively; ignore the local LaTeX source clone and caches
+.pora-src/
+
+# os / editor
+.DS_Store
+*.log

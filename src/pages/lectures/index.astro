@@ -1,0 +1,35 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { publishedChapters, displayNumber } from '../../data/book.js';
+
+// Lectures are data-driven per chapter (chapter.lecture). Until recordings are
+// released, this page lists the chapters as a schedule and marks them "coming".
+const chapters = publishedChapters().filter((c) => displayNumber(c));
+const released = chapters.filter((c) => c.lecture);
+---
+<BaseLayout title="Lectures" active="lectures" description="Stanford lecture recordings aligned to Principles of Robot Autonomy.">
+  <div class="prose-wrap" style="padding-top:2.5rem">
+    <span class="chip">Watch</span>
+    <h1 style="font-size:2.2rem;margin:1rem 0 0.5rem">Lectures</h1>
+    <p style="color:var(--muted);max-width:52ch">
+      Stanford lecture recordings aligned to the book's chapters.
+      {released.length === 0
+        ? ' Recordings are being released progressively during the winter quarter — this page will fill in automatically as they go live.'
+        : ` ${released.length} of ${chapters.length} chapters have recordings available.`}
+    </p>
+
+    <div class="chapter-list" style="margin-top:1.5rem">
+      {chapters.map((c) => (
+        <div class="chapter-row" style="cursor:default">
+          <span class="num">{displayNumber(c)}</span>
+          <span class="name">{c.title}</span>
+          <span class="tags">
+            {c.lecture
+              ? <a class="tag-ex" href={c.lecture.videoUrl} target="_blank" rel="noopener">Watch</a>
+              : <span class="tag-soon">coming soon</span>}
+          </span>
+        </div>
+      ))}
+    </div>
+  </div>
+</BaseLayout>
