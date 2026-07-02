@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import BookAssistant from '../../components/BookAssistant.astro';
 import '../../styles/latexml.css';
 import { publishedChapters, displayNumber } from '../../data/book.js';
 import exercises from '../../data/exercises.json';
@@ -81,6 +82,8 @@ const lecture = chapter.lecture ?? null; // data-driven; null hides the Watch sl
       </nav>
     </article>
   </div>
+
+  <BookAssistant chapterTitle={chapter.title} chapterSlug={chapter.slug} />
 
   <script>
     // Build the in-page TOC from the converted section headings, with scroll-spy.

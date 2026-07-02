@@ -120,24 +120,39 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 600; line-height: 1.15;
 .home-hero-copy h1 { font-size: clamp(1.9rem, 3.6vw, 2.9rem); letter-spacing: -0.02em; margin: 1rem 0 0; }
 .home-hero-copy h1 em { font-style: italic; color: var(--accent); }
 .home-hero-copy .lead { font-size: 1.18rem; color: var(--ink-soft); max-width: 46ch; margin: 1.15rem 0 0; }
-.home-hero-copy .cta { margin-top: 1.9rem; display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.home-hero-copy .pub-note { font-size: 0.98rem; color: var(--muted); max-width: 52ch; margin: 1rem 0 0; }
+.home-hero .hero-links {
+  grid-column: 1 / -1; margin-top: 1.25rem;
+  display: flex; justify-content: center; align-items: center;
+  gap: 2.5rem; flex-wrap: wrap;
+}
+.hero-link {
+  display: inline-flex; align-items: center; gap: 0.55rem;
+  font-family: var(--sans); font-size: 0.92rem; font-weight: 600; color: var(--ink);
+}
+.hero-link img { height: 1.35em; width: auto; display: block; }
+.hero-link a { color: inherit; }
+.hero-link a:hover, a.hero-link:hover { color: var(--accent); text-decoration: none; }
+a.hero-link:hover span { text-decoration: none; }
 
 /* Prose sections on the home page. */
 .home-note, .home-guide, .home-authors, .home-cite { padding: 2.75rem 0 0; }
 .home-note h2, .home-guide h2, .home-authors h2, .home-cite h2 {
   font-size: 1.5rem; margin: 0 0 1rem;
 }
-.home-note p, .home-cite p { color: var(--ink-soft); max-width: 64ch; margin: 0 0 1rem; }
+.home-note p, .home-guide p, .home-cite p { color: var(--ink-soft); max-width: 64ch; margin: 0 0 1rem; }
 .home-authors-intro { color: var(--ink-soft); max-width: 64ch; margin: 0 0 1.75rem; }
 
 /* Author bio cards. */
-.authors { display: grid; gap: 1.1rem; }
-.author { display: grid; grid-template-columns: 3.5rem 1fr; gap: 1.1rem; align-items: start; }
+.authors { display: grid; gap: 1.6rem; }
+.author { display: grid; grid-template-columns: 6.5rem 1fr; gap: 1.4rem; align-items: start; }
 .author-photo {
-  width: 3.5rem; height: 3.5rem; border-radius: 999px; object-fit: cover;
+  width: 6.5rem; height: 6.5rem; border-radius: 999px; object-fit: cover;
   border: 1px solid var(--line-strong); background: var(--paper-2);
 }
 .author-name { font-family: var(--serif); font-weight: 600; font-size: 1.08rem; color: var(--ink); }
+.author-name a { color: inherit; text-decoration: none; border-bottom: 1px solid var(--accent); }
+.author-name a:hover { color: var(--accent); }
 .author-aff {
   font-family: var(--sans); font-size: 0.74rem; letter-spacing: 0.04em;
   text-transform: uppercase; color: var(--accent); margin-top: 0.1rem;
@@ -150,12 +165,6 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 600; line-height: 1.15;
   background: var(--paper-2); border: 1px solid var(--line); border-radius: 8px;
   padding: 1rem; overflow-x: auto; margin: 0;
 }
-
-.pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
-.pillar { border: 1px solid var(--line); border-radius: 12px; padding: 1.5rem; background: #fff; }
-.pillar h3 { margin: 0.25rem 0 0.5rem; font-size: 1.15rem; }
-.pillar p { margin: 0; color: var(--muted); font-size: 0.98rem; }
-.pillar .k { font-family: var(--sans); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
 
 /* =========================== Book index ================================ */
 .part-head {
@@ -212,12 +221,13 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 600; line-height: 1.15;
 @media (max-width: 62rem) {
   .chapter-grid { grid-template-columns: 1fr; max-width: 44rem; }
   .chapter-toc { display: none; }
-  .pillars { grid-template-columns: 1fr; }
+  .author { grid-template-columns: 4.5rem 1fr; gap: 1rem; }
+  .author-photo { width: 4.5rem; height: 4.5rem; }
   .home-hero {
     grid-template-columns: 1fr; gap: 1.75rem; justify-items: center; text-align: center;
     padding-top: 2.75rem;
   }
   .cover-figure { max-width: 15rem; }
   .home-hero-copy .lead { margin-left: auto; margin-right: auto; }
-  .home-hero-copy .cta { justify-content: center; }
+  .home-hero .hero-links { gap: 1.25rem; }
 }

@@ -1,0 +1,155 @@
+---
+// Homepage section advertising the "Ask the book" assistant and walking the
+// reader through the one-time free-key setup. Saves to the same localStorage the
+// chapter chat reads (see ../scripts/assistant-config.ts), so once set up here
+// the assistant is active on every chapter page.
+---
+
+<section class="home-assistant" id="assistant">
+  <h2>Ask the Book, an AI study assistant on every page</h2>
+  <p>
+    <strong>Ask the Book</strong> is an optional AI study assistant available throughout the book.
+    If you prefer to read without it, simply skip this section and continue with the text.
+    If enabled, the assistant can answer questions about the chapter you are reading,
+    explain derivations, unpack notation, render mathematical expressions, and help
+    connect ideas across the material. Its goal is to support understanding, not simply
+    provide answers.
+  </p>
+  <p>
+    There are two ways to use the assistant:
+  </p>
+  <p>
+    <strong>1. Run a model locally.</strong><br>
+    If you have a compatible GPU, you can download and run an open-source language model
+    directly on your own machine. This option offers complete privacy and does not require
+    any external API.
+  </p>
+  <p>
+    <strong>2. Connect your own AI provider.</strong><br>
+    You can use any compatible API key from providers such as OpenAI, Anthropic (Claude),
+    Google Gemini, OpenRouter, or any other OpenAI-compatible service. Your API key is
+    stored only in your browser and is sent directly to the provider you choose.
+  </p>
+  <p class="home-assistant-how">
+    For most readers, we recommend the second option using
+    <a href="https://openrouter.ai" target="_blank" rel="noopener">OpenRouter</a>.
+    It provides free access to a wide range of open-source models and is the quickest way
+    to get started.
+  </p>
+
+  <h3>Getting started with OpenRouter (about 2 minutes)</h3>
+  <ol class="setup-steps">
+    <li>
+      Create a free account at
+      <a href="https://openrouter.ai" target="_blank" rel="noopener">openrouter.ai</a>.
+    </li>
+    <li>
+      Visit
+      <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>
+      and create a new API key. It will look something like <code>sk-or-...</code>.
+    </li>
+    <li>Copy the API key.</li>
+    <li>
+      Return to this page, choose a model below, paste your key, and click
+      <strong>Save &amp; activate</strong>.
+    </li>
+  </ol>
+
+  <div class="setup-form">
+    <label class="setup-field">
+      <span>Free model</span>
+      <select id="sg-model"><option>Loading free models…</option></select>
+    </label>
+    <label class="setup-field">
+      <span>OpenRouter API key</span>
+      <input id="sg-key" type="password" spellcheck="false" autocomplete="off" placeholder="sk-or-…" />
+    </label>
+    <button id="sg-save" type="button">Save &amp; activate</button>
+    <p id="sg-status" class="setup-status" role="status"></p>
+  </div>
+
+  <p class="setup-note">
+    We recommend <strong>NVIDIA Nemotron Nano 3 30B A3B</strong> as the default model.
+    In our experience it offers generous free usage
+    limits, although you are free to choose any compatible model.
+  </p>
+
+  <p class="setup-note">
+    <strong>Note.</strong> Free models are shared by many users and are therefore subject
+    to provider-imposed rate limits. During busy periods you may occasionally need to wait
+    before sending another request or temporarily switch to a different model. If you
+    expect to use the assistant extensively, you can also configure it with a paid API key
+    from your preferred provider.
+  </p>
+</section>
+
+<script>
+  import {
+    loadSettings, saveSettings, isConfigured, fetchOpenRouterFreeModels,
+  } from '../scripts/assistant-config';
+
+  const modelSel = document.getElementById('sg-model') as HTMLSelectElement | null;
+  const keyInput = document.getElementById('sg-key') as HTMLInputElement | null;
+  const saveBtn = document.getElementById('sg-save') as HTMLButtonElement | null;
+  const statusEl = document.getElementById('sg-status');
+  if (modelSel && keyInput && saveBtn && statusEl) {
+    const settings = loadSettings();
+    if (settings.keys.openrouter) keyInput.value = settings.keys.openrouter;
+    if (isConfigured(settings) && settings.provider === 'openrouter') {
+      statusEl.textContent = '✓ Already set up — open any chapter and use the Ask button.';
+    }
+
+    fetchOpenRouterFreeModels().then((models) => {
+      modelSel.innerHTML = '';
+      const list = models.length
+        ? models
+        : [{ id: settings.openrouterModel, name: settings.openrouterModel }];
+      for (const m of list) {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.name.replace(/\s*\(free\)$/i, '') + ' · free';
+        modelSel.appendChild(opt);
+      }
+      if (list.some((m) => m.id === settings.openrouterModel)) modelSel.value = settings.openrouterModel;
+    });
+
+    saveBtn.addEventListener('click', () => {
+      const key = keyInput.value.trim();
+      if (!key) { statusEl.textContent = 'Paste your OpenRouter key first.'; return; }
+      const s = loadSettings();
+      s.provider = 'openrouter';
+      s.keys.openrouter = key;
+      if (modelSel.value) s.openrouterModel = modelSel.value;
+      saveSettings(s);
+      statusEl.textContent = '✓ Saved. Open any chapter and click the Ask button to start.';
+    });
+  }
+</script>
+
+<style>
+  .home-assistant { margin-top: 3.5rem; }
+  .home-assistant-how { margin-top: 0.5rem; }
+  .setup-steps { margin: 1rem 0 1.25rem; padding-left: 1.3rem; line-height: 1.7; }
+  .setup-steps code {
+    background: rgba(0, 0, 0, 0.05); padding: 0.05rem 0.35rem; border-radius: 4px;
+    font-family: var(--mono, ui-monospace, monospace); font-size: 0.85em;
+  }
+  .setup-form {
+    display: grid; gap: 0.75rem; max-width: 32rem; padding: 1.1rem 1.2rem;
+    border: 1px solid var(--rule, #e6ddcd); border-radius: 12px;
+    background: color-mix(in srgb, var(--accent, #c65a3a) 4%, var(--paper, #fff));
+  }
+  .setup-field { display: grid; gap: 0.3rem; }
+  .setup-field > span { font-weight: 600; font-size: 0.9rem; }
+  .setup-field select, .setup-field input {
+    padding: 0.5rem 0.6rem; border: 1px solid var(--rule, #e6ddcd);
+    border-radius: 8px; background: #fff; color: var(--ink, #24211d); font: inherit;
+  }
+  #sg-save {
+    justify-self: start; border: none; border-radius: 9px; background: var(--accent, #c65a3a);
+    color: #fff; font-weight: 600; padding: 0.55rem 1.1rem; cursor: pointer;
+  }
+  #sg-save:hover { filter: brightness(1.05); }
+  .setup-status { margin: 0; font-size: 0.9rem; min-height: 1.2em; color: var(--ink-soft, #6b6459); }
+  .setup-note { margin-top: 1rem; font-size: 0.9rem; opacity: 0.8; }
+</style>

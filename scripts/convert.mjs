@@ -77,6 +77,52 @@ const REF_PHRASE = {
   alg: 'the referenced algorithm', eq: 'the referenced equation',
   fig: 'the referenced figure', tab: 'the referenced table',
 };
+
+// Global label -> {slug, display, id} map. LaTeXML resolves within-chapter
+// references itself, but a cross-chapter \cref points at a label defined in a
+// *different* chapter's separate LaTeXML run, so it comes out as a missing
+// label. We harvest every chapter's original \label names together with the
+// number LaTeXML computed for them (from the intermediate XML's `labels=` +
+// `typerefnum`/`refnum` tags) into this map, then resolve those references to a
+// specific, linked "Figure 4.1" / "Section 3.2" / … instead of a vague phrase.
+// Persisted to src/data/labels.json so single-chapter re-converts still resolve
+// into other chapters.
+const LABELS_PATH = path.join(ROOT, 'src', 'data', 'labels.json');
+const LABELS = new Map(
+  fs.existsSync(LABELS_PATH)
+    ? Object.entries(JSON.parse(fs.readFileSync(LABELS_PATH, 'utf-8')))
+    : []
+);
+const TYPE_WORD = {
+  alg: 'Algorithm', eq: 'Equation', fig: 'Figure', tab: 'Table',
+  sec: 'Section', subsec: 'Section', subsubsec: 'Section',
+};
+// "§4.3" -> "Section 4.3"; keep "Figure 4.1" / "Example 4.1.1" as they are.
+function cleanTyperefnum(s) {
+  return s ? s.replace(/^§\s*/, 'Section ').replace(/\s+/g, ' ').trim() : null;
+}
+// Record label -> number from a chapter's LaTeXML XML into the global map.
+function harvestLabels(xml, slug) {
+  const re = /<[a-zA-Z:]+\b[^>]*\blabels="([^"]*)"[^>]*>/g;
+  let m;
+  while ((m = re.exec(xml))) {
+    const id = (m[0].match(/xml:id="([^"]*)"/) || [])[1] || '';
+    const seg = xml.slice(m.index, m.index + 500);
+    const typerefnum = (seg.match(/role="typerefnum">([^<]*)</) || [])[1];
+    const refnum = (seg.match(/role="refnum">([^<]*)</) || [])[1];
+    for (const raw of m[1].split(/\s+/)) {
+      const label = raw.replace(/^LABEL:/, '');
+      if (!label) continue;
+      let display = cleanTyperefnum(typerefnum);
+      if (!display && refnum) {
+        const word = TYPE_WORD[label.split(':')[0]];
+        display = word ? `${word} ${refnum}` : refnum;
+      }
+      if (display) LABELS.set(label, { slug, display, id });
+    }
+  }
+}
+
 function resolveRefs(fragment) {
   return fragment.replace(
     /<span class="ltx_ref ltx_missing_label[^"]*"[^>]*>LABEL:([^<]+)<\/span>/g,
@@ -86,6 +132,11 @@ function resolveRefs(fragment) {
         const n = displayNumber(ch);
         const text = n ? `Chapter ${n}` : ch.title;
         return `<a class="ltx_ref" href="/book/${ch.slug}/">${text}</a>`;
+      }
+      const info = LABELS.get(label);
+      if (info) {
+        const href = info.id ? `/book/${info.slug}/#${info.id}` : `/book/${info.slug}/`;
+        return `<a class="ltx_ref" href="${href}">${info.display}</a>`;
       }
       const prefix = label.split(':')[0];
       return `<span class="ltx_ref">${REF_PHRASE[prefix] || 'the referenced item'}</span>`;
@@ -270,16 +321,25 @@ function tidyListings(fragment) {
   );
 }
 
-function convertChapter(ch) {
+// Conversion is split into two phases so cross-chapter references resolve:
+//   phase 1 (parseChapter)  runs `latexml` -> XML and harvests every label's
+//                           number into the global LABELS map;
+//   phase 2 (postChapter)   runs `latexmlpost` XML -> HTML and post-processes,
+//                           by which point LABELS covers every chapter.
+// (latexmlc internally does exactly latexml + latexmlpost, so this is the same
+// cost as before while giving us the intermediate XML to harvest from.)
+function parseChapter(ch) {
   const srcFile = path.join('source', `${ch.source}.tex`);
   if (!fs.existsSync(path.join(TEX_DIR, srcFile))) {
     console.warn(`SKIP ${ch.slug}: source ${srcFile} not found`);
     return null;
   }
   // Chapter-relative numbering (e.g. "12.1", equation "(12.3)", "Example 12.1").
+  // algocf = algorithm2e's counter; listing = the code-listing float — both are
+  // prefixed so their numbers (and cross-references) read "12.1", not "1".
   const n = displayNumber(ch);
   const numbering = n
-    ? ['section', 'equation', 'figure', 'table', 'theorem'].map(
+    ? ['section', 'equation', 'figure', 'table', 'theorem', 'algocf', 'listing'].map(
         (ctr) => `\\renewcommand{\\the${ctr}}{${n}.\\arabic{${ctr}}}`
       ).join('\n') + '\n'
     : '';
@@ -294,14 +354,26 @@ function convertChapter(ch) {
   const driverPath = path.join(TEX_DIR, `_lxdriver_${ch.slug}.tex`);
   fs.writeFileSync(driverPath, driver);
   const tmpOut = fs.mkdtempSync(path.join(os.tmpdir(), 'pora-'));
+  const destXml = path.join(tmpOut, 'doc.xml');
+  execFileSync('latexml', [
+    `_lxdriver_${ch.slug}.tex`,
+    `--path=${LATEX_DIR}`,
+    `--destination=${destXml}`,
+    '--nocomments',
+    '--quiet',
+  ], { cwd: TEX_DIR, stdio: ['ignore', 'ignore', 'inherit'] });
+  harvestLabels(fs.readFileSync(destXml, 'utf-8'), ch.slug);
+  return { ch, driverPath, ppFile, tmpOut, destXml, widthMap };
+}
+
+function postChapter(ctx) {
+  const { ch, driverPath, ppFile, tmpOut, destXml, widthMap } = ctx;
   const destHtml = path.join(tmpOut, 'index.html');
   try {
-    execFileSync('latexmlc', [
-      `_lxdriver_${ch.slug}.tex`,
-      `--path=${LATEX_DIR}`,
+    execFileSync('latexmlpost', [
+      destXml,
       `--dest=${destHtml}`,
-      '--nocomments',
-      '--timeout=900',
+      '--format=html5',
       '--quiet',
     ], { cwd: TEX_DIR, stdio: ['ignore', 'ignore', 'inherit'] });
     const html = fs.readFileSync(destHtml, 'utf-8');
@@ -331,14 +403,31 @@ function convertChapter(ch) {
 const only = process.argv.slice(2); // optional list of slugs to convert
 const targets = publishedChapters().filter((c) => only.length === 0 || only.includes(c.slug));
 console.log(`Converting ${targets.length} chapter(s) from ${TEX_DIR}`);
-const results = [];
+
+// Phase 1: parse every chapter to XML and harvest its labels.
+console.log('Phase 1/2: parsing + harvesting labels …');
+const contexts = [];
 for (const ch of targets) {
   console.log(`- ${ch.slug} (source ${ch.source})`);
   try {
-    const r = convertChapter(ch);
-    if (r) results.push(r);
+    const ctx = parseChapter(ch);
+    if (ctx) contexts.push(ctx);
   } catch (e) {
-    console.error(`  ✗ ${ch.slug}: ${e.message}`);
+    console.error(`  ✗ ${ch.slug} (parse): ${e.message}`);
+  }
+}
+// Persist the (merged) label map so single-chapter re-converts can still resolve
+// references into chapters that weren't parsed this run.
+fs.writeFileSync(LABELS_PATH, JSON.stringify(Object.fromEntries(LABELS), null, 0));
+
+// Phase 2: post each parsed chapter to HTML (LABELS is now complete).
+console.log('Phase 2/2: generating HTML …');
+const results = [];
+for (const ctx of contexts) {
+  try {
+    results.push(postChapter(ctx));
+  } catch (e) {
+    console.error(`  ✗ ${ctx.ch.slug} (post): ${e.message}`);
   }
 }
 console.log(`Done: ${results.length}/${targets.length} chapters converted.`);

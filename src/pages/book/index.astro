@@ -12,14 +12,8 @@ const partsWithChapters = PARTS.filter((p) => chaptersByPart(p.id).length > 0);
 ---
 <BaseLayout title="The Book" active="book" description="Table of contents for Principles of Robot Autonomy.">
   <div class="prose-wrap" style="padding-top:2.5rem">
-    <span class="chip">Table of contents</span>
+    
     <h1 style="font-size:2.2rem;margin:1rem 0 0.5rem">The Book</h1>
-    <p style="color:var(--muted);max-width:48ch">
-      {publishedChapters().filter((c) => displayNumber(c)).length} chapters across
-      four parts, with a getting-started note and closing prospects.
-      {converted.size < publishedChapters().length && <> Chapters marked <em>reading soon</em> are still being converted.</>}
-    </p>
-
     {partsWithChapters.map((part) => (
       <>
         <div class="part-head">{part.title}</div>

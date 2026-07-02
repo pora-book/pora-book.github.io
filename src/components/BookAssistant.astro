@@ -1,0 +1,287 @@
+---
+// Floating "Ask this chapter" assistant, shown only on book reading pages.
+// Markup + styles here; behaviour in ../scripts/book-assistant.ts; shared
+// settings/system-prompt in ../scripts/assistant-config.ts.
+const { chapterTitle, chapterSlug } = Astro.props;
+---
+
+<div class="ba-root" data-chapter-title={chapterTitle} data-chapter-slug={chapterSlug}>
+  <button class="ba-launcher" aria-label="Ask about this chapter">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+      <path fill="currentColor" d="M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H8l-4 4V5a1 1 0 0 1 1-1Z"></path>
+    </svg>
+    <span>Ask</span>
+  </button>
+
+  <section class="ba-panel" hidden aria-label="Chapter assistant">
+    <header class="ba-head">
+      <span class="ba-title">Ask this chapter</span>
+      <button class="ba-settings" title="Settings" aria-label="Settings">⚙</button>
+      <button class="ba-close" title="Close" aria-label="Close">✕</button>
+    </header>
+
+    <div class="ba-settings-panel" hidden>
+      <label class="ba-field">
+        <span>Model provider</span>
+        <select class="ba-provider">
+          <option value="openrouter">OpenRouter · free models (recommended)</option>
+          <option value="anthropic">Claude · your API key</option>
+          <option value="openai">OpenAI · your API key</option>
+          <option value="local">In your browser · no key, advanced</option>
+          <option value="other">Custom OpenAI-compatible endpoint</option>
+        </select>
+      </label>
+
+      <label class="ba-field ba-row-openrouter">
+        <span>Free model · <a class="ba-link" href="/#assistant">need a key?</a></span>
+        <select class="ba-or-model"></select>
+      </label>
+
+      <label class="ba-field ba-row-anthropic" hidden>
+        <span>Claude model</span>
+        <select class="ba-anthropic-model">
+          <option value="claude-haiku-4-5">Haiku 4.5 · fast &amp; cheap</option>
+          <option value="claude-sonnet-5">Sonnet 5 · balanced</option>
+          <option value="claude-opus-4-8">Opus 4.8 · most capable</option>
+        </select>
+      </label>
+
+      <label class="ba-field ba-row-openai" hidden>
+        <span>OpenAI model</span>
+        <input class="ba-openai-model" type="text" spellcheck="false" placeholder="gpt-4o-mini" />
+      </label>
+
+      <label class="ba-field ba-row-local" hidden>
+        <span>Size (downloads to your browser)</span>
+        <select class="ba-local-model">
+          <option value="small">Small · ≈0.9 GB, runs on most devices</option>
+          <option value="balanced">Balanced · ≈1.9 GB (recommended)</option>
+          <option value="large">Large · ≈4.3 GB, needs a strong GPU</option>
+        </select>
+      </label>
+
+      <div class="ba-row-other" hidden>
+        <label class="ba-field"><span>Base URL</span><input class="ba-other-base" type="text" spellcheck="false" placeholder="https://…/v1" /></label>
+        <label class="ba-field"><span>Model</span><input class="ba-other-model" type="text" spellcheck="false" /></label>
+      </div>
+
+      <label class="ba-field ba-row-key" hidden>
+        <span>API key</span>
+        <input class="ba-key" type="password" spellcheck="false" autocomplete="off" placeholder="stored only in this browser" />
+      </label>
+
+      <p class="ba-note">
+        Keys are stored only in this browser and sent directly to the provider you pick.
+        In-browser mode sends nothing off your device.
+      </p>
+    </div>
+
+    <div class="ba-status" hidden></div>
+    <div class="ba-messages"></div>
+
+    <form class="ba-input">
+      <textarea class="ba-textarea" rows="2" placeholder="Ask about this chapter…" aria-label="Your question"></textarea>
+      <button type="submit" aria-label="Send">Send</button>
+    </form>
+  </section>
+</div>
+
+<script>
+  import { initBookAssistant } from '../scripts/book-assistant';
+  initBookAssistant();
+</script>
+
+<!-- is:global — messages are built at runtime with createElement/innerHTML, so
+     they never receive Astro's scoping attribute; scoped rules would not match
+     them. All selectors are .ba-prefixed, so global is safe. -->
+<style is:global>
+  .ba-root {
+    --ba-accent: var(--accent, #c65a3a);
+    --ba-ink: var(--ink, #24211d);
+    --ba-paper: var(--paper, #fdfaf4);
+    --ba-line: var(--rule, #e6ddcd);
+    font-family: var(--sans, system-ui, sans-serif);
+  }
+  .ba-root [hidden] { display: none !important; }
+
+  .ba-launcher {
+    position: fixed;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    z-index: 40;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.6rem 0.9rem;
+    border: none;
+    border-radius: 999px;
+    background: var(--ba-accent);
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  }
+  .ba-launcher:hover { filter: brightness(1.05); }
+  .ba-root.ba-open .ba-launcher { display: none; }
+
+  .ba-panel {
+    position: fixed;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    z-index: 41;
+    width: min(25rem, calc(100vw - 2.5rem));
+    height: min(40rem, calc(100vh - 2.5rem));
+    display: flex;
+    flex-direction: column;
+    background: var(--ba-paper);
+    border: 1px solid var(--ba-line);
+    border-radius: 14px;
+    box-shadow: 0 14px 44px rgba(0, 0, 0, 0.22);
+    overflow: hidden;
+  }
+
+  .ba-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 0.85rem;
+    border-bottom: 1px solid var(--ba-line);
+    background: color-mix(in srgb, var(--ba-accent) 8%, var(--ba-paper));
+  }
+  .ba-title { font-weight: 700; color: var(--ba-ink); flex: 1; font-size: 0.95rem; }
+  .ba-head button {
+    border: none; background: transparent; cursor: pointer;
+    font-size: 1rem; color: var(--ba-ink); opacity: 0.7; padding: 0.15rem 0.3rem;
+  }
+  .ba-head button:hover { opacity: 1; }
+
+  .ba-settings-panel {
+    padding: 0.75rem 0.85rem;
+    border-bottom: 1px solid var(--ba-line);
+    background: color-mix(in srgb, var(--ba-accent) 4%, var(--ba-paper));
+    font-size: 0.85rem;
+    max-height: 60%;
+    overflow-y: auto;
+  }
+  .ba-field { display: block; margin-bottom: 0.55rem; }
+  .ba-field > span { display: block; font-weight: 600; margin-bottom: 0.2rem; color: var(--ba-ink); }
+  .ba-field select, .ba-field input {
+    width: 100%; padding: 0.4rem 0.5rem; border: 1px solid var(--ba-line);
+    border-radius: 8px; background: #fff; color: var(--ba-ink); font: inherit;
+  }
+  .ba-note { margin: 0.4rem 0 0; font-size: 0.75rem; opacity: 0.7; }
+
+  .ba-status {
+    padding: 0.7rem 0.85rem; font-size: 0.82rem; line-height: 1.45; color: var(--ba-ink);
+    background: color-mix(in srgb, var(--ba-accent) 6%, var(--ba-paper));
+    border-bottom: 1px solid var(--ba-line);
+  }
+  .ba-link {
+    border: none; background: none; padding: 0; color: var(--ba-accent);
+    font: inherit; text-decoration: underline; cursor: pointer;
+  }
+  .ba-btn {
+    display: inline-block; margin: 0.55rem 0.6rem 0 0; border: none; border-radius: 8px;
+    background: var(--ba-accent); color: #fff; font: inherit; font-weight: 600;
+    font-size: 0.82rem; padding: 0.4rem 0.7rem; cursor: pointer;
+  }
+
+  .ba-messages {
+    flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0.9rem 0.85rem;
+    display: flex; flex-direction: column; gap: 0.85rem;
+    background: color-mix(in srgb, var(--ba-ink) 2.5%, var(--ba-paper));
+  }
+
+  /* Messages: assistant = full-width card under a "PoRA" label, user = compact
+     right-aligned accent bubble. min-width:0 lets bubbles shrink below their
+     content width so wide math/tables scroll instead of overflowing the panel. */
+  .ba-msg { display: flex; flex-direction: column; min-width: 0; }
+  .ba-msg-user { align-items: flex-end; }
+  .ba-sender {
+    font-size: 0.6rem; font-weight: 700; letter-spacing: 0.09em;
+    text-transform: uppercase; margin: 0 0.15rem 0.28rem; user-select: none;
+  }
+  .ba-msg-assistant .ba-sender { color: var(--ba-accent); }
+  .ba-msg-user .ba-sender { color: color-mix(in srgb, var(--ba-ink) 55%, transparent); }
+  .ba-bubble {
+    min-width: 0; max-width: 100%; padding: 0.6rem 0.75rem;
+    font-size: 0.84rem; line-height: 1.55;
+    overflow-wrap: anywhere; overflow-x: auto;
+  }
+  .ba-msg-assistant .ba-bubble {
+    background: #fff; border: 1px solid var(--ba-line); color: var(--ba-ink);
+    border-radius: 10px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+  .ba-msg-user .ba-bubble {
+    max-width: 85%; background: var(--ba-accent); color: #fff;
+    border-radius: 12px 12px 4px 12px; white-space: pre-wrap;
+  }
+  .ba-msg.ba-error .ba-bubble { background: #fff; border-color: #d9534f; color: #a3352f; }
+
+  /* Rendered Markdown inside assistant bubbles */
+  .ba-bubble > :first-child { margin-top: 0; }
+  .ba-bubble > :last-child { margin-bottom: 0; }
+  .ba-bubble p, .ba-bubble ul, .ba-bubble ol { margin: 0 0 0.5rem; }
+  .ba-bubble h1, .ba-bubble h2, .ba-bubble h3, .ba-bubble h4 {
+    font-size: 0.9rem; margin: 0.55rem 0 0.3rem; font-weight: 700;
+  }
+  .ba-bubble ul, .ba-bubble ol { padding-left: 1.2rem; }
+  .ba-bubble li { margin: 0.15rem 0; }
+  .ba-bubble a { color: var(--ba-accent); }
+  .ba-bubble code {
+    background: rgba(0, 0, 0, 0.05); padding: 0.05rem 0.3rem; border-radius: 4px;
+    font-family: var(--mono, ui-monospace, monospace); font-size: 0.82em;
+  }
+  .ba-bubble pre {
+    background: #1e2530; color: #e6edf3; padding: 0.6rem 0.7rem; border-radius: 8px;
+    overflow-x: auto; font-size: 0.8em; margin: 0 0 0.5rem;
+  }
+  .ba-bubble pre code { background: none; padding: 0; color: inherit; }
+  /* Wide content scrolls within its own block instead of stretching the bubble. */
+  .ba-bubble .katex-display {
+    overflow-x: auto; overflow-y: hidden;
+    padding: 0.3rem 0.1rem; margin: 0.35rem 0 0.55rem;
+  }
+  .ba-bubble .katex { max-width: 100%; }
+  .ba-bubble table {
+    display: block; max-width: 100%; overflow-x: auto;
+    border-collapse: collapse; margin: 0.35rem 0 0.55rem;
+    font-size: 0.92em; line-height: 1.45;
+  }
+  .ba-bubble th, .ba-bubble td {
+    border: 1px solid var(--ba-line); padding: 0.3rem 0.55rem; text-align: left;
+  }
+  .ba-bubble th {
+    background: color-mix(in srgb, var(--ba-accent) 6%, #fff);
+    font-weight: 700;
+  }
+  .ba-bubble tr:nth-child(even) td { background: color-mix(in srgb, var(--ba-ink) 2.5%, #fff); }
+
+  /* Typing indicator */
+  .ba-typing { display: inline-flex; gap: 4px; padding: 0.1rem 0; }
+  .ba-typing i {
+    width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+    opacity: 0.35; animation: ba-bounce 1s infinite;
+  }
+  .ba-typing i:nth-child(2) { animation-delay: 0.15s; }
+  .ba-typing i:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes ba-bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.35; } 30% { transform: translateY(-4px); opacity: 0.9; } }
+
+  .ba-input {
+    display: flex; gap: 0.5rem; padding: 0.7rem; border-top: 1px solid var(--ba-line);
+  }
+  .ba-textarea {
+    flex: 1; resize: none; padding: 0.5rem 0.6rem; border: 1px solid var(--ba-line);
+    border-radius: 10px; font: inherit; font-size: 0.84rem; background: #fff; color: var(--ba-ink);
+  }
+  .ba-input button {
+    align-self: flex-end; border: none; border-radius: 10px; background: var(--ba-accent);
+    color: #fff; font-weight: 600; padding: 0.5rem 0.85rem; cursor: pointer;
+  }
+  .ba-input.ba-busy button { opacity: 0.5; pointer-events: none; }
+
+  @media (max-width: 62rem) {
+    .ba-panel { right: 0; bottom: 0; width: 100vw; height: 88vh; border-radius: 14px 14px 0 0; }
+  }
+</style>

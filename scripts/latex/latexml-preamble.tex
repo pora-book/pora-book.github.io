@@ -129,8 +129,10 @@
 \lstnewenvironment{gencode}[1][]{\lstset{#1}}{}
 \newcommand{\pythonexternal}[2][]{\lstinputlisting[language=Python,#1]{#2}}
 \newcommand{\pythoninline}[1]{\lstinline!#1!}
-% "listing" float used by the book for code blocks.
-\newfloat{listing}{tbp}{lol}[section]
+% "listing" float used by the book for code blocks (print calls it "Algorithm").
+% Numbered continuously per chapter (the converter sets \thelisting = "N.M");
+% dropping the [section] reset avoids the counter restarting and colliding.
+\newfloat{listing}{tbp}{lol}
 \floatname{listing}{Algorithm}
 
 % ---- algorithms: the book mixes algorithm2e and algpseudocode ----

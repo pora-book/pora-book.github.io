@@ -9,12 +9,20 @@ const released = chapters.filter((c) => c.lecture);
 ---
 <BaseLayout title="Lectures" active="lectures" description="Stanford lecture recordings aligned to Principles of Robot Autonomy.">
   <div class="prose-wrap" style="padding-top:2.5rem">
-    <span class="chip">Watch</span>
     <h1 style="font-size:2.2rem;margin:1rem 0 0.5rem">Lectures</h1>
-    <p style="color:var(--muted);max-width:52ch">
+    <p style="color:var(--muted);max-width:104ch">
       Stanford lecture recordings aligned to the book's chapters.
       {released.length === 0
-        ? ' Recordings are being released progressively during the winter quarter — this page will fill in automatically as they go live.'
+        ? (
+          <Fragment>
+            {' '}Recordings are being released progressively over the coming months. Check back soon!
+            For all other class-related materials, such as lecture slides, homeworks, suggested readings,
+            and more, see the course websites:{' '}
+            <a href="https://stanfordasl.github.io/aa174a/" target="_blank" rel="noopener">Stanford AA174A</a>
+            {' '}and{' '}
+            <a href="https://stanfordasl.github.io/aa203/" target="_blank" rel="noopener">Stanford AA203</a>.
+          </Fragment>
+        )
         : ` ${released.length} of ${chapters.length} chapters have recordings available.`}
     </p>
 
