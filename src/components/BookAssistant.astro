@@ -28,14 +28,16 @@ const { chapterTitle, chapterSlug } = Astro.props;
           <option value="anthropic">Claude · your API key</option>
           <option value="openai">OpenAI · your API key</option>
           <option value="local">In your browser · no key, advanced</option>
-          <option value="other">Custom OpenAI-compatible endpoint</option>
         </select>
       </label>
 
-      <label class="ba-field ba-row-openrouter">
-        <span>Free model · <a class="ba-link" href="/#assistant">need a key?</a></span>
-        <select class="ba-or-model"></select>
-      </label>
+      <div class="ba-row-openrouter">
+        <label class="ba-field">
+          <span>Free model</span>
+          <select class="ba-or-model"></select>
+        </label>
+        <button class="ba-btn ba-connect-or" type="button">Connect with OpenRouter</button>
+      </div>
 
       <label class="ba-field ba-row-anthropic" hidden>
         <span>Claude model</span>
@@ -48,7 +50,11 @@ const { chapterTitle, chapterSlug } = Astro.props;
 
       <label class="ba-field ba-row-openai" hidden>
         <span>OpenAI model</span>
-        <input class="ba-openai-model" type="text" spellcheck="false" placeholder="gpt-4o-mini" />
+        <select class="ba-openai-model">
+          <option value="gpt-5.4-nano">GPT-5.4 nano · fast &amp; cheap</option>
+          <option value="gpt-5.4-mini">GPT-5.4 mini · balanced</option>
+          <option value="gpt-5.5">GPT-5.5 · most capable</option>
+        </select>
       </label>
 
       <label class="ba-field ba-row-local" hidden>
@@ -60,19 +66,15 @@ const { chapterTitle, chapterSlug } = Astro.props;
         </select>
       </label>
 
-      <div class="ba-row-other" hidden>
-        <label class="ba-field"><span>Base URL</span><input class="ba-other-base" type="text" spellcheck="false" placeholder="https://…/v1" /></label>
-        <label class="ba-field"><span>Model</span><input class="ba-other-model" type="text" spellcheck="false" /></label>
-      </div>
-
       <label class="ba-field ba-row-key" hidden>
         <span>API key</span>
         <input class="ba-key" type="password" spellcheck="false" autocomplete="off" placeholder="stored only in this browser" />
       </label>
 
       <p class="ba-note">
-        Keys are stored only in this browser and sent directly to the provider you pick.
-        In-browser mode sends nothing off your device.
+        Keys are stored only in this browser and sent directly to the provider you pick —
+        this site has no server. In-browser mode sends nothing off your device.
+        <a class="ba-link" href="/#api-key-safety">How keys are handled</a>
       </p>
     </div>
 

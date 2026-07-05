@@ -3,17 +3,15 @@
 // settings + the system prompt here means the key a reader saves on the homepage
 // is the same one the chapter chat reads (same origin, same localStorage key).
 
-export type Provider = 'openrouter' | 'anthropic' | 'openai' | 'local' | 'other';
+export type Provider = 'openrouter' | 'anthropic' | 'openai' | 'local';
 
 export interface Settings {
   provider: Provider;
   openrouterModel: string;
   anthropicModel: string;
   openaiModel: string;
-  otherModel: string;
-  otherBaseUrl: string;
   localModel: 'small' | 'balanced' | 'large';
-  keys: { openrouter: string; anthropic: string; openai: string; other: string };
+  keys: { openrouter: string; anthropic: string; openai: string };
 }
 
 export const STORAGE_KEY = 'pora-assistant-settings';
@@ -31,7 +29,6 @@ export const PROVIDER_LABELS: Record<Provider, string> = {
   anthropic: 'Claude · your API key',
   openai: 'OpenAI · your API key',
   local: 'In your browser · no key, advanced',
-  other: 'Custom OpenAI-compatible endpoint',
 };
 
 export interface LocalModel {
@@ -50,11 +47,9 @@ export const DEFAULT_SETTINGS: Settings = {
   provider: 'openrouter',
   openrouterModel: FALLBACK_FREE_MODEL,
   anthropicModel: 'claude-haiku-4-5',
-  openaiModel: 'gpt-4o-mini',
-  otherModel: '',
-  otherBaseUrl: '',
+  openaiModel: 'gpt-5.4-mini',
   localModel: 'balanced',
-  keys: { openrouter: '', anthropic: '', openai: '', other: '' },
+  keys: { openrouter: '', anthropic: '', openai: '' },
 };
 
 export function loadSettings(): Settings {
@@ -62,11 +57,15 @@ export function loadSettings(): Settings {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULT_SETTINGS };
     const parsed = JSON.parse(raw);
-    return {
+    const s: Settings = {
       ...DEFAULT_SETTINGS,
       ...parsed,
       keys: { ...DEFAULT_SETTINGS.keys, ...(parsed.keys || {}) },
     };
+    // Settings saved by older versions may reference the removed custom-endpoint
+    // provider — fall back to the default rather than a provider we can't serve.
+    if (!(s.provider in PROVIDER_LABELS)) s.provider = DEFAULT_SETTINGS.provider;
+    return s;
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
@@ -86,6 +85,79 @@ export function saveSettings(s: Settings) {
 export function isConfigured(s: Settings): boolean {
   if (s.provider === 'local') return true;
   return !!(s.keys[s.provider] && s.keys[s.provider].trim());
+}
+
+// ---- OpenRouter one-click connect (OAuth PKCE) ------------------------------
+// https://openrouter.ai/docs/use-cases/oauth-pkce — designed for public clients
+// with no backend: we redirect to openrouter.ai, the reader approves, and we
+// exchange the returned ?code= for an app-scoped API key entirely client-side.
+// The reader never sees or pastes a key, and can revoke it from their
+// OpenRouter dashboard at any time.
+
+const PKCE_VERIFIER_KEY = 'pora-or-pkce-verifier';
+
+function base64url(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+// Save any pending settings, then leave for openrouter.ai. OpenRouter redirects
+// back to this same page with ?code=…, which completeOpenRouterConnect() picks up.
+export async function startOpenRouterConnect(): Promise<void> {
+  const verifier = base64url(crypto.getRandomValues(new Uint8Array(32)));
+  let challengeParams = '';
+  try {
+    // The verifier must survive the round-trip to openrouter.ai. If storage is
+    // unavailable (strict private mode), use the plain flow instead — a
+    // challenge we can no longer answer would make the exchange impossible.
+    sessionStorage.setItem(PKCE_VERIFIER_KEY, verifier);
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+    challengeParams = `&code_challenge=${base64url(new Uint8Array(digest))}&code_challenge_method=S256`;
+  } catch {
+    /* plain flow */
+  }
+  const callback = `${location.origin}${location.pathname}`;
+  location.href = `https://openrouter.ai/auth?callback_url=${encodeURIComponent(callback)}${challengeParams}`;
+}
+
+// Call on page load. Returns false when the URL carries no OAuth code (the
+// common case); on success the key is already saved and the provider switched
+// to OpenRouter. Throws with a readable message if the exchange fails.
+export async function completeOpenRouterConnect(): Promise<boolean> {
+  const params = new URLSearchParams(location.search);
+  const code = params.get('code');
+  if (!code) return false;
+  // Strip the single-use code from the URL first so a reload/bookmark doesn't
+  // retry a spent code.
+  params.delete('code');
+  const qs = params.toString();
+  history.replaceState(null, '', `${location.pathname}${qs ? `?${qs}` : ''}${location.hash}`);
+  let verifier: string | null = null;
+  try {
+    verifier = sessionStorage.getItem(PKCE_VERIFIER_KEY);
+    sessionStorage.removeItem(PKCE_VERIFIER_KEY);
+  } catch {
+    /* ignore */
+  }
+  const res = await fetch(`${OPENROUTER_BASE}/auth/keys`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(
+      verifier ? { code, code_verifier: verifier, code_challenge_method: 'S256' } : { code }
+    ),
+  });
+  if (!res.ok) {
+    throw new Error(`Connecting to OpenRouter failed (${res.status}). Please try again.`);
+  }
+  const json = await res.json().catch(() => ({}));
+  if (!json.key) throw new Error('OpenRouter did not return a key. Please try connecting again.');
+  const s = loadSettings();
+  s.provider = 'openrouter';
+  s.keys.openrouter = json.key;
+  saveSettings(s);
+  return true;
 }
 
 // Fetch the currently-available free models from OpenRouter (public endpoint, no

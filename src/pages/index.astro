@@ -9,36 +9,36 @@ const authors = [
     name: 'Daniele Gammelli',
     slug: 'gammelli',
     url: 'https://danielegammelli.github.io/',
-    affiliation: 'Stanford University',
-    bio: 'Postdoctoral Scholar in Aeronautics & Astronautics at Stanford (PhD, Technical University of Denmark). Works on the algorithmic foundations of Physical AI for safe, reliable robotics, with an emphasis on aerospace autonomy and next-generation mobility.',
+    affiliation: 'Stanford University · Italian Institute of Artificial Intelligence (AI4I)',
+    bio: 'Dr. Daniele Gammelli is a Postdoctoral Scholar in Aeronautics and Astronautics at Stanford University and an incoming Research Director at the Italian Institute of Artificial Intelligence (AI4I). He holds a Ph.D. from the Technical University of Denmark. His research develops the algorithmic foundations of Physical AI for safe, efficient, and reliable robotic systems, with particular emphasis on aerospace autonomy and next-generation mobility systems.',
   },
   {
     name: 'Joseph Lorenzetti',
     slug: 'lorenzetti',
     url: 'https://www.linkedin.com/in/josephlorenzetti/',
     affiliation: 'Zoox',
-    bio: 'Senior Software Engineer on the Autonomy Behaviors team at Zoox (PhD, Aeronautics & Astronautics, Stanford; NDSEG Fellow). Develops decision-making algorithms for autonomous vehicles deployed in the real world.',
+    bio: 'Joseph Lorenzetti received a Ph.D. in Aeronautics and Astronautics from Stanford University, where they were supported by the National Defense Science and Engineering Graduate Fellowship. They currently work at Zoox on the Autonomy Behaviors team, developing decision-making algorithms for autonomous vehicles deployed in the real world.',
   },
   {
     name: 'Katie Luo',
     slug: 'luo',
     url: 'https://www.cs.cornell.edu/~katieluo/',
     affiliation: 'Stanford University',
-    bio: 'Postdoctoral Researcher at Stanford (PhD, Cornell; NVIDIA Fellow, AAUW American Doctoral Fellow). Research on the visual understanding of the world — 3D perception and multi-modal learning.',
+    bio: "Katie Luo received her PhD from Cornell University's Ann S. Bowers College of Computing and Information Science, where she was an NVIDIA Fellow and an AAUW American Doctoral Fellow, and subsequently held a postdoctoral position at Stanford University's Department of Aeronautics and Astronautics. Her research focuses on the visual understanding of the world, including 3D perception and multi-modal learning, combining visual data with other sensory inputs to enhance environmental understanding. She has published widely across these areas, and notably authored several pioneering works in 3D object discovery.",
   },
   {
     name: 'Gioele Zardini',
     slug: 'zardini',
     url: 'https://gioele.science/',
     affiliation: 'MIT',
-    bio: 'Rudge (1948) and Nancy Allen Career Development Professor at MIT (LIDS, CEE, IDSS). Builds computational and algorithmic tools for designing complex interconnected systems and autonomous decision-making; created the Autonomy Talks series.',
+    bio: 'Gioele Zardini is the Rudge (1948) and Nancy Allen Career Development Professor at MIT, with affiliations in LIDS, CEE, and IDSS. His research develops computational and algorithmic tools for designing complex interconnected systems and autonomous decision-making, spanning robot autonomy, mobility, control, game theory, and compositional engineering. He created Autonomy Talks series.',
   },
   {
     name: 'Marco Pavone',
     slug: 'pavone',
     url: 'https://web.stanford.edu/~pavone/',
     affiliation: 'Stanford University · NVIDIA',
-    bio: 'Associate Professor of Aeronautics & Astronautics at Stanford and Senior Director of Autonomous Vehicle Research at NVIDIA (PhD, MIT). Research on Physical AI; recipient of the Presidential Early Career Award for Scientists and Engineers.',
+    bio: 'Dr. Marco Pavone is an Associate Professor of Aeronautics and Astronautics at Stanford University and a Senior Director of Autonomous Vehicle Research at NVIDIA. He earned his Ph.D. from the Massachusetts Institute of Technology in 2010. His research focuses on Physical AI, and he has received numerous honors, including the Presidential Early Career Award for Scientists and Engineers.',
   },
 ];
 
@@ -52,15 +52,11 @@ const bibtex = `@book{pora,
 ---
 <BaseLayout description="The official companion site for Principles of Robot Autonomy — the full book online, interactive exercises, and lecture recordings on how modern autonomous robots perceive, decide, and act.">
   <section class="home-hero prose-wrap">
-    <figure class="cover-figure">
-      <picture>
-        <source srcset="/pora-cover.webp" type="image/webp" />
-        <img src="/pora-cover.jpg" width="900" height="1286"
-             alt="Cover of Principles of Robot Autonomy" loading="eager" />
-      </picture>
-    </figure>
     <div class="home-hero-copy">
-      <h1>Welcome to the official webpage for <em>Principles of Robot Autonomy</em>!</h1>
+      <h1>
+        <span class="hello">Welcome to the official webpage for</span>
+        <span class="book-title"><em>Principles of Robot Autonomy</em></span>
+      </h1>
       <p class="lead">
         Robotics and Physical AI are among the most exciting frontiers in science and engineering today.
         The pace of progress is extraordinary, with new ideas emerging and being deployed at an unprecedented rate.
@@ -77,35 +73,59 @@ const bibtex = `@book{pora,
         The book is published by <strong>Cambridge University Press</strong> and will soon be available in print. We’ll share ordering information here as soon as it becomes available. 
         In the meantime, this website brings everything together in one place, including the complete text, interactive exercises, and lecture recordings.
       </p>
+      <p class="instructor-note">
+        <strong>Want to build your own course around PoRA?</strong> If you’re a professor, lecturer, or instructor at any level,
+        the <a href="/instructors/">For Instructors</a> page gathers all the resources you need.
+      </p>
+      <div class="hero-ctas">
+        <a class="btn primary" href="/book/">Start reading</a>
+        <a class="btn" href="/exercises/">Exercises</a>
+      </div>
     </div>
-    <div class="hero-links">
-      {/* TODO: point at the book's arXiv page once the preprint is live. */}
-      <a class="hero-link" href="https://arxiv.org" target="_blank" rel="noopener">
-        <img src="/logos/arxiv.svg" alt="arXiv" width="18" height="18" loading="lazy" />
-        <span>Open-access version</span>
-      </a>
-      <span class="hero-link">
-        <img src="/logos/stanford.svg" alt="Stanford" width="12" height="18" loading="lazy" />
-        <span>Stanford classes:
-          <a href="https://stanfordasl.github.io/aa174a/" target="_blank" rel="noopener">AA174A</a> ·
-          <a href="https://stanfordasl.github.io/aa203/" target="_blank" rel="noopener">AA203</a>
-        </span>
-      </span>
-      <a class="hero-link" href="https://github.com/StanfordASL/pora-exercises" target="_blank" rel="noopener">
-        <img src="/logos/github.svg" alt="GitHub" width="18" height="18" loading="lazy" />
-        <span>Hands-on exercises</span>
-      </a>
-    </div>
+    <figure class="cover-figure">
+      <picture>
+        <source srcset="/pora-cover.webp" type="image/webp" />
+        <img src="/pora-cover.jpg" width="900" height="1286"
+             alt="Cover of Principles of Robot Autonomy" loading="eager" />
+      </picture>
+    </figure>
   </section>
 
+  <div class="hero-links">
+    {/* TODO: point at the book's arXiv page once the preprint is live. */}
+    <a class="hero-link" href="https://arxiv.org" target="_blank" rel="noopener">
+      <img src="/logos/arxiv.svg" alt="arXiv" width="18" height="18" loading="lazy" />
+      <span>Open-access version</span>
+    </a>
+    <span class="hero-link hero-link-classes">
+      <img src="/logos/stanford.svg" alt="Stanford" width="12" height="18" loading="lazy" />
+      <span class="hero-link-label">Stanford classes:</span>
+      <a href="https://stanfordasl.github.io/aa174a/" target="_blank" rel="noopener">Principles of Robot Autonomy I</a>
+      <span class="dot" aria-hidden="true">·</span>
+      <a href="https://stanfordasl.github.io/aa203/" target="_blank" rel="noopener">Optimal and Learning-Based Control</a>
+    </span>
+    <a class="hero-link" href="https://github.com/StanfordASL/pora-exercises" target="_blank" rel="noopener">
+      <img src="/logos/github.svg" alt="GitHub" width="18" height="18" loading="lazy" />
+      <span>Hands-on exercises</span>
+    </a>
+  </div>
+
   <div class="prose-wrap">
-    <section class="home-authors">
+    <nav class="section-nav" aria-label="On this page">
+      <a href="#authors">Who we are</a>
+      <a href="#why">Why we wrote it</a>
+      <a href="#site">What's on this site</a>
+      <a href="#assistant">Ask the Book: Your AI Tutor</a>
+      <a href="#cite">Bibtex</a>
+    </nav>
+  </div>
+
+  <div class="prose-wrap">
+    <section class="home-authors" id="authors">
       <h2>Who we are</h2>
       <p class="home-authors-intro">
-        We are active researchers and engineers whose work spans self-driving cars,
-        aerial vehicles, space robotics, and large-scale robot systems. The book grew out
-        of the <em>Principles of Robot Autonomy</em> course series (AA174A/AA274A and
-        AA274B), which has been taught at Stanford since 2017 and refined each year through feedback from hundreds of students and course assistants, 
+        We are active researchers and engineers whose work spans self-driving cars, aerospace robotics, robotic systems, and Physical AI broadly.
+        The book grew out of the <em>Principles of Robot Autonomy</em> course series, which has been taught at Stanford since 2017 and refined each year through feedback from hundreds of students and course assistants, 
         as well as through our own experience designing, building, and deploying autonomous systems in the real world. 
         We are deeply grateful to the many students, teaching assistants, and collaborators whose ideas, questions, and contributions have shaped both the course and this book.
       </p>
@@ -150,7 +170,7 @@ const bibtex = `@book{pora,
       <p>
         Moreover, the existing literature largely reflects the historical divisions of the field rather than the integrated nature of modern autonomy stacks. Classical robotics textbooks provide excellent treatments of modeling, control, motion planning, and state estimation, but many were written before deep learning became a central component of perception and decision-making. Conversely, recent books on machine learning and embodied AI cover modern learning techniques in depth, yet often devote comparatively little attention to the dynamics, control theory, and state estimation methods that ultimately determine whether a learned policy can operate reliably on real hardware.
 
-        Practitioners building autonomous systems cannot afford this separation. A self-driving car depends on both geometric perception <strong>and</strong> learned object detection, as well as model-based trajectory optimization <strong>and</strong> learned behavior prediction. Our goal is to present these ideas within a single, coherent framework, rather than forcing readers to assemble them from disparate sources that often employ inconsistent notation, assumptions, and perspectives.
+        Practitioners building autonomous systems cannot afford this separation. A self-driving car depends on both geometric perception and learned object detection, as well as model-based trajectory optimization and learned behavior prediction. Our goal is to present these ideas within a single, coherent framework, rather than forcing readers to assemble them from disparate sources that often employ inconsistent notation, assumptions, and perspectives.
       </p>
       <p>
         Finally, robot autonomy is fundamentally a practical discipline. Real

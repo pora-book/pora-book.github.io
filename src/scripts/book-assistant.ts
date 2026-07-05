@@ -18,6 +18,8 @@ import {
   isConfigured,
   fetchOpenRouterFreeModels,
   buildSystemPrompt,
+  startOpenRouterConnect,
+  completeOpenRouterConnect,
 } from './assistant-config';
 
 interface ChatMessage {
@@ -307,10 +309,8 @@ async function streamOpenAICompatible(
   history: ChatMessage[],
   onDelta: OnDelta
 ): Promise<boolean> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${apiKey}`,
-  };
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
   if (baseUrl.includes('openrouter')) {
     headers['HTTP-Referer'] = location.origin;
     headers['X-Title'] = 'Principles of Robot Autonomy';
@@ -383,10 +383,7 @@ export function initBookAssistant() {
   const anthropicRow = $('.ba-row-anthropic');
   const anthropicSel = $('.ba-anthropic-model') as HTMLSelectElement;
   const openaiRow = $('.ba-row-openai');
-  const openaiInput = $('.ba-openai-model') as HTMLInputElement;
-  const otherRow = $('.ba-row-other');
-  const otherBaseInput = $('.ba-other-base') as HTMLInputElement;
-  const otherModelInput = $('.ba-other-model') as HTMLInputElement;
+  const openaiSel = $('.ba-openai-model') as HTMLSelectElement;
   const keyRow = $('.ba-row-key');
   const keyInput = $('.ba-key') as HTMLInputElement;
 
@@ -402,15 +399,14 @@ export function initBookAssistant() {
     providerSel.value = settings.provider;
     localSel.value = settings.localModel;
     anthropicSel.value = settings.anthropicModel;
-    openaiInput.value = settings.openaiModel;
-    otherBaseInput.value = settings.otherBaseUrl;
-    otherModelInput.value = settings.otherModel;
+    openaiSel.value = settings.openaiModel;
+    // A model saved by an older version may no longer be in the list.
+    if (openaiSel.value !== settings.openaiModel) openaiSel.selectedIndex = 0;
     const p = settings.provider;
     orRow.hidden = p !== 'openrouter';
     localRow.hidden = p !== 'local';
     anthropicRow.hidden = p !== 'anthropic';
     openaiRow.hidden = p !== 'openai';
-    otherRow.hidden = p !== 'other';
     keyRow.hidden = p === 'local';
     if (p !== 'local') keyInput.value = settings.keys[p] || '';
     if (p === 'openrouter') ensureOrModels();
@@ -421,9 +417,7 @@ export function initBookAssistant() {
     settings.localModel = localSel.value as Settings['localModel'];
     if (orModelSel.value) settings.openrouterModel = orModelSel.value;
     settings.anthropicModel = anthropicSel.value;
-    settings.openaiModel = openaiInput.value.trim() || 'gpt-4o-mini';
-    settings.otherBaseUrl = otherBaseInput.value.trim();
-    settings.otherModel = otherModelInput.value.trim();
+    settings.openaiModel = openaiSel.value;
     if (settings.provider !== 'local') settings.keys[settings.provider] = keyInput.value.trim();
     saveSettings(settings);
   }
@@ -484,11 +478,14 @@ export function initBookAssistant() {
 
   function renderSetupCard() {
     setStatus(
-      `<strong>One quick setup.</strong> The assistant answers with a free AI model — you just ` +
-        `need a free key. It takes ~2 minutes: <a class="ba-link" href="/#assistant">open the setup guide</a>, ` +
-        `create a free <strong>OpenRouter</strong> key, and paste it in ` +
-        `<button class="ba-link ba-open-settings" type="button">⚙ settings</button>. ` +
-        `Prefer Claude/OpenAI or running a model locally? Choose that in settings instead.`
+      `<strong>One-time setup.</strong> The assistant answers with a free AI model via ` +
+        `OpenRouter — no key to copy or paste. New to OpenRouter? ` +
+        `<a class="ba-link" href="https://openrouter.ai/sign-up" target="_blank" rel="noopener">create a ` +
+        `free account</a> first (in a new tab), come back, then:<br>` +
+        `<button class="ba-btn ba-connect-or" type="button">Connect with OpenRouter</button>` +
+        `<br>Prefer Claude/OpenAI, your own key, or running a model locally? Choose that in ` +
+        `<button class="ba-link ba-open-settings" type="button">⚙ settings</button> · ` +
+        `<a class="ba-link" href="/#api-key-safety">how keys are handled</a>`
     );
   }
 
@@ -533,11 +530,8 @@ export function initBookAssistant() {
       return streamAnthropic(system, history, settings.anthropicModel, settings.keys.anthropic, onDelta);
     } else if (provider === 'openrouter') {
       return streamOpenAICompatible(OPENROUTER_BASE, settings.keys.openrouter, settings.openrouterModel, system, history, onDelta);
-    } else if (provider === 'openai') {
-      return streamOpenAICompatible(OPENAI_BASE, settings.keys.openai, settings.openaiModel, system, history, onDelta);
     } else {
-      if (!settings.otherBaseUrl) throw new Error('Set a base URL for the custom endpoint in settings.');
-      return streamOpenAICompatible(settings.otherBaseUrl, settings.keys.other, settings.otherModel, system, history, onDelta);
+      return streamOpenAICompatible(OPENAI_BASE, settings.keys.openai, settings.openaiModel, system, history, onDelta);
     }
   }
 
@@ -676,6 +670,11 @@ export function initBookAssistant() {
   root.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
     if (t.classList.contains('ba-open-settings')) settingsPanel.hidden = false;
+    if (t.classList.contains('ba-connect-or')) {
+      (t as HTMLButtonElement).disabled = true;
+      t.textContent = 'Taking you to openrouter.ai…';
+      startOpenRouterConnect();
+    }
     if (t.classList.contains('ba-continue')) {
       setStatus(null);
       handleSend('Continue your previous answer exactly where it left off. Do not repeat what you already wrote.', true);
@@ -693,7 +692,7 @@ export function initBookAssistant() {
     reflectSettingsToUI();
     if (messagesEl.childElementCount === 0) maybeShowIntro();
   });
-  [orModelSel, localSel, anthropicSel, openaiInput, otherBaseInput, otherModelInput, keyInput].forEach((el) =>
+  [orModelSel, localSel, anthropicSel, openaiSel, keyInput].forEach((el) =>
     el.addEventListener('change', () => {
       readSettingsFromUI();
       if (messagesEl.childElementCount === 0) maybeShowIntro();
@@ -714,4 +713,32 @@ export function initBookAssistant() {
   });
 
   reflectSettingsToUI();
+
+  // Coming back from openrouter.ai via the back button restores the page from
+  // the bfcache with any Connect button still disabled — reset them.
+  window.addEventListener('pageshow', (e) => {
+    if (!e.persisted) return;
+    root.querySelectorAll<HTMLButtonElement>('.ba-connect-or').forEach((b) => {
+      b.disabled = false;
+      b.textContent = 'Connect with OpenRouter';
+    });
+  });
+
+  // Returning from a "Connect with OpenRouter" round-trip started on this page:
+  // finish the key exchange, then reopen the chat ready to use.
+  completeOpenRouterConnect()
+    .then((connected) => {
+      if (!connected) return;
+      settings = loadSettings();
+      reflectSettingsToUI();
+      openPanel();
+      setStatus(`✓ Connected to OpenRouter. Ask anything about <strong>${chapterTitle}</strong>.`);
+    })
+    .catch((err) => {
+      openPanel();
+      setStatus(
+        `⚠️ ${err?.message || 'Connecting to OpenRouter failed.'} ` +
+          `<button class="ba-btn ba-connect-or" type="button">Try again</button>`
+      );
+    });
 }

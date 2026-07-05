@@ -1,8 +1,10 @@
 ---
 // Homepage section advertising the "Ask the book" assistant and walking the
-// reader through the one-time free-key setup. Saves to the same localStorage the
-// chapter chat reads (see ../scripts/assistant-config.ts), so once set up here
-// the assistant is active on every chapter page.
+// reader through the one-time setup. Primary path is one-click OAuth with
+// OpenRouter (no key to copy or paste); pasting a key manually is the advanced
+// fallback. Saves to the same localStorage the chapter chat reads (see
+// ../scripts/assistant-config.ts), so once set up here the assistant is active
+// on every chapter page.
 ---
 
 <section class="home-assistant" id="assistant">
@@ -19,39 +21,35 @@
     There are two ways to use the assistant:
   </p>
   <p>
-    <strong>1. Run a model locally.</strong><br>
-    If you have a compatible GPU, you can download and run an open-source language model
-    directly on your own machine. This option offers complete privacy and does not require
-    any external API.
+    <strong>1. Connect an AI provider.</strong><br>
+    The quickest way to get started: connect a free
+    <a href="https://openrouter.ai" target="_blank" rel="noopener">OpenRouter</a> account
+    with one click below. OpenRouter offers free access to a
+    wide range of open-source models (and, optionally, paid access to frontier models such
+    as Claude or GPT through the same account). You can also bring your own API key from
+    OpenAI, Anthropic, or any other supported provider. The assistant will use the model you choose to answer your questions.
   </p>
   <p>
-    <strong>2. Connect your own AI provider.</strong><br>
-    You can use any compatible API key from providers such as OpenAI, Anthropic (Claude),
-    Google Gemini, OpenRouter, or any other OpenAI-compatible service. Your API key is
-    stored only in your browser and is sent directly to the provider you choose.
-  </p>
-  <p class="home-assistant-how">
-    For most readers, we recommend the second option using
-    <a href="https://openrouter.ai" target="_blank" rel="noopener">OpenRouter</a>.
-    It provides free access to a wide range of open-source models and is the quickest way
-    to get started.
+    <strong>2. Run a model locally.</strong><br>
+    If you have a compatible GPU, you can download and run an open-source language model
+    directly on your own machine. This option offers complete privacy and does not require
+    any account or API. Go to any chapter page and choose <strong>In your browser</strong> in the assistant's ⚙ settings.
   </p>
 
-  <h3>Getting started with OpenRouter (about 2 minutes)</h3>
+  <h3>Getting started (about a minute)</h3>
   <ol class="setup-steps">
     <li>
-      Create a free account at
-      <a href="https://openrouter.ai" target="_blank" rel="noopener">openrouter.ai</a>.
+      <strong>New to OpenRouter?</strong>
+      <a href="https://openrouter.ai/sign-up" target="_blank" rel="noopener">Create a free
+      account</a> first (opens in a new tab; if it offers you an API key along the way,
+      store it, but you won't need it for this setup), then come back to this page. Already have an account? Skip ahead.
     </li>
     <li>
-      Visit
-      <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>
-      and create a new API key. It will look something like <code>sk-or-...</code>.
-    </li>
-    <li>Copy the API key.</li>
-    <li>
-      Return to this page, choose a model below, paste your key, and click
-      <strong>Save &amp; activate</strong>.
+      Pick a model and click <strong>Connect with OpenRouter</strong> below. You'll approve
+      the connection on openrouter.ai with one click and be sent straight back here, ready
+      to go. The connection creates a key scoped to this site, which you can view, limit,
+      or revoke at any time from your
+      <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener">OpenRouter dashboard</a>.
     </li>
   </ol>
 
@@ -60,12 +58,55 @@
       <span>Free model</span>
       <select id="sg-model"><option>Loading free models…</option></select>
     </label>
-    <label class="setup-field">
-      <span>OpenRouter API key</span>
-      <input id="sg-key" type="password" spellcheck="false" autocomplete="off" placeholder="sk-or-…" />
-    </label>
-    <button id="sg-save" type="button">Save &amp; activate</button>
+    <button id="sg-connect" type="button">Connect with OpenRouter</button>
     <p id="sg-status" class="setup-status" role="status"></p>
+
+    <details class="setup-manual">
+      <summary>Prefer to use your Claude, OpenAI, or other supported provider via API key?</summary>
+      <p class="setup-manual-hint">
+        Choose a provider and paste one of its API keys. We want to stress that your key is
+        stored only in <strong>your browser</strong> (for details, see <a href="#api-key-safety">API key safety</a>).
+        For OpenRouter, create a key at
+        <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener">openrouter.ai/settings/keys</a>;
+        if OpenRouter already showed you a key during sign-up, you can paste that one.
+      </p>
+      <label class="setup-field">
+        <span>Provider</span>
+        <select id="sg-provider">
+          <option value="openrouter">OpenRouter</option>
+          <option value="anthropic">Claude (Anthropic)</option>
+          <option value="openai">OpenAI</option>
+        </select>
+      </label>
+      <label class="setup-field" id="sg-row-anthropic" hidden>
+        <span>Claude model</span>
+        <select id="sg-anthropic-model">
+          <option value="claude-haiku-4-5">Haiku 4.5 · fast &amp; cheap</option>
+          <option value="claude-sonnet-5">Sonnet 5 · balanced</option>
+          <option value="claude-opus-4-8">Opus 4.8 · most capable</option>
+        </select>
+      </label>
+      <label class="setup-field" id="sg-row-openai" hidden>
+        <span>OpenAI model</span>
+        <select id="sg-openai-model">
+          <option value="gpt-5.4-nano">GPT-5.4 nano · fast &amp; cheap</option>
+          <option value="gpt-5.4-mini">GPT-5.4 mini · balanced</option>
+          <option value="gpt-5.5">GPT-5.5 · most capable</option>
+        </select>
+      </label>
+      <label class="setup-field">
+        <span>API key</span>
+        <input id="sg-key" type="password" spellcheck="false" autocomplete="off" placeholder="sk-or-…" />
+      </label>
+      <button id="sg-save" type="button">Save &amp; activate</button>
+      <p>
+      </p>
+      <p class="setup-manual-hint">
+        The OpenRouter option uses the free model selected above; for other providers you
+        pick the model here. You can change any of this later in the assistant's ⚙ settings
+        on chapter pages.
+      </p>
+    </details>
   </div>
 
   <p class="setup-note">
@@ -81,23 +122,99 @@
     expect to use the assistant extensively, you can also configure it with a paid API key
     from your preferred provider.
   </p>
+
+  <div class="security-note" id="api-key-safety">
+    <h3>API key safety</h3>
+    <p>
+      <strong>Your API keys are stored only in your browser</strong> and used only to call the
+      model provider you choose, directly from your device. <strong>We cannot receive, store, or
+      log them.</strong>
+    </p>
+    <ul>
+      <li>No account required on this site, and no server-side storage of any kind.</li>
+      <li>
+        Following our setup guide and connecting with OpenRouter never shows you a key at all: it creates one
+        scoped to this site that you can inspect, cap, or revoke from your provider
+        dashboard at any time.
+      </li>
+      <li>
+        Bringing your own Claude or OpenAI key? For extra safety, create a separate key
+        with a small spending limit, and rotate or delete it any time from your provider
+        dashboard.
+      </li>
+      <li>
+        To see for yourself how we handle your API keys, inspect the
+        <a href="https://github.com/pora-book/pora-book.github.io" target="_blank" rel="noopener">source code
+        on GitHub</a> and watch
+        exactly where requests go.
+      </li>
+    </ul>
+  </div>
 </section>
 
 <script>
   import {
+    type Provider,
     loadSettings, saveSettings, isConfigured, fetchOpenRouterFreeModels,
+    startOpenRouterConnect, completeOpenRouterConnect,
   } from '../scripts/assistant-config';
+
+  type ManualProvider = Exclude<Provider, 'local'>;
+  const KEY_PLACEHOLDERS: Record<ManualProvider, string> = {
+    openrouter: 'sk-or-…',
+    anthropic: 'sk-ant-…',
+    openai: 'sk-…',
+  };
 
   const modelSel = document.getElementById('sg-model') as HTMLSelectElement | null;
   const keyInput = document.getElementById('sg-key') as HTMLInputElement | null;
   const saveBtn = document.getElementById('sg-save') as HTMLButtonElement | null;
+  const connectBtn = document.getElementById('sg-connect') as HTMLButtonElement | null;
   const statusEl = document.getElementById('sg-status');
-  if (modelSel && keyInput && saveBtn && statusEl) {
+  const providerSel = document.getElementById('sg-provider') as HTMLSelectElement | null;
+  const anthropicRow = document.getElementById('sg-row-anthropic');
+  const anthropicSel = document.getElementById('sg-anthropic-model') as HTMLSelectElement | null;
+  const openaiRow = document.getElementById('sg-row-openai');
+  const openaiSel = document.getElementById('sg-openai-model') as HTMLSelectElement | null;
+  if (
+    modelSel && keyInput && saveBtn && connectBtn && statusEl &&
+    providerSel && anthropicRow && anthropicSel && openaiRow && openaiSel
+  ) {
     const settings = loadSettings();
-    if (settings.keys.openrouter) keyInput.value = settings.keys.openrouter;
-    if (isConfigured(settings) && settings.provider === 'openrouter') {
+    if (settings.provider !== 'local') providerSel.value = settings.provider;
+    anthropicSel.value = settings.anthropicModel;
+    openaiSel.value = settings.openaiModel;
+    // A model saved by an older version may no longer be in the list.
+    if (openaiSel.value !== settings.openaiModel) openaiSel.selectedIndex = 0;
+    if (isConfigured(settings)) {
       statusEl.textContent = '✓ Already set up — open any chapter and use the Ask button.';
     }
+
+    // Show only the fields relevant to the chosen manual provider, and prefill
+    // the key field with whatever the reader saved for it earlier.
+    function reflectManual() {
+      const p = providerSel!.value as ManualProvider;
+      anthropicRow!.hidden = p !== 'anthropic';
+      openaiRow!.hidden = p !== 'openai';
+      keyInput!.placeholder = KEY_PLACEHOLDERS[p];
+      keyInput!.value = loadSettings().keys[p] || '';
+    }
+    reflectManual();
+    providerSel.addEventListener('change', reflectManual);
+
+    // Returning from the openrouter.ai approval page with ?code=…
+    completeOpenRouterConnect()
+      .then((connected) => {
+        if (!connected) return;
+        providerSel.value = 'openrouter';
+        reflectManual();
+        statusEl.textContent =
+          '✓ Connected to OpenRouter. Open any chapter and click the Ask button to start.';
+        document.getElementById('assistant')?.scrollIntoView();
+      })
+      .catch((err) => {
+        statusEl.textContent = `⚠️ ${err?.message || 'Connecting to OpenRouter failed. Please try again.'}`;
+      });
 
     fetchOpenRouterFreeModels().then((models) => {
       modelSel.innerHTML = '';
@@ -113,13 +230,37 @@
       if (list.some((m) => m.id === settings.openrouterModel)) modelSel.value = settings.openrouterModel;
     });
 
-    saveBtn.addEventListener('click', () => {
-      const key = keyInput.value.trim();
-      if (!key) { statusEl.textContent = 'Paste your OpenRouter key first.'; return; }
+    // Coming back from openrouter.ai via the back button restores the page from
+    // the bfcache with the button still disabled — reset it.
+    window.addEventListener('pageshow', (e) => {
+      if (!(e as PageTransitionEvent).persisted) return;
+      connectBtn.disabled = false;
+      if (statusEl.textContent?.startsWith('Taking you')) statusEl.textContent = '';
+    });
+
+    connectBtn.addEventListener('click', () => {
+      // Persist the chosen model now — it must survive the redirect round-trip.
       const s = loadSettings();
-      s.provider = 'openrouter';
-      s.keys.openrouter = key;
       if (modelSel.value) s.openrouterModel = modelSel.value;
+      saveSettings(s);
+      connectBtn.disabled = true;
+      statusEl.textContent = 'Taking you to openrouter.ai…';
+      startOpenRouterConnect();
+    });
+
+    saveBtn.addEventListener('click', () => {
+      const p = providerSel.value as ManualProvider;
+      const key = keyInput.value.trim();
+      if (!key) {
+        statusEl.textContent = 'Paste your API key first.';
+        return;
+      }
+      const s = loadSettings();
+      s.provider = p;
+      s.keys[p] = key;
+      if (p === 'openrouter' && modelSel.value) s.openrouterModel = modelSel.value;
+      if (p === 'anthropic') s.anthropicModel = anthropicSel.value;
+      if (p === 'openai') s.openaiModel = openaiSel.value;
       saveSettings(s);
       statusEl.textContent = '✓ Saved. Open any chapter and click the Ask button to start.';
     });
@@ -128,9 +269,8 @@
 
 <style>
   .home-assistant { margin-top: 3.5rem; }
-  .home-assistant-how { margin-top: 0.5rem; }
   .setup-steps { margin: 1rem 0 1.25rem; padding-left: 1.3rem; line-height: 1.7; }
-  .setup-steps code {
+  .home-assistant code {
     background: rgba(0, 0, 0, 0.05); padding: 0.05rem 0.35rem; border-radius: 4px;
     font-family: var(--mono, ui-monospace, monospace); font-size: 0.85em;
   }
@@ -145,11 +285,28 @@
     padding: 0.5rem 0.6rem; border: 1px solid var(--rule, #e6ddcd);
     border-radius: 8px; background: #fff; color: var(--ink, #24211d); font: inherit;
   }
-  #sg-save {
+  #sg-save, #sg-connect {
     justify-self: start; border: none; border-radius: 9px; background: var(--accent, #c65a3a);
     color: #fff; font-weight: 600; padding: 0.55rem 1.1rem; cursor: pointer;
   }
-  #sg-save:hover { filter: brightness(1.05); }
+  #sg-save:hover, #sg-connect:hover { filter: brightness(1.05); }
+  #sg-connect:disabled { opacity: 0.6; cursor: default; }
   .setup-status { margin: 0; font-size: 0.9rem; min-height: 1.2em; color: var(--ink-soft, #6b6459); }
+  .setup-manual { border-top: 1px solid var(--rule, #e6ddcd); padding-top: 0.6rem; }
+  .setup-manual summary {
+    cursor: pointer; font-size: 0.9rem; color: var(--ink-soft, #6b6459);
+  }
+  .setup-manual[open] summary { margin-bottom: 0.6rem; }
+  .setup-manual-hint { margin: 0 0 0.75rem; font-size: 0.9rem; }
+  .setup-manual .setup-field { margin-bottom: 0.75rem; }
   .setup-note { margin-top: 1rem; font-size: 0.9rem; opacity: 0.8; }
+  .security-note {
+    margin-top: 2rem; padding: 1.1rem 1.3rem;
+    border: 1px solid var(--rule, #e6ddcd); border-left: 3px solid var(--accent, #c65a3a);
+    border-radius: 10px; background: color-mix(in srgb, var(--accent, #c65a3a) 3%, var(--paper, #fff));
+  }
+  .security-note h3 { margin-top: 0; }
+  .security-note ul { margin: 0.75rem 0 0; padding-left: 1.3rem; line-height: 1.65; }
+  .security-note li { margin: 0.35rem 0; }
+  .security-note p:last-child, .security-note ul:last-child { margin-bottom: 0; }
 </style>

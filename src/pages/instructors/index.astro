@@ -1,0 +1,188 @@
+---
+import fs from 'node:fs';
+import path from 'node:path';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { COURSES } from '../../data/slides.js';
+
+// Slides follow the lecture order of the Stanford courses (src/data/slides.js),
+// not the book's chapter order. PDF/PPTX links point into public/slides/…;
+// a link only renders once the file actually exists in the repo, so PPTX
+// links light up automatically as the source files are added.
+const publicDir = path.join(process.cwd(), 'public');
+const available = (href) => fs.existsSync(path.join(publicDir, href));
+const partLabel = (kind, hrefs, i) =>
+  hrefs.length > 1 ? `${kind} · Part ${i + 1}` : kind;
+
+// Contact for restricted instructor materials (exams, homeworks, solutions).
+// Swap in a dedicated alias or a request form here later if desired.
+const contactEmail = 'daniele.gammelli@gmail.com';
+const mailto = `mailto:${contactEmail}?subject=${encodeURIComponent(
+  'PoRA — instructor materials request',
+)}&body=${encodeURIComponent(
+  [
+    'Hi,',
+    '',
+    'I am teaching a course and would like access to instructor materials for Principles of Robot Autonomy.',
+    '',
+    'Name:',
+    'Institution / department:',
+    'Course name and level:',
+    'Course website (if any):',
+    'Materials requested (exams / homeworks / solutions):',
+    '',
+    'Thank you!',
+  ].join('\n'),
+)}`;
+---
+<BaseLayout
+  title="For Instructors"
+  active="instructors"
+  description="Resources for professors, lecturers, and instructors building a course around Principles of Robot Autonomy: lecture slides, reference syllabi, and assessment materials."
+>
+  <div class="prose-wrap" style="padding-top:2.5rem">
+    <h1 style="font-size:2.2rem;margin:1rem 0 0.5rem">For Instructors</h1>
+    <p style="color:var(--muted);max-width:104ch">
+      <em>Principles of Robot Autonomy</em> is designed to be taught. Whether you are running a full
+      semester-long robotics course or folding a few chapters into an existing class, this page gathers
+      everything you need to build your own course on top of the book.
+    </p>
+
+    <section class="instr-section">
+      <h2>Build your course</h2>
+      <p>
+        The book grew out of a decade of teaching at Stanford and the chapters map directly onto these courses, which you can use as reference syllabi,
+        pacing guides, and sources of additional class materials:
+      </p>
+      <div class="course-cards">
+        <a class="course-card" href="https://stanfordasl.github.io/aa174a/" target="_blank" rel="noopener">
+          <span class="course-code">Stanford AA174A / AA274A</span>
+          <span class="course-name">Principles of Robot Autonomy I</span>
+        </a>
+        <a class="course-card" href="https://stanfordasl.github.io/aa203/" target="_blank" rel="noopener">
+          <span class="course-code">Stanford AA203</span>
+          <span class="course-name">Optimal and Learning-Based Control</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="instr-section">
+      <h2>Lecture slides</h2>
+      <p>
+        A complete set of lecture slides, organized the way the material is actually taught: following
+        the lecture order of the two Stanford courses rather than the book's chapter order. Slides are
+        available in PDF now; editable PPTX sources are being added.
+      </p>
+
+      {COURSES.map((course) => (
+        <div class="slides-course">
+          <h3 class="slides-course-title">
+            <span class="slides-course-code">{course.code}</span>
+            {course.title}
+          </h3>
+          <div class="chapter-list">
+            {course.lectures.map((lec) => (
+              <div class="chapter-row" style="cursor:default">
+                <span class="num">{lec.n}</span>
+                <span class="name">{lec.title}</span>
+                <span class="tags">
+                  {lec.pdf.map((href, i) =>
+                    available(href)
+                      ? <a class="tag-ex" href={href} target="_blank" rel="noopener">{partLabel('PDF', lec.pdf, i)}</a>
+                      : <span class="tag-soon">{partLabel('PDF', lec.pdf, i)} soon</span>,
+                  )}
+                  {lec.pptx.map((href, i) =>
+                    available(href)
+                      ? <a class="tag-ex" href={href} target="_blank" rel="noopener">{partLabel('PPTX', lec.pptx, i)}</a>
+                      : <span class="tag-soon">{partLabel('PPTX', lec.pptx, i)} soon</span>,
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </section>
+
+    <section class="instr-section">
+      <h2>Exams, homeworks &amp; solutions</h2>
+      <p>
+        To preserve their value as assessments, exams, homework sets, and their solutions are shared
+        privately with instructors rather than posted publicly. If you are teaching a course and would like
+        access, get in touch and tell us a little about your class:
+      </p>
+      <div class="contact-card">
+        <div class="contact-card-title">Request instructor materials</div>
+        <div class="contact-card-row">
+          <p class="contact-card-note">
+            Email us with your name, institution, and the course you are teaching, and we will follow up
+            with the available exams, homeworks, and solution sets.
+          </p>
+          <a class="btn primary" href={`mailto:pora-book@gmail.com`}>Email us</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="instr-section">
+      <h2>Adopting the book</h2>
+      <p>
+       We look forward to seeing <em>Principles of Robot Autonomy</em> in your course! If you are adopting the book, please reach out and let us know. We would love to hear about your experience, and we can also help publicize your course on this website.
+      </p>
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  .instr-section { padding: 2.75rem 0 0; }
+  .instr-section h2 {
+    font-size: 1.5rem; margin: 0 0 1rem;
+  }
+  .instr-section h2::after {
+    content: ''; display: block; width: 2rem; height: 2px;
+    background: var(--accent); margin-top: 0.6rem;
+  }
+  .instr-section p { color: var(--ink-soft); margin: 0 0 1rem; }
+  .instr-fineprint { font-size: 0.9rem; color: var(--muted); margin-top: 1rem; }
+
+  .slides-course { margin-top: 1.75rem; }
+  .slides-course-title {
+    font-family: var(--serif); font-size: 1.15rem; color: var(--ink);
+    margin: 0 0 0.75rem; display: flex; align-items: baseline; gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .slides-course-code {
+    font-family: var(--sans); font-size: 0.72rem; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--accent); font-weight: 600;
+  }
+
+  .course-cards {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 1rem; margin-top: 1.25rem;
+  }
+  .course-card {
+    display: flex; flex-direction: column; gap: 0.2rem;
+    padding: 1.1rem 1.2rem; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--paper-2);
+    font-family: var(--sans);
+  }
+  .course-card:hover { border-color: var(--accent); text-decoration: none; }
+  .course-code {
+    font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600;
+  }
+  .course-name { font-family: var(--serif); font-size: 1.1rem; color: var(--ink); }
+  .course-meta { font-size: 0.82rem; color: var(--muted); margin-top: 0.1rem; }
+
+  .contact-card {
+    padding: 1.25rem 1.4rem; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--paper-2);
+    margin-top: 1.25rem;
+  }
+  .contact-card-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .contact-card-row .contact-card-note { flex: 1 1 20rem; }
+  .contact-card-title { font-family: var(--serif); font-weight: 600; font-size: 1.1rem; color: var(--ink); }
+  .contact-card-note { font-size: 0.92rem; color: var(--muted); margin: 0.35rem 0 0 !important; }
+  .contact-card .btn { white-space: nowrap; }
+</style>

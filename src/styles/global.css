@@ -105,43 +105,91 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 600; line-height: 1.15;
 .btn:hover { text-decoration: none; border-color: var(--accent); }
 
 /* =========================== Home ====================================== */
-/* Hero: framed cover beside the welcome copy. */
+/* Hero: welcome copy beside the framed cover (text left, cover right). */
 .home-hero {
-  display: grid; grid-template-columns: minmax(0, 15rem) 1fr;
-  gap: 2.75rem; align-items: center;
-  padding: 4rem 1.5rem 3.25rem; border-bottom: 1px solid var(--line);
+  display: grid; grid-template-columns: 1fr minmax(0, 19rem);
+  gap: 3rem; align-items: start;
+  padding: 4rem 1.5rem 3rem;
 }
-.cover-figure { margin: 0; }
+/* Top offset ≈ kicker + title + lead margin, so the cover's top edge lines up
+   with the first line of the lead paragraph (desktop two-column layout only). */
+.cover-figure { margin: 5.4rem 0 0; }
 .cover-figure img {
   display: block; width: 100%; height: auto; border-radius: 10px;
   border: 1px solid var(--line-strong);
-  box-shadow: 0 18px 40px -18px rgba(20, 30, 50, 0.55), 0 2px 8px -3px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 26px 52px -20px rgba(20, 30, 50, 0.5), 0 3px 10px -3px rgba(0, 0, 0, 0.22);
 }
-.home-hero-copy h1 { font-size: clamp(1.9rem, 3.6vw, 2.9rem); letter-spacing: -0.02em; margin: 1rem 0 0; }
+.home-hero-copy h1 { margin: 0; }
+.home-hero-copy .hello {
+  display: block; font-family: var(--sans); font-size: 0.78rem; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+  margin-bottom: 0.65rem;
+}
+.home-hero-copy .book-title {
+  display: block; white-space: nowrap;
+  font-size: clamp(1.3rem, 6.4vw, 2.05rem); letter-spacing: -0.02em;
+}
 .home-hero-copy h1 em { font-style: italic; color: var(--accent); }
-.home-hero-copy .lead { font-size: 1.18rem; color: var(--ink-soft); max-width: 46ch; margin: 1.15rem 0 0; }
-.home-hero-copy .pub-note { font-size: 0.98rem; color: var(--muted); max-width: 52ch; margin: 1rem 0 0; }
-.home-hero .hero-links {
-  grid-column: 1 / -1; margin-top: 1.25rem;
+.home-hero-copy .lead { font-size: 1.12rem; color: var(--ink-soft); margin: 1.15rem 0 0; }
+.home-hero-copy .pub-note { font-size: 0.98rem; color: var(--muted); margin: 1rem 0 0; }
+.home-hero-copy .instructor-note {
+  font-size: 0.95rem; color: var(--ink-soft); margin: 1.15rem 0 0;
+  padding: 0.85rem 1rem; border-radius: 8px;
+  background: var(--paper-2); border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+}
+.home-hero-copy .instructor-note strong { color: var(--ink); }
+.hero-ctas { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; }
+/* External-resource strip below the hero: one centered line (72rem band, wider
+   than the 52rem hero column, so all three items fit side by side on desktop). */
+.hero-links {
+  max-width: 72rem; margin: -0.75rem auto 2.5rem; padding: 0 1.5rem;
   display: flex; justify-content: center; align-items: center;
-  gap: 2.5rem; flex-wrap: wrap;
+  column-gap: 1.4rem; row-gap: 0.7rem; flex-wrap: wrap;
 }
 .hero-link {
   display: inline-flex; align-items: center; gap: 0.55rem;
-  font-family: var(--sans); font-size: 0.92rem; font-weight: 600; color: var(--ink);
+  font-family: var(--sans); font-size: 0.9rem; font-weight: 600; color: var(--ink);
+  white-space: nowrap;
 }
+.hero-link + .hero-link { border-left: 1px solid var(--line-strong); padding-left: 1.4rem; }
 .hero-link img { height: 1.35em; width: auto; display: block; }
-.hero-link a { color: inherit; }
-.hero-link a:hover, a.hero-link:hover { color: var(--accent); text-decoration: none; }
-a.hero-link:hover span { text-decoration: none; }
+a.hero-link:hover { color: var(--accent); text-decoration: none; }
+.hero-link-label { color: var(--muted); font-weight: 500; }
+.hero-link-classes a {
+  color: var(--link);
+  text-decoration: underline; text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in srgb, var(--link) 40%, transparent);
+  text-underline-offset: 3px;
+}
+.hero-link-classes a:hover { color: var(--link-hover); text-decoration-color: currentColor; }
+.hero-link-classes .dot { color: var(--muted); }
+
+/* In-page section navigation between the hero and the prose sections. */
+.section-nav {
+  font-family: var(--sans); font-size: 0.85rem; font-weight: 500;
+  display: flex; flex-wrap: wrap; gap: 0.4rem 1.9rem; justify-content: center;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  padding: 0.85rem 0;
+}
+.section-nav a { color: var(--ink-soft); }
+.section-nav a:hover { color: var(--accent); text-decoration: none; }
 
 /* Prose sections on the home page. */
-.home-note, .home-guide, .home-authors, .home-cite { padding: 2.75rem 0 0; }
-.home-note h2, .home-guide h2, .home-authors h2, .home-cite h2 {
+.home-note, .home-guide, .home-authors, .home-cite, .home-assistant {
+  padding: 3.25rem 0 0; scroll-margin-top: 4.5rem;
+}
+.home-note h2, .home-guide h2, .home-authors h2, .home-cite h2, .home-assistant h2 {
   font-size: 1.5rem; margin: 0 0 1rem;
 }
-.home-note p, .home-guide p, .home-cite p { color: var(--ink-soft); max-width: 64ch; margin: 0 0 1rem; }
-.home-authors-intro { color: var(--ink-soft); max-width: 64ch; margin: 0 0 1.75rem; }
+.home-note h2::after, .home-guide h2::after, .home-authors h2::after,
+.home-cite h2::after, .home-assistant h2::after {
+  content: ''; display: block; width: 2rem; height: 2px;
+  background: var(--accent); margin-top: 0.6rem;
+}
+.home-note p, .home-guide p, .home-cite p { color: var(--ink-soft); margin: 0 0 1rem; }
+.home-authors-intro { color: var(--ink-soft); margin: 0 0 1.75rem; }
+.note-muted { font-size: 0.88em; color: var(--muted); line-height: 1.5; margin-top: 0.75rem; }
 
 /* Author bio cards. */
 .authors { display: grid; gap: 1.6rem; }
@@ -224,10 +272,14 @@ a.hero-link:hover span { text-decoration: none; }
   .author { grid-template-columns: 4.5rem 1fr; gap: 1rem; }
   .author-photo { width: 4.5rem; height: 4.5rem; }
   .home-hero {
-    grid-template-columns: 1fr; gap: 1.75rem; justify-items: center; text-align: center;
+    grid-template-columns: 1fr; gap: 2rem; justify-items: center; text-align: center;
     padding-top: 2.75rem;
   }
-  .cover-figure { max-width: 15rem; }
+  .cover-figure { max-width: 16rem; margin-top: 0; }
   .home-hero-copy .lead { margin-left: auto; margin-right: auto; }
-  .home-hero .hero-links { gap: 1.25rem; }
+  .hero-ctas { justify-content: center; }
+  .hero-links { flex-direction: column; row-gap: 0.85rem; }
+  .hero-link + .hero-link { border-left: 0; padding-left: 0; }
+  .hero-link-classes { white-space: normal; flex-wrap: wrap; justify-content: center; }
+  .section-nav { justify-content: center; gap: 0.4rem 1.4rem; }
 }
