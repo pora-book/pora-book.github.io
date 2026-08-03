@@ -33,6 +33,31 @@ const mailto = `mailto:${contactEmail}?subject=${encodeURIComponent(
     'Thank you!',
   ].join('\n'),
 )}`;
+
+// Resources credited in the lecture slides themselves — courses and books that
+// shaped how we present the material. Keep in sync with the slide decks.
+const ackCourses = [
+  { name: 'UC Berkeley CS 185/285 — Deep Reinforcement Learning',
+    url: 'https://rail.eecs.berkeley.edu/deeprlcourse/' },
+  { name: 'Stanford CS 224R — Deep Reinforcement Learning',
+    url: 'https://cs224r.stanford.edu/' },
+  { name: 'Stanford CS 231n — Deep Learning for Computer Vision',
+    url: 'http://cs231n.stanford.edu/' },
+  { name: 'Sanja Fidler’s computer vision lectures (University of Toronto)',
+    url: 'https://www.cs.toronto.edu/~fidler/' },
+];
+const ackBooks = [
+  { name: 'D. E. Kirk, Optimal Control Theory: An Introduction' },
+  { name: 'F. Borrelli, A. Bemporad, M. Morari, Predictive Control for Linear and Hybrid Systems' },
+  { name: 'J. B. Rawlings, D. Q. Mayne, M. M. Diehl, Model Predictive Control: Theory, Computation, and Design' },
+  { name: 'R. S. Sutton, A. G. Barto, Reinforcement Learning: An Introduction' },
+  { name: 'J.-J. E. Slotine, W. Li, Applied Nonlinear Control' },
+  { name: 'S. M. LaValle, Planning Algorithms' },
+  { name: 'R. Siegwart, I. R. Nourbakhsh, D. Scaramuzza, Introduction to Autonomous Mobile Robots' },
+  { name: 'D. A. Forsyth, J. Ponce, Computer Vision: A Modern Approach' },
+  { name: 'R. Hartley, A. Zisserman, Multiple View Geometry in Computer Vision' },
+  { name: 'R. M. Murray, Optimization-Based Control (lecture notes)' },
+];
 ---
 <BaseLayout
   title="For Instructors"
@@ -68,9 +93,7 @@ const mailto = `mailto:${contactEmail}?subject=${encodeURIComponent(
     <section class="instr-section">
       <h2>Lecture slides</h2>
       <p>
-        A complete set of lecture slides, organized the way the material is actually taught: following
-        the lecture order of the two Stanford courses rather than the book's chapter order. Slides are
-        available in PDF now; editable PPTX sources are being added.
+        The book's chapters are accompanied by lecture slides in PDF and PPTX formats. The slides are organized by course and lecture, and you can download them for use in your own classes.
       </p>
 
       {COURSES.map((course) => (
@@ -128,6 +151,48 @@ const mailto = `mailto:${contactEmail}?subject=${encodeURIComponent(
        We look forward to seeing <em>Principles of Robot Autonomy</em> in your course! If you are adopting the book, please reach out and let us know. We would love to hear about your experience, and we can also help publicize your course on this website.
       </p>
     </section>
+
+    <section class="instr-section">
+      <h2>Acknowledgments</h2>
+      <p>
+        Our beliefs about robot autonomy, and the way we present the material in the book and in
+        these slides, have been largely informed by other excellent courses, textbooks, and lecture
+        materials from across the community. We are deeply grateful to their authors and instructors.
+        If you are building a course, the resources below are wonderful companions to this book.
+      </p>
+      <div class="ack-groups">
+        <div>
+          <h3 class="ack-heading">Courses &amp; lecture materials</h3>
+          <ul class="ack-list">
+            {ackCourses.map((r) => (
+              <li>
+                {r.url
+                  ? <a href={r.url} target="_blank" rel="noopener">{r.name}</a>
+                  : r.name}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <h3 class="ack-heading">Textbooks &amp; notes</h3>
+          <ul class="ack-list">
+            {ackBooks.map((r) => (
+              <li>
+                {r.url
+                  ? <a href={r.url} target="_blank" rel="noopener">{r.name}</a>
+                  : r.name}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      <p>
+      </p>
+      <p class="instr-fineprint">
+        Individual lectures also draw on many excellent surveys and research papers, credited on the
+        slides where they appear.
+      </p>
+    </section>
   </div>
 </BaseLayout>
 
@@ -152,6 +217,26 @@ const mailto = `mailto:${contactEmail}?subject=${encodeURIComponent(
   .slides-course-code {
     font-family: var(--sans); font-size: 0.72rem; letter-spacing: 0.05em;
     text-transform: uppercase; color: var(--accent); font-weight: 600;
+  }
+
+  .ack-groups {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+    gap: 1.5rem 2.5rem; margin-top: 1.25rem;
+  }
+  .ack-heading {
+    font-family: var(--sans); font-size: 0.72rem; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--accent); font-weight: 600;
+    margin: 0 0 0.6rem;
+  }
+  .ack-list {
+    list-style: none; margin: 0; padding: 0;
+    display: grid; gap: 0.45rem;
+    font-family: var(--serif); font-size: 0.98rem; color: var(--ink-soft);
+  }
+  .ack-list li { padding-left: 1rem; position: relative; }
+  .ack-list li::before {
+    content: '—'; position: absolute; left: 0; color: var(--accent);
+    font-size: 0.8rem; top: 0.15rem;
   }
 
   .course-cards {
