@@ -14,6 +14,10 @@ const partsWithChapters = PARTS.filter((p) => chaptersByPart(p.id).length > 0);
   <div class="prose-wrap" style="padding-top:2.5rem">
     
     <h1 style="font-size:2.2rem;margin:1rem 0 0.5rem">The Book</h1>
+    <p style="margin:0 0 1.5rem;color:var(--muted, #555)">
+      Read the full book below, chapter by chapter. A freely available PDF version is also
+      on <a href="https://arxiv.org/abs/2608.03496" target="_blank" rel="noopener">arXiv</a>.
+    </p>
     {partsWithChapters.map((part) => (
       <>
         <div class="part-head">{part.title}</div>
