@@ -97,9 +97,7 @@ const ackBooks = [
                       : <span class="tag-soon">{partLabel('PDF', lec.pdf, i)} soon</span>,
                   )}
                   {lec.pptx.map((href, i) =>
-                    available(href)
-                      ? <a class="tag-ex" href={href} target="_blank" rel="noopener">{partLabel('PPTX', lec.pptx, i)}</a>
-                      : <span class="tag-soon">{partLabel('PPTX', lec.pptx, i)} soon</span>,
+                    <span class="tag-soon">{partLabel('PPTX', lec.pptx, i)} coming soon</span>,
                   )}
                 </span>
               </div>
