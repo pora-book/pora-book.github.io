@@ -13,27 +13,6 @@ const available = (href) => fs.existsSync(path.join(publicDir, href));
 const partLabel = (kind, hrefs, i) =>
   hrefs.length > 1 ? `${kind} · Part ${i + 1}` : kind;
 
-// Contact for restricted instructor materials (exams, homeworks, solutions).
-// Swap in a dedicated alias or a request form here later if desired.
-const contactEmail = 'daniele.gammelli@gmail.com';
-const mailto = `mailto:${contactEmail}?subject=${encodeURIComponent(
-  'PoRA — instructor materials request',
-)}&body=${encodeURIComponent(
-  [
-    'Hi,',
-    '',
-    'I am teaching a course and would like access to instructor materials for Principles of Robot Autonomy.',
-    '',
-    'Name:',
-    'Institution / department:',
-    'Course name and level:',
-    'Course website (if any):',
-    'Materials requested (exams / homeworks / solutions):',
-    '',
-    'Thank you!',
-  ].join('\n'),
-)}`;
-
 // Resources credited in the lecture slides themselves — courses and books that
 // shaped how we present the material. Keep in sync with the slide decks.
 const ackCourses = [
@@ -78,15 +57,19 @@ const ackBooks = [
         The book grew out of a decade of teaching at Stanford and the chapters map directly onto these courses, which you can use as reference syllabi,
         pacing guides, and sources of additional class materials:
       </p>
+      {/* Same card treatment as the Lectures page; both courses are live, so
+          neither carries a "coming soon" state. */}
       <div class="course-cards">
-        <a class="course-card" href="https://stanfordasl.github.io/aa174a/" target="_blank" rel="noopener">
-          <span class="course-code">Stanford AA174A / AA274A</span>
-          <span class="course-name">Principles of Robot Autonomy I</span>
-        </a>
-        <a class="course-card" href="https://stanfordasl.github.io/aa203/" target="_blank" rel="noopener">
-          <span class="course-code">Stanford AA203</span>
-          <span class="course-name">Optimal and Learning-Based Control</span>
-        </a>
+        {COURSES.map((course) => (
+          <a class="course-card" href={course.url} target="_blank" rel="noopener">
+            <img class="course-mark" src="/logos/stanford.svg" alt="" width="162" height="248" loading="lazy" />
+            <span class="course-card-body">
+              <span class="course-code">{course.code}</span>
+              <span class="course-name">{course.title}</span>
+              <span class="course-status">Course website <span class="course-arrow">↗</span></span>
+            </span>
+          </a>
+        ))}
       </div>
     </section>
 
@@ -130,19 +113,9 @@ const ackBooks = [
       <h2>Exams, homeworks &amp; solutions</h2>
       <p>
         To preserve their value as assessments, exams, homework sets, and their solutions are shared
-        privately with instructors rather than posted publicly. If you are teaching a course and would like
-        access, get in touch and tell us a little about your class:
+        privately with instructors rather than posted publicly. If you are teaching a course and would
+        like access, please feel free to contact us.
       </p>
-      <div class="contact-card">
-        <div class="contact-card-title">Request instructor materials</div>
-        <div class="contact-card-row">
-          <p class="contact-card-note">
-            Email us with your name, institution, and the course you are teaching, and we will follow up
-            with the available exams, homeworks, and solution sets.
-          </p>
-          <a class="btn primary" href={`mailto:pora-book@gmail.com`}>Email us</a>
-        </div>
-      </div>
     </section>
 
     <section class="instr-section">
@@ -239,35 +212,43 @@ const ackBooks = [
     font-size: 0.8rem; top: 0.15rem;
   }
 
+  /* Course cards — mirrors .lec-course-card on the Lectures page. */
   .course-cards {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-    gap: 1rem; margin-top: 1.25rem;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(21rem, 1fr));
+    gap: 1.25rem; margin-top: 1.25rem;
   }
   .course-card {
-    display: flex; flex-direction: column; gap: 0.2rem;
-    padding: 1.1rem 1.2rem; border-radius: 10px;
-    border: 1px solid var(--line); background: var(--paper-2);
-    font-family: var(--sans);
+    display: flex; align-items: center; gap: 1.1rem;
+    padding: 1.4rem 1.45rem; border-radius: 12px;
+    border: 1px solid var(--line-strong); background: var(--paper-2);
+    font-family: var(--sans); color: var(--ink);
+    transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
   }
-  .course-card:hover { border-color: var(--accent); text-decoration: none; }
+  .course-card:hover {
+    text-decoration: none; border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px -16px rgba(20, 30, 50, 0.45);
+  }
+  .course-mark { height: 2.9rem; width: auto; flex: none; }
+  .course-card-body { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
   .course-code {
     font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase;
     color: var(--accent); font-weight: 600;
   }
-  .course-name { font-family: var(--serif); font-size: 1.1rem; color: var(--ink); }
+  /* This page's column is 52rem (vs 72rem on Lectures), so the two cards are
+     narrower and these titles wrap — balance them so no orphan word is left. */
+  .course-name {
+    font-family: var(--serif); font-size: 1.15rem; line-height: 1.25; color: var(--ink);
+    text-wrap: balance;
+  }
+  .course-status {
+    display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+    font-size: 0.85rem; color: var(--muted); margin-top: 0.35rem;
+  }
+  .course-arrow { color: var(--accent); }
   .course-meta { font-size: 0.82rem; color: var(--muted); margin-top: 0.1rem; }
 
-  .contact-card {
-    padding: 1.25rem 1.4rem; border-radius: 10px;
-    border: 1px solid var(--line); background: var(--paper-2);
-    margin-top: 1.25rem;
+  @media (max-width: 62rem) {
+    .course-cards { grid-template-columns: 1fr; }
   }
-  .contact-card-row {
-    display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
-    flex-wrap: wrap;
-  }
-  .contact-card-row .contact-card-note { flex: 1 1 20rem; }
-  .contact-card-title { font-family: var(--serif); font-weight: 600; font-size: 1.1rem; color: var(--ink); }
-  .contact-card-note { font-size: 0.92rem; color: var(--muted); margin: 0.35rem 0 0 !important; }
-  .contact-card .btn { white-space: nowrap; }
 </style>

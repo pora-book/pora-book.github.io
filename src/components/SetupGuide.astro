@@ -123,8 +123,8 @@
     from your preferred provider.
   </p>
 
-  <div class="security-note" id="api-key-safety">
-    <h3>API key safety</h3>
+  <aside class="callout security-note" id="api-key-safety">
+    <h3 class="callout-label">API key safety</h3>
     <p>
       <strong>Your API keys are stored only in your browser</strong> and used only to call the
       model provider you choose, directly from your device. <strong>We cannot receive, store, or
@@ -149,7 +149,7 @@
         exactly where requests go.
       </li>
     </ul>
-  </div>
+  </aside>
 </section>
 
 <script>
@@ -300,13 +300,6 @@
   .setup-manual-hint { margin: 0 0 0.75rem; font-size: 0.9rem; }
   .setup-manual .setup-field { margin-bottom: 0.75rem; }
   .setup-note { margin-top: 1rem; font-size: 0.9rem; opacity: 0.8; }
-  .security-note {
-    margin-top: 2rem; padding: 1.1rem 1.3rem;
-    border: 1px solid var(--rule, #e6ddcd); border-left: 3px solid var(--accent, #c65a3a);
-    border-radius: 10px; background: color-mix(in srgb, var(--accent, #c65a3a) 3%, var(--paper, #fff));
-  }
-  .security-note h3 { margin-top: 0; }
-  .security-note ul { margin: 0.75rem 0 0; padding-left: 1.3rem; line-height: 1.65; }
-  .security-note li { margin: 0.35rem 0; }
-  .security-note p:last-child, .security-note ul:last-child { margin-bottom: 0; }
+  /* Box chrome comes from the shared .callout in global.css. */
+  .security-note { margin-top: 2rem; scroll-margin-top: 4.5rem; }
 </style>

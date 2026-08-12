@@ -104,11 +104,32 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 600; line-height: 1.15;
 .btn.primary:hover { background: var(--link-hover); border-color: var(--link-hover); text-decoration: none; }
 .btn:hover { text-decoration: none; border-color: var(--accent); }
 
+/* Quiet editorial note box (hero instructor note, API-key safety, …).
+   A hairline card on the bare paper ground: no fill and no accent bar — the
+   small terracotta label carries the signal instead. */
+.callout {
+  border: 1px solid var(--line); border-radius: 12px;
+  padding: 1.15rem 1.35rem;
+  color: var(--ink-soft); font-size: 0.95rem; line-height: 1.65;
+}
+.callout-label {
+  display: block; font-family: var(--sans);
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--accent); margin: 0 0 0.6rem;
+}
+.callout p { margin: 0 0 0.75rem; }
+.callout ul { margin: 0.8rem 0 0; padding-left: 1.1rem; }
+.callout li { margin: 0.4rem 0; padding-left: 0.15rem; }
+.callout li::marker { color: var(--line-strong); }
+.callout strong { color: var(--ink); font-weight: 600; }
+.callout > :first-child { margin-top: 0; }
+.callout > :last-child { margin-bottom: 0; }
+
 /* =========================== Home ====================================== */
 /* Hero: welcome copy beside the framed cover (text left, cover right). */
 .home-hero {
   display: grid; grid-template-columns: 1fr minmax(0, 19rem);
-  gap: 3rem; align-items: start;
+  column-gap: 3rem; row-gap: 1.75rem; align-items: start;
   padding: 4rem 1.5rem 3rem;
 }
 /* Top offset ≈ kicker + title + lead margin, so the cover's top edge lines up
@@ -132,29 +153,27 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 600; line-height: 1.15;
 .home-hero-copy h1 em { font-style: italic; color: var(--accent); }
 .home-hero-copy .lead { font-size: 1.12rem; color: var(--ink-soft); margin: 1.15rem 0 0; }
 .home-hero-copy .pub-note { font-size: 0.98rem; color: var(--muted); margin: 1rem 0 0; }
-.home-hero-copy .instructor-note {
-  font-size: 0.95rem; color: var(--ink-soft); margin: 1.15rem 0 0;
-  padding: 0.85rem 1rem; border-radius: 8px;
-  background: var(--paper-2); border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
-}
-.home-hero-copy .instructor-note strong { color: var(--ink); }
-.hero-ctas { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; }
+.home-hero-copy .callout { margin: 1.5rem 0 0; }
+/* Full hero width (both grid columns) so all four CTAs share one row. */
+.hero-ctas { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.75rem; }
 /* External-resource strip below the hero: one centered line (72rem band, wider
    than the 52rem hero column, so all three items fit side by side on desktop). */
 .hero-links {
-  max-width: 72rem; margin: -0.75rem auto 2.5rem; padding: 0 1.5rem;
+  max-width: 72rem; margin: -0.25rem auto 2.5rem; padding: 0 1.5rem;
   display: flex; justify-content: center; align-items: center;
-  column-gap: 1.4rem; row-gap: 0.7rem; flex-wrap: wrap;
+  column-gap: 0; row-gap: 0.7rem; flex-wrap: wrap;
 }
 .hero-link {
-  display: inline-flex; align-items: center; gap: 0.55rem;
-  font-family: var(--sans); font-size: 0.9rem; font-weight: 600; color: var(--ink);
-  white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  font-family: var(--sans); font-size: 0.85rem; font-weight: 500; color: var(--ink-soft);
+  white-space: nowrap; padding: 0.4rem 1.2rem;
 }
-.hero-link + .hero-link { border-left: 1px solid var(--line-strong); padding-left: 1.4rem; }
-.hero-link img { height: 1.35em; width: auto; display: block; }
+.hero-link + .hero-link {
+  border-left: 1px solid var(--line);
+}
+.hero-link img { height: 1.2em; width: auto; display: block; opacity: 0.7; }
 a.hero-link:hover { color: var(--accent); text-decoration: none; }
+a.hero-link:hover img { opacity: 1; }
 .hero-link-label { color: var(--muted); font-weight: 500; }
 .hero-link-classes a {
   color: var(--link);
@@ -167,12 +186,16 @@ a.hero-link:hover { color: var(--accent); text-decoration: none; }
 
 /* In-page section navigation between the hero and the prose sections. */
 .section-nav {
-  font-family: var(--sans); font-size: 0.85rem; font-weight: 500;
-  display: flex; flex-wrap: wrap; gap: 0.4rem 1.9rem; justify-content: center;
+  font-family: var(--sans); font-size: 0.82rem; font-weight: 500;
+  display: flex; flex-wrap: wrap; gap: 0.3rem 0; justify-content: center;
   border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
-  padding: 0.85rem 0;
+  padding: 0.7rem 0;
 }
-.section-nav a { color: var(--ink-soft); }
+.section-nav a {
+  color: var(--muted); padding: 0.15rem 0.9rem;
+  border-right: 1px solid var(--line);
+}
+.section-nav a:last-child { border-right: none; }
 .section-nav a:hover { color: var(--accent); text-decoration: none; }
 
 /* Prose sections on the home page. */
@@ -277,7 +300,11 @@ a.hero-link:hover { color: var(--accent); text-decoration: none; }
   }
   .cover-figure { max-width: 16rem; margin-top: 0; }
   .home-hero-copy .lead { margin-left: auto; margin-right: auto; }
-  .hero-ctas { justify-content: center; }
+  /* The hero copy centers on narrow screens; the note reads better ranged left. */
+  .home-hero-copy .callout { text-align: left; }
+  /* The hero centers its items, which would otherwise size this row to its
+     max-content width (all four buttons) and overflow a narrow viewport. */
+  .hero-ctas { justify-content: center; width: 100%; }
   .hero-links { flex-direction: column; row-gap: 0.85rem; }
   .hero-link + .hero-link { border-left: 0; padding-left: 0; }
   .hero-link-classes { white-space: normal; flex-wrap: wrap; justify-content: center; }

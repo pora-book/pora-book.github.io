@@ -6,18 +6,22 @@
 // the same naming scheme and go live as the source files are added to the repo.
 //
 // Titles mirror the course schedules at:
-//   https://stanfordasl.github.io/aa174a/  (Principles of Robot Autonomy I)
+//   https://stanfordasl.github.io/PoRA-I/aa174a_aut2526/  (Principles of Robot Autonomy I)
 //   https://stanfordasl.github.io/aa203/   (Optimal and Learning-Based Control)
 
-const deck = (course, n, title, parts = null) => {
-  const stems = parts
-    ? parts.map((p) => `/slides/${course}/lecture_${n}_${p}`)
-    : [`/slides/${course}/lecture_${n}`];
+// `parts` splits a lecture into several files (e.g. ['p1', 'p2']). The PDF and
+// PPTX exports don't always split the same way — AA174A 17 is two PDFs but a
+// single source deck — so `pptxParts` can override it (null = one file).
+const deck = (course, n, title, parts = null, pptxParts = parts) => {
+  const stems = (ps) =>
+    ps
+      ? ps.map((p) => `/slides/${course}/lecture_${n}_${p}`)
+      : [`/slides/${course}/lecture_${n}`];
   return {
     n,
     title,
-    pdf: stems.map((s) => `${s}.pdf`),
-    pptx: stems.map((s) => `${s}.pptx`),
+    pdf: stems(parts).map((s) => `${s}.pdf`),
+    pptx: stems(pptxParts).map((s) => `${s}.pptx`),
   };
 };
 
@@ -26,7 +30,7 @@ export const COURSES = [
     id: 'aa174a',
     code: 'Stanford AA174A / AA274A',
     title: 'Principles of Robot Autonomy I',
-    url: 'https://stanfordasl.github.io/aa174a/',
+    url: 'https://stanfordasl.github.io/PoRA-I/aa174a_aut2526/',
     lectures: [
       deck('aa174a', 1, 'Course overview, intro to robotic systems and ROS'),
       deck('aa174a', 2, 'Fundamentals of ROS'),
@@ -44,7 +48,7 @@ export const COURSES = [
       deck('aa174a', 14, 'Intro to state estimation & filtering theory'),
       deck('aa174a', 15, 'Parametric filtering (KF and EKF)'),
       deck('aa174a', 16, 'Markov localization and EKF-localization'),
-      deck('aa174a', 17, 'Multi-sensor perception & sensor fusion', ['p1', 'p2']),
+      deck('aa174a', 17, 'Multi-sensor perception & sensor fusion', ['p1', 'p2'], null),
       deck('aa174a', 18, 'Simultaneous localization and mapping (SLAM)'),
     ],
   },

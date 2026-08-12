@@ -73,14 +73,13 @@ const bibtex = `@book{pora,
         The book is published by <strong>Cambridge University Press</strong> and will soon be available in print. We’ll share ordering information here as soon as it becomes available. 
         In the meantime, this website brings everything together in one place, including the complete text, interactive exercises, and lecture recordings.
       </p>
-      <p class="instructor-note">
-        <strong>Want to build your own course around PoRA?</strong> If you’re a professor, lecturer, or instructor at any level,
-        the <a href="/instructors/">For Instructors</a> page gathers all the resources you need.
-      </p>
-      <div class="hero-ctas">
-        <a class="btn primary" href="/book/">Start reading</a>
-        <a class="btn" href="/exercises/">Exercises</a>
-      </div>
+      <aside class="callout">
+        <span class="callout-label">For instructors</span>
+        <p>
+          Building your own course around PoRA? If you’re a professor, lecturer, or instructor at any level,
+          the <a href="/instructors/">For Instructors</a> page gathers all the resources you need.
+        </p>
+      </aside>
     </div>
     <figure class="cover-figure">
       <picture>
@@ -89,6 +88,13 @@ const bibtex = `@book{pora,
              alt="Cover of Principles of Robot Autonomy" loading="eager" />
       </picture>
     </figure>
+    {/* Spans both hero columns: the four CTAs don't fit on one line inside the
+        narrower copy column. */}
+    <div class="hero-ctas">
+      <a class="btn primary" href="/book/">Start reading</a>
+      <a class="btn" href="/exercises/">Exercises</a>
+      <a class="btn" href="/lectures/">Lecture recordings</a>
+    </div>
   </section>
 
   <div class="hero-links">
@@ -100,7 +106,7 @@ const bibtex = `@book{pora,
     <span class="hero-link hero-link-classes">
       <img src="/logos/stanford.svg" alt="Stanford" width="12" height="18" loading="lazy" />
       <span class="hero-link-label">Stanford classes:</span>
-      <a href="https://stanfordasl.github.io/aa174a/" target="_blank" rel="noopener">Principles of Robot Autonomy I</a>
+      <a href="https://stanfordasl.github.io/PoRA-I/aa174a_aut2526/" target="_blank" rel="noopener">Principles of Robot Autonomy I</a>
       <span class="dot" aria-hidden="true">·</span>
       <a href="https://stanfordasl.github.io/aa203/" target="_blank" rel="noopener">Optimal and Learning-Based Control</a>
     </span>

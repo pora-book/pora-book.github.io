@@ -1,43 +1,247 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { publishedChapters, displayNumber } from '../../data/book.js';
+import { LECTURE_COURSES } from '../../data/lectures.js';
 
-// Lectures are data-driven per chapter (chapter.lecture). Until recordings are
-// released, this page lists the chapters as a schedule and marks them "coming".
-const chapters = publishedChapters().filter((c) => displayNumber(c));
-const released = chapters.filter((c) => c.lecture);
+// Recordings are organized by course lecture (src/data/lectures.js), not by
+// book chapter. A course with status 'coming' renders as an inert card and
+// gets no section below — see the data module.
+const courses = LECTURE_COURSES;
+const live = courses.filter((c) => c.status === 'available');
+const pad = (n) => String(n).padStart(2, '0');
 ---
-<BaseLayout title="Lectures" active="lectures" description="Stanford lecture recordings aligned to Principles of Robot Autonomy.">
-  <div class="prose-wrap" style="padding-top:2.5rem">
-    <h1 style="font-size:2.2rem;margin:1rem 0 0.5rem">Lectures</h1>
-    <p style="color:var(--muted);max-width:104ch">
-      Stanford lecture recordings aligned to the book's chapters.
-      {released.length === 0
-        ? (
-          <Fragment>
-            {' '}Recordings are being released progressively over the coming months. Check back soon!
-            For all other class-related materials, such as lecture slides, homeworks, suggested readings,
-            and more, see the course websites:{' '}
-            <a href="https://stanfordasl.github.io/aa174a/" target="_blank" rel="noopener">Stanford AA174A</a>
-            {' '}and{' '}
-            <a href="https://stanfordasl.github.io/aa203/" target="_blank" rel="noopener">Stanford AA203</a>.
-          </Fragment>
-        )
-        : ` ${released.length} of ${chapters.length} chapters have recordings available.`}
-    </p>
-
-    <div class="chapter-list" style="margin-top:1.5rem">
-      {chapters.map((c) => (
-        <div class="chapter-row" style="cursor:default">
-          <span class="num">{displayNumber(c)}</span>
-          <span class="name">{c.title}</span>
-          <span class="tags">
-            {c.lecture
-              ? <a class="tag-ex" href={c.lecture.videoUrl} target="_blank" rel="noopener">Watch</a>
-              : <span class="tag-soon">coming soon</span>}
-          </span>
-        </div>
-      ))}
+<BaseLayout
+  title="Lectures"
+  active="lectures"
+  description="Full lecture recordings from the Stanford courses behind Principles of Robot Autonomy, published on the official Stanford Online YouTube channel."
+>
+  <div class="wrap" style="padding-top:2.5rem">
+    <div class="lec-intro">
+      <h1>Lectures</h1>
+      <p>
+        Full lecture recordings from the Stanford courses behind Principles of Robot Autonomy
+      </p>
+      <p class="lec-intro-fine">
+        For all other class materials — slides, homeworks, suggested readings, and schedules — see the
+        course websites:{' '}
+        <a href="https://stanfordasl.github.io/PoRA-I/aa174a_aut2526/" target="_blank" rel="noopener">Stanford AA174A</a>
+        {' '}and{' '}
+        <a href="https://stanfordasl.github.io/aa203/" target="_blank" rel="noopener">Stanford AA203</a>.
+      </p>
     </div>
+
+    {/* Two large course cards; the live one jumps to its section below. */}
+    <div class="lec-courses">
+      {courses.map((course) => {
+        const coming = course.status !== 'available';
+        const Tag = coming ? 'div' : 'a';
+        return (
+          <Tag
+            class:list={['lec-course-card', coming && 'is-coming']}
+            href={coming ? undefined : `#${course.id}`}
+          >
+            <img class="lec-course-mark" src="/logos/stanford.svg" alt="" width="162" height="248" loading="lazy" />
+            <span class="lec-course-body">
+              <span class="lec-course-code">{course.code}</span>
+              <span class="lec-course-name">{course.title}</span>
+              <span class="lec-course-status">
+                {coming
+                  ? <span class="lec-chip">Coming soon!</span>
+                  : <Fragment>{course.lectures.length} lectures · Watch now <span class="lec-arrow">↓</span></Fragment>}
+              </span>
+            </span>
+          </Tag>
+        );
+      })}
+    </div>
+
+    {live.map((course) => (
+      <section class="lec-section" id={course.id}>
+        <h2 class="lec-section-title">
+          <span class="lec-section-code">{course.code}</span>
+          {course.title}
+        </h2>
+        <p class="lec-section-note">
+          {course.lectures.length} lecture recordings ·{' '}
+          <a href={course.url} target="_blank" rel="noopener">course website</a>
+        </p>
+
+        <div class="lec-grid">
+          {course.lectures.map((l) => (
+            <a class="lec-tile" href={l.url} target="_blank" rel="noopener">
+              <span class="lec-thumb">
+                {/* The poster is the ground; the YouTube thumbnail layers on top and
+                    removes itself when there isn't a real one yet. Note ytimg serves a
+                    *valid* 120x90 grey placeholder (with a 404 status) for videos that
+                    aren't public, so `onerror` never fires — the size check is what
+                    actually detects it. A real hqdefault is 480x360. */}
+                <span class="lec-poster" aria-hidden="true">
+                  <span class="lec-poster-n">{pad(l.n)}</span>
+                  <span class="lec-poster-mark">{course.id.toUpperCase()}</span>
+                </span>
+                <img
+                  class="lec-img"
+                  src={l.thumb}
+                  alt=""
+                  loading="lazy"
+                  referrerpolicy="no-referrer"
+                  onload="if(this.naturalWidth>120){this.style.opacity=1}else{this.remove()}"
+                  onerror="this.remove()"
+                />
+                <span class="lec-play" aria-hidden="true">
+                  <svg viewBox="0 0 48 48" width="44" height="44">
+                    <circle cx="24" cy="24" r="23" />
+                    <path d="M19 15.5 L33.5 24 L19 32.5 Z" />
+                  </svg>
+                </span>
+              </span>
+              <span class="lec-meta">
+                <span class="lec-n">Lecture {l.n}</span>
+                <span class="lec-title">{l.title}</span>
+              </span>
+            </a>
+          ))}
+        </div>
+      </section>
+    ))}
   </div>
 </BaseLayout>
+
+<style>
+  .lec-intro { max-width: 52rem; }
+  .lec-intro h1 { font-size: 2.2rem; margin: 1rem 0 0.75rem; }
+  .lec-intro p { color: var(--ink-soft); margin: 0 0 0.85rem; }
+  .lec-intro strong { color: var(--ink); font-weight: 600; }
+  .lec-intro-fine { font-size: 0.92rem; color: var(--muted) !important; }
+
+  /* ---- The two big course cards ---- */
+  .lec-courses {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(21rem, 1fr));
+    gap: 1.25rem; margin: 2.25rem 0 1rem;
+  }
+  .lec-course-card {
+    display: flex; align-items: center; gap: 1.25rem;
+    padding: 1.5rem 1.6rem; border-radius: 12px;
+    border: 1px solid var(--line-strong); background: var(--paper-2);
+    font-family: var(--sans); color: var(--ink);
+    transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  a.lec-course-card:hover {
+    text-decoration: none; border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px -16px rgba(20, 30, 50, 0.45);
+  }
+  .lec-course-card.is-coming { opacity: 0.72; }
+  .lec-course-mark { height: 2.9rem; width: auto; flex: none; }
+  .lec-course-card.is-coming .lec-course-mark { filter: grayscale(1); opacity: 0.55; }
+  .lec-course-body { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+  .lec-course-code {
+    font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600;
+  }
+  .lec-course-name { font-family: var(--serif); font-size: 1.2rem; color: var(--ink); }
+  .lec-course-status {
+    display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap;
+    font-size: 0.85rem; color: var(--muted); margin-top: 0.35rem;
+  }
+  .lec-chip {
+    font-size: 0.68rem; letter-spacing: 0.07em; text-transform: uppercase; font-weight: 600;
+    color: var(--accent); background: var(--accent-soft);
+    border-radius: 999px; padding: 0.24rem 0.6rem;
+  }
+  .lec-arrow { color: var(--accent); }
+
+  /* ---- Course section ---- */
+  .lec-section { padding: 3rem 0 0; scroll-margin-top: 4.5rem; }
+  /* Block (not flex) so the short accent rule below matches the home-page h2s. */
+  .lec-section-title {
+    font-family: var(--serif); font-size: 1.5rem; color: var(--ink); margin: 0 0 0.4rem;
+  }
+  .lec-section-title::after {
+    content: ''; display: block; width: 2rem; height: 2px;
+    background: var(--accent); margin-top: 0.6rem;
+  }
+  .lec-section-code {
+    display: block;
+    font-family: var(--sans); font-size: 0.72rem; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--accent); font-weight: 600;
+    margin-bottom: 0.3rem;
+  }
+  .lec-section-note {
+    font-family: var(--sans); font-size: 0.88rem; color: var(--muted); margin: 0.9rem 0 0;
+  }
+
+  /* ---- Lecture tiles ---- */
+  .lec-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+    gap: 1.6rem 1.4rem; margin-top: 1.75rem;
+  }
+  .lec-tile { display: flex; flex-direction: column; gap: 0.7rem; color: var(--ink); }
+  .lec-tile:hover { text-decoration: none; }
+
+  /* The thumb box: designed poster underneath, YouTube image on top. */
+  .lec-thumb {
+    position: relative; display: block; aspect-ratio: 16 / 9; overflow: hidden;
+    border-radius: 10px; border: 1px solid var(--line-strong); background: var(--paper-2);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .lec-tile:hover .lec-thumb {
+    border-color: var(--accent);
+    box-shadow: 0 14px 28px -18px rgba(20, 30, 50, 0.5);
+  }
+  .lec-poster {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    justify-content: space-between; padding: 0.85rem 1rem 0.9rem;
+    background:
+      radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--accent-soft) 70%, transparent), transparent 60%),
+      var(--paper-2);
+  }
+  .lec-poster-n {
+    font-family: var(--mono); font-weight: 600; font-size: 2.6rem; line-height: 1;
+    color: color-mix(in srgb, var(--accent) 65%, transparent);
+  }
+  /* The lecture title is already the tile caption — the poster carries only the
+     number and the course mark, so nothing reads twice. */
+  .lec-poster-mark {
+    font-family: var(--sans); font-size: 0.7rem; font-weight: 600;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: color-mix(in srgb, var(--muted) 75%, transparent);
+  }
+  /* Sits on top of the poster; `cover` crops hqdefault's 4:3 letterbox back to 16:9.
+     Starts hidden and is only revealed once onload confirms a real thumbnail —
+     otherwise the grey ytimg placeholder flashes for a frame before it's removed.
+     Transparent, so a lazy image that hasn't loaded can't paint over the poster. */
+  .lec-img {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; display: block;
+    opacity: 0; transition: opacity 0.2s ease;
+  }
+  .lec-play {
+    position: absolute; right: 0.7rem; bottom: 0.7rem; line-height: 0;
+    transition: transform 0.15s ease;
+  }
+  .lec-play svg circle {
+    fill: color-mix(in srgb, var(--paper) 88%, transparent);
+    stroke: var(--line-strong); stroke-width: 1;
+  }
+  .lec-play svg path { fill: var(--accent); }
+  .lec-tile:hover .lec-play { transform: scale(1.08); }
+  .lec-tile:hover .lec-play svg circle { fill: var(--paper); stroke: var(--accent); }
+
+  .lec-meta { display: flex; flex-direction: column; gap: 0.15rem; }
+  .lec-n {
+    font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.03em; color: var(--accent);
+  }
+  .lec-title {
+    font-family: var(--serif); font-size: 1.02rem; line-height: 1.35; color: var(--ink);
+  }
+  .lec-tile:hover .lec-title { color: var(--accent); }
+
+  @media (max-width: 62rem) {
+    .lec-courses { grid-template-columns: 1fr; }
+    .lec-grid { grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 1.4rem 1.1rem; }
+  }
+  @media (max-width: 34rem) {
+    .lec-grid { grid-template-columns: 1fr; }
+    .lec-course-card { padding: 1.25rem 1.2rem; gap: 1rem; }
+  }
+</style>
