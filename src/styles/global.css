@@ -154,10 +154,28 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 600; line-height: 1.15;
 .home-hero-copy .lead { font-size: 1.12rem; color: var(--ink-soft); margin: 1.15rem 0 0; }
 .home-hero-copy .pub-note { font-size: 0.98rem; color: var(--muted); margin: 1rem 0 0; }
 .home-hero-copy .callout { margin: 1.5rem 0 0; }
-/* Terracotta, matching the book title in the h1 — the default teal link sat too
-   close to the body ink to read as the callout's call to action. */
-.home-hero-copy .callout a { color: var(--accent); }
-.home-hero-copy .callout a:hover { color: color-mix(in srgb, var(--accent) 75%, #000); }
+
+/* Inline prose links across the home page all take the terracotta of the book
+   title in the h1 — the default teal sat too close to the body ink to read as
+   a call to action. Deliberately NOT included, since each has its own visual
+   language: the hero-links strip (arXiv / Stanford classes / GitHub), the
+   section nav, the CTA buttons, and the author-name links in the bio cards. */
+.home-hero-copy .callout a,
+.home-authors-intro a,
+.home-note a,
+.home-guide a,
+.home-assistant a,
+.home-cite a {
+  color: var(--accent);
+}
+.home-hero-copy .callout a:hover,
+.home-authors-intro a:hover,
+.home-note a:hover,
+.home-guide a:hover,
+.home-assistant a:hover,
+.home-cite a:hover {
+  color: color-mix(in srgb, var(--accent) 75%, #000);
+}
 /* Full hero width (both grid columns) so all four CTAs share one row. */
 .hero-ctas { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.75rem; }
 /* External-resource strip below the hero: one centered line (72rem band, wider
