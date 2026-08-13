@@ -153,6 +153,11 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 600; line-height: 1.15;
 .home-hero-copy h1 em { font-style: italic; color: var(--accent); }
 .home-hero-copy .lead { font-size: 1.12rem; color: var(--ink-soft); margin: 1.15rem 0 0; }
 .home-hero-copy .pub-note { font-size: 0.98rem; color: var(--muted); margin: 1rem 0 0; }
+.home-hero-copy .callout { margin: 1.5rem 0 0; }
+/* Terracotta, matching the book title in the h1 — the default teal link sat too
+   close to the body ink to read as the callout's call to action. */
+.home-hero-copy .callout a { color: var(--accent); }
+.home-hero-copy .callout a:hover { color: color-mix(in srgb, var(--accent) 75%, #000); }
 /* Full hero width (both grid columns) so all four CTAs share one row. */
 .hero-ctas { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.75rem; }
 /* External-resource strip below the hero: one centered line (72rem band, wider
@@ -299,6 +304,8 @@ a.hero-link:hover img { opacity: 1; }
   }
   .cover-figure { max-width: 16rem; margin-top: 0; }
   .home-hero-copy .lead { margin-left: auto; margin-right: auto; }
+  /* The hero copy centers on narrow screens; the note reads better ranged left. */
+  .home-hero-copy .callout { text-align: left; }
   /* The hero centers its items, which would otherwise size this row to its
      max-content width (every button) and overflow a narrow viewport. */
   .hero-ctas { justify-content: center; width: 100%; }
