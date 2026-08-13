@@ -73,13 +73,6 @@ const bibtex = `@book{pora,
         The book is published by <strong>Cambridge University Press</strong> and will soon be available in print. We’ll share ordering information here as soon as it becomes available. 
         In the meantime, this website brings everything together in one place, including the complete text, interactive exercises, and lecture recordings.
       </p>
-      <aside class="callout">
-        <span class="callout-label">For instructors</span>
-        <p>
-          Building your own course around PoRA? If you’re a professor, lecturer, or instructor at any level,
-          the <a href="/instructors/">For Instructors</a> page gathers all the resources you need.
-        </p>
-      </aside>
     </div>
     <figure class="cover-figure">
       <picture>
@@ -88,8 +81,8 @@ const bibtex = `@book{pora,
              alt="Cover of Principles of Robot Autonomy" loading="eager" />
       </picture>
     </figure>
-    {/* Spans both hero columns: the four CTAs don't fit on one line inside the
-        narrower copy column. */}
+    {/* Spans both hero columns so the CTA row keeps one line as buttons are
+        added; the copy column alone is too narrow for more than three. */}
     <div class="hero-ctas">
       <a class="btn primary" href="/book/">Start reading</a>
       <a class="btn" href="/exercises/">Exercises</a>
