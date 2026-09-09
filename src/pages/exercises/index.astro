@@ -2,6 +2,7 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { publishedChapters, displayNumber } from '../../data/book.js';
 import exercises from '../../data/exercises.json';
+import { nbEvent } from '../../data/analytics.js';
 
 const withExercises = publishedChapters().filter((c) => c.exercises && exercises[c.exercises]?.length);
 const total = withExercises.reduce((n, c) => n + exercises[c.exercises].length, 0);
@@ -12,7 +13,7 @@ const total = withExercises.reduce((n, c) => n + exercises[c.exercises].length, 
     <p style="color:var(--muted);max-width:104ch">
       {total} interactive notebooks across {withExercises.length} chapters. Each opens
       directly in Google Colab, or view the source in the
-      <a href="https://github.com/StanfordASL/pora-exercises">pora-exercises</a> repository.
+      <a href="https://github.com/StanfordASL/pora-exercises" target="_blank" rel="noopener" data-goatcounter-click="github/exercises">pora-exercises</a> repository.
     </p>
 
     {withExercises.map((c) => (
@@ -24,8 +25,8 @@ const total = withExercises.reduce((n, c) => n + exercises[c.exercises].length, 
               <li>
                 <span class="nb-name">{nb.name}</span>
                 <span class="nb-links">
-                  <a href={nb.colab} target="_blank" rel="noopener">Open in Colab</a>
-                  <a href={nb.source} target="_blank" rel="noopener">Source</a>
+                  <a href={nb.colab} target="_blank" rel="noopener" data-goatcounter-click={nbEvent('colab', nb)}>Open in Colab</a>
+                  <a href={nb.source} target="_blank" rel="noopener" data-goatcounter-click={nbEvent('source', nb)}>Source</a>
                 </span>
               </li>
             ))}

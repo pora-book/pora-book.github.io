@@ -93,12 +93,12 @@ const ackBooks = [
                 <span class="tags">
                   {lec.pdf.map((href, i) =>
                     available(href)
-                      ? <a class="tag-ex" href={href} target="_blank" rel="noopener">{partLabel('PDF', lec.pdf, i)}</a>
+                      ? <a class="tag-ex" href={href} target="_blank" rel="noopener" data-goatcounter-click={href.slice(1)} data-goatcounter-title={`${course.code} ${lec.n} · ${lec.title}`}>{partLabel('PDF', lec.pdf, i)}</a>
                       : <span class="tag-soon">{partLabel('PDF', lec.pdf, i)} soon</span>,
                   )}
                   {lec.pptx.map((href, i) =>
                     available(href)
-                      ? <a class="tag-ex" href={href} target="_blank" rel="noopener">{partLabel('PPTX', lec.pptx, i)}</a>
+                      ? <a class="tag-ex" href={href} target="_blank" rel="noopener" data-goatcounter-click={href.slice(1)} data-goatcounter-title={`${course.code} ${lec.n} · ${lec.title}`}>{partLabel('PPTX', lec.pptx, i)}</a>
                       : <span class="tag-soon">{partLabel('PPTX', lec.pptx, i)} soon</span>,
                   )}
                 </span>

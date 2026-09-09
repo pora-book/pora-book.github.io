@@ -67,7 +67,7 @@ const pad = (n) => String(n).padStart(2, '0');
 
         <div class="lec-grid">
           {course.lectures.map((l) => (
-            <a class="lec-tile" href={l.url} target="_blank" rel="noopener">
+            <a class="lec-tile" href={l.url} target="_blank" rel="noopener" data-goatcounter-click={`youtube/${course.id}/${l.n}`} data-goatcounter-title={l.title}>
               <span class="lec-thumb">
                 {/* The poster is the ground; the YouTube thumbnail layers on top and
                     removes itself when there isn't a real one yet. Note ytimg serves a

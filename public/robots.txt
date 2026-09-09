@@ -1,0 +1,5 @@
+# Everything here is meant to be found and read.
+User-agent: *
+Allow: /
+
+Sitemap: https://porabook.com/sitemap-index.xml

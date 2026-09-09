@@ -4,6 +4,7 @@ import BookAssistant from '../../components/BookAssistant.astro';
 import '../../styles/latexml.css';
 import { publishedChapters, displayNumber } from '../../data/book.js';
 import exercises from '../../data/exercises.json';
+import { nbEvent } from '../../data/analytics.js';
 
 const bodies = import.meta.glob('../../content/chapters/*.html', {
   query: '?raw', import: 'default', eager: true,
@@ -55,8 +56,8 @@ const lecture = chapter.lecture ?? null; // data-driven; null hides the Watch sl
               <li>
                 <span class="nb-name">{nb.name}</span>
                 <span class="nb-links">
-                  <a href={nb.colab} target="_blank" rel="noopener">Open in Colab</a>
-                  <a href={nb.source} target="_blank" rel="noopener">Source</a>
+                  <a href={nb.colab} target="_blank" rel="noopener" data-goatcounter-click={nbEvent('colab', nb)}>Open in Colab</a>
+                  <a href={nb.source} target="_blank" rel="noopener" data-goatcounter-click={nbEvent('source', nb)}>Source</a>
                 </span>
               </li>
             ))}
