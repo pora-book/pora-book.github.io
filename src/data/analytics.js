@@ -10,7 +10,7 @@
 // TO GO LIVE: create a site at https://www.goatcounter.com, then paste its
 // count endpoint here. Until this is a non-empty string BaseLayout renders no
 // script at all, so the site ships with zero tracking by default.
-export const GOATCOUNTER = ''; // e.g. 'https://porabook.goatcounter.com/count'
+export const GOATCOUNTER = 'https://danielegammelli.goatcounter.com/count';
 
 // Event-name scheme for the outbound links we instrument. Names are stable and
 // slash-separated so they group in the GoatCounter dashboard the way paths do:
