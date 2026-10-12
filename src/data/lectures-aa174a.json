@@ -1,0 +1,33 @@
+{
+  "playlist": "PLR9iNyexfIkk",
+  "videos": [
+    {
+      "yt": "Lgt5ONBtFI0",
+      "title": "Overview, Mobile Robot Kinematics"
+    },
+    {
+      "yt": "Kv5G2OlrIbU",
+      "title": "Trajectory Optimization"
+    },
+    {
+      "yt": "nluc4rMiipA",
+      "title": "Trajectory Tracking"
+    },
+    {
+      "yt": "Izu4_AUiHyk",
+      "title": "Advanced Trajectory Optimization"
+    },
+    {
+      "yt": "hFCIZjVkSaw",
+      "title": "Motion Planning Graph Search Methods"
+    },
+    {
+      "yt": "AN4jXyWwV7Q",
+      "title": "Motion Planning Sampling-Based"
+    },
+    {
+      "yt": "emb_KF3OSu0",
+      "title": "Sensors & Intro to CV"
+    }
+  ]
+}

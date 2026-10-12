@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # Daily rebuild so newly uploaded lecture recordings (pulled from YouTube by
+  # scripts/build-lectures-manifest.mjs) go live without a commit.
+  schedule:
+    - cron: '0 6 * * *'
 
 # Permissions needed for the deploy-pages action to publish.
 permissions:
@@ -36,6 +40,11 @@ jobs:
       # so make sure their native binaries are present before building.
       - name: Ensure native binaries
         run: npm rebuild esbuild sharp
+
+      # Refresh the AA174A lecture list from its YouTube playlist. Never fails the
+      # build: on a network/scrape error the committed JSON is used as-is.
+      - name: Fetch latest lecture recordings
+        run: npm run manifest:lectures
 
       - name: Build site
         run: npm run build

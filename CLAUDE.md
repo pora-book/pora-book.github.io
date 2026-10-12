@@ -27,6 +27,7 @@ Canonical chapter list — ordering, titles, parts, `source` (file under `tex/so
 
 - `npm run dev` / `npm run build` / `npm run preview` — Astro (build outputs to `dist/`).
 - `npm run manifest:exercises` — regenerate `src/data/exercises.json`.
+- `npm run manifest:lectures` — refresh `src/data/lectures-aa174a.json` from the AA174A YouTube playlist (CI runs this before every build and on a daily schedule, so new uploads go live automatically; title polish lives in `AA174A_TITLES` in `src/data/lectures.js`).
 - `npm run convert -- <slug> [<slug>...]` — convert specific chapters (omit slugs for all). Point `PORA_TEX_DIR` at a checkout of `StanfordASL/PoRA/tex`, else it clones into `.pora-src/`.
 
 Note: `npm install` withholds `esbuild`/`sharp` install scripts (see `allowScripts` in package.json); if binaries are missing after a fresh install, run `npm approve-scripts esbuild sharp`.

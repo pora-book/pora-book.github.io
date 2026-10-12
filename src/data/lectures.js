@@ -14,6 +14,13 @@
 // A course with `status: 'coming'` renders as an inert "Coming soon!" card and
 // gets no lecture section; adding its `lectures` and flipping `status` to
 // 'available' is all that's needed to light it up.
+//
+// AA174A's lectures are not listed here by hand: Stanford Online is uploading
+// them gradually, so scripts/build-lectures-manifest.mjs pulls the playlist into
+// lectures-aa174a.json before every CI build (and on a daily schedule). New
+// uploads therefore appear on their own; numbering follows playlist order.
+
+import aa174aPlaylist from './lectures-aa174a.json';
 
 const lec = (n, title, yt) => ({
   n,
@@ -22,6 +29,15 @@ const lec = (n, title, yt) => ({
   url: `https://youtu.be/${yt}`,
   thumb: `https://i.ytimg.com/vi/${yt}/hqdefault.jpg`,
 });
+
+// Optional polish for the auto-fetched AA174A titles, keyed by YouTube id.
+// Anything not listed here shows the YouTube title (minus the course prefix).
+const AA174A_TITLES = {
+  Lgt5ONBtFI0: 'Course Overview and Mobile Robot Kinematics',
+  hFCIZjVkSaw: 'Motion Planning: Graph Search Methods',
+  AN4jXyWwV7Q: 'Motion Planning: Sampling-Based Methods',
+  emb_KF3OSu0: 'Sensors and Introduction to Computer Vision',
+};
 
 export const LECTURE_COURSES = [
   {
@@ -57,8 +73,10 @@ export const LECTURE_COURSES = [
     code: 'Stanford AA174A / AA274A',
     title: 'Principles of Robot Autonomy I',
     url: 'https://stanfordasl.github.io/PoRA-I/aa174a_aut2526/',
-    status: 'coming',
-    lectures: [],
+    status: 'available',
+    lectures: aa174aPlaylist.videos.map((v, i) =>
+      lec(i + 1, AA174A_TITLES[v.yt] ?? v.title, v.yt),
+    ),
   },
 ];
 
