@@ -28,6 +28,7 @@ Canonical chapter list — ordering, titles, parts, `source` (file under `tex/so
 - `npm run dev` / `npm run build` / `npm run preview` — Astro (build outputs to `dist/`).
 - `npm run manifest:exercises` — regenerate `src/data/exercises.json`.
 - `npm run manifest:lectures` — refresh `src/data/lectures-aa174a.json` from the AA174A YouTube playlist (CI runs this before every build and on a daily schedule, so new uploads go live automatically; title polish lives in `AA174A_TITLES` in `src/data/lectures.js`).
+- `npm run manifest:errata` — refresh `src/data/errata.json` from GitHub issues labelled `erratum` + `confirmed` (CI runs this before every build; the deploy workflow also fires on erratum issue label/close/edit events).
 - `npm run convert -- <slug> [<slug>...]` — convert specific chapters (omit slugs for all). Point `PORA_TEX_DIR` at a checkout of `StanfordASL/PoRA/tex`, else it clones into `.pora-src/`.
 
 Note: `npm install` withholds `esbuild`/`sharp` install scripts (see `allowScripts` in package.json); if binaries are missing after a fresh install, run `npm approve-scripts esbuild sharp`.
@@ -35,6 +36,19 @@ Note: `npm install` withholds `esbuild`/`sharp` install scripts (see `allowScrip
 ## Deploy
 
 `pora-book.github.io` is a GitHub Pages user site (served at the domain root — `astro.config.mjs` sets no `base`). Because conversion + Astro need a build step, deployment is via a GitHub Actions workflow (not zero-config Pages).
+
+## Adopters & errata
+
+- **Adopting courses** live in `src/data/adopters.js` (one entry per university, logo
+  under `public/logos/`). They drive the home-page "Taught at" strip and the "Courses
+  using the book" cards on For Instructors (`home: true` entries, i.e. Stanford, are
+  skipped there because "Build your course" already covers them).
+- **Errata** are GitHub issues on this repo, filed through the issue form
+  `.github/ISSUE_TEMPLATE/erratum.yml`. Chapter pages (`src/components/ErrataReport.astro`)
+  open it pre-filled via query params named after the form's field ids (built in
+  `src/data/errata.js`); selecting text shows a "Report erratum" button that quotes the
+  passage (MathML → its LaTeX `alttext`) and the section. Maintainers add `confirmed` to
+  publish one on `/errata/` and close it once fixed in the source.
 
 ## Citations & cross-references (post-processing in `scripts/`)
 

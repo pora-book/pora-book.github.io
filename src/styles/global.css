@@ -85,6 +85,7 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 600; line-height: 1.15;
   color: var(--muted); font-size: 0.85rem;
 }
 .site-footer a { color: var(--ink-soft); }
+.site-footer .footer-links { display: flex; gap: 1.25rem; align-items: center; }
 
 /* =========================== Generic layout ============================= */
 .wrap { max-width: 72rem; margin: 0 auto; padding: 0 1.5rem; }
@@ -196,15 +197,47 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 600; line-height: 1.15;
 .hero-link img { height: 1.2em; width: auto; display: block; opacity: 0.7; }
 a.hero-link:hover { color: var(--accent); text-decoration: none; }
 a.hero-link:hover img { opacity: 1; }
-.hero-link-label { color: var(--muted); font-weight: 500; }
-.hero-link-classes a {
-  color: var(--link);
+/* "Taught at" strip: university shields with their course codes underneath. */
+.adopters-strip {
+  max-width: 72rem; margin: 0 auto 2.75rem; padding: 0 1.5rem;
+  display: flex; flex-direction: column; align-items: center; gap: 1rem;
+  font-family: var(--sans);
+}
+.adopters-strip-label {
+  font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600;
+  display: flex; align-items: center; gap: 0.9rem;
+}
+.adopters-strip-label::before, .adopters-strip-label::after {
+  content: ''; width: 2.5rem; height: 1px; background: var(--line-strong);
+}
+.adopters-strip-list {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 0.9rem;
+}
+.adopter {
+  display: flex; align-items: center; gap: 0.85rem;
+  padding: 0.8rem 1.25rem 0.8rem 1rem; border-radius: 12px;
+  border: 1px solid var(--line); background: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.adopter:hover {
+  border-color: var(--line-strong);
+  box-shadow: 0 10px 22px -18px rgba(20, 30, 50, 0.5);
+}
+.adopter-logo { height: 2.6rem; width: 2.2rem; object-fit: contain; flex: none; }
+.adopter-body { display: flex; flex-direction: column; gap: 0.15rem; }
+.adopter-name { font-family: var(--serif); font-size: 1.12rem; font-weight: 600; color: var(--ink); line-height: 1.2; }
+.adopter-courses { font-size: 0.78rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0 0.35rem; }
+.adopter-courses a {
+  color: var(--link); white-space: nowrap;
   text-decoration: underline; text-decoration-thickness: 1px;
-  text-decoration-color: color-mix(in srgb, var(--link) 40%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--link) 35%, transparent);
   text-underline-offset: 3px;
 }
-.hero-link-classes a:hover { color: var(--link-hover); text-decoration-color: currentColor; }
-.hero-link-classes .dot { color: var(--muted); }
+.adopter-courses a:hover { color: var(--link-hover); text-decoration-color: currentColor; }
+.adopters-strip-more { font-size: 0.8rem; color: var(--muted); }
+.adopters-strip-more:hover { color: var(--accent); text-decoration: none; }
 
 /* In-page section navigation between the hero and the prose sections. */
 .section-nav {
@@ -329,6 +362,5 @@ a.hero-link:hover img { opacity: 1; }
   .hero-ctas { justify-content: center; width: 100%; }
   .hero-links { flex-direction: column; row-gap: 0.85rem; }
   .hero-link + .hero-link { border-left: 0; padding-left: 0; }
-  .hero-link-classes { white-space: normal; flex-wrap: wrap; justify-content: center; }
   .section-nav { justify-content: center; gap: 0.4rem 1.4rem; }
 }

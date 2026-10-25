@@ -8,12 +8,17 @@ on:
   # scripts/build-lectures-manifest.mjs) go live without a commit.
   schedule:
     - cron: '0 6 * * *'
+  # Labelling an erratum issue `confirmed` (or closing it once fixed) republishes
+  # /errata/ (scripts/build-errata-manifest.mjs).
+  issues:
+    types: [labeled, unlabeled, closed, reopened, edited]
 
 # Permissions needed for the deploy-pages action to publish.
 permissions:
   contents: read
   pages: write
   id-token: write
+  issues: read
 
 # Allow one concurrent deployment; cancel in-progress runs on new pushes.
 concurrency:
@@ -22,6 +27,8 @@ concurrency:
 
 jobs:
   build:
+    # Issue events only matter for erratum reports.
+    if: github.event_name != 'issues' || contains(github.event.issue.labels.*.name, 'erratum')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -45,6 +52,12 @@ jobs:
       # build: on a network/scrape error the committed JSON is used as-is.
       - name: Fetch latest lecture recordings
         run: npm run manifest:lectures
+
+      # Refresh the confirmed errata from GitHub issues. Never fails the build.
+      - name: Fetch confirmed errata
+        run: npm run manifest:errata
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build site
         run: npm run build

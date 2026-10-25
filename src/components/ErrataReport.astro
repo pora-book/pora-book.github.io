@@ -1,0 +1,122 @@
+---
+// Erratum reporting on a chapter page: a rail at the end of the chapter, plus a
+// "Report erratum" button that floats over any passage the reader selects. Both
+// open the GitHub issue form (src/data/errata.js) pre-filled with the chapter,
+// the section, the selected passage (math as LaTeX) and a link back to it.
+import { erratumUrl, openReportsUrl } from '../data/errata.js';
+import errata from '../data/errata.json';
+
+const { chapterLabel, chapterSlug } = Astro.props;
+const pageUrl = new URL(`/book/${chapterSlug}/`, Astro.site).href;
+const known = errata.items.filter((e) => e.chapter === chapterSlug).length;
+---
+<section class="rail errata-rail" aria-label="Errata">
+  <h3>Spotted an error?</h3>
+  <p>
+    Select any passage and click <strong>Report erratum</strong>, or
+    <a href={erratumUrl({ chapter: chapterLabel, url: pageUrl })} target="_blank" rel="noopener" data-goatcounter-click={`errata/report/${chapterSlug}`}>report an erratum for this chapter</a>
+    on GitHub.
+    {known > 0
+      ? <>This chapter has <a href={`/errata/#${chapterSlug}`}>{known} known {known === 1 ? 'erratum' : 'errata'}</a>.</>
+      : <>See also the <a href="/errata/">known errata</a> and <a href={openReportsUrl} target="_blank" rel="noopener">open reports</a>.</>}
+  </p>
+</section>
+
+<button type="button" class="errata-pop" id="errata-pop" hidden
+        data-chapter={chapterLabel} data-url={pageUrl}>
+  Report erratum
+</button>
+
+<script>
+  import { erratumUrl } from '../data/errata.js';
+
+  const doc = document.querySelector('.chapter-main .ltx_document');
+  const pop = document.getElementById('errata-pop');
+
+  // Selected text, with each MathML formula replaced by its LaTeX source.
+  function passage(range) {
+    const r = range.cloneRange();
+    const mathOf = (n) => (n.nodeType === 1 ? n : n.parentElement)?.closest('math');
+    const s = mathOf(r.startContainer); if (s) r.setStartBefore(s);
+    const e = mathOf(r.endContainer); if (e) r.setEndAfter(e);
+    const frag = r.cloneContents();
+    frag.querySelectorAll('math').forEach((m) => {
+      const tex = m.getAttribute('alttext') ?? '';
+      m.replaceWith(m.getAttribute('display') === 'block' ? `$$${tex}$$` : `$${tex}$`);
+    });
+    return frag.textContent.replace(/\s+/g, ' ').trim();
+  }
+
+  // "Section 4.2.1 · Label Correcting Algorithms (Eq. (4.7))" and the id of the
+  // closest anchored element, for the link back.
+  function locate(node) {
+    const el = node.nodeType === 1 ? node : node.parentElement;
+    const sec = el.closest('section.ltx_subsection, section.ltx_section');
+    const title = sec?.querySelector(':scope > .ltx_title');
+    let location = '';
+    if (title) {
+      const tag = title.querySelector('.ltx_tag')?.textContent.trim();
+      const name = [...title.childNodes].filter((n) => !n.classList?.contains('ltx_tag'))
+        .map((n) => n.textContent).join('').replace(/\s+/g, ' ').trim();
+      location = tag ? `Section ${tag} · ${name}` : name;
+    }
+    const eq = el.closest('.ltx_equation, .ltx_equationgroup')?.querySelector('.ltx_tag_equation');
+    if (eq) location += `${location ? ' ' : ''}(Eq. ${eq.textContent.trim()})`;
+    const anchor = el.closest('[id]:not(math)');
+    return { location, id: anchor && doc.contains(anchor) ? anchor.id : '' };
+  }
+
+  function current() {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !sel.rangeCount) return null;
+    const range = sel.getRangeAt(0);
+    if (!doc.contains(range.commonAncestorContainer)) return null;
+    const quote = passage(range);
+    return quote ? { range, quote } : null;
+  }
+
+  function update() {
+    const s = current();
+    if (!s) { pop.hidden = true; return; }
+    const rects = s.range.getClientRects();
+    const last = rects[rects.length - 1] ?? s.range.getBoundingClientRect();
+    pop.hidden = false;
+    const w = pop.offsetWidth;
+    const left = Math.min(Math.max(8, last.right - w / 2), document.documentElement.clientWidth - w - 8);
+    pop.style.left = `${left + window.scrollX}px`;
+    pop.style.top = `${last.bottom + window.scrollY + 8}px`;
+  }
+
+  if (doc && pop) {
+    // Positioned against the page, not whichever ancestor happens to be positioned.
+    document.body.appendChild(pop);
+    let t;
+    document.addEventListener('selectionchange', () => { clearTimeout(t); t = setTimeout(update, 200); });
+    window.addEventListener('resize', update);
+    // Keep the selection alive while the button is pressed.
+    pop.addEventListener('mousedown', (e) => e.preventDefault());
+    pop.addEventListener('click', () => {
+      const s = current();
+      if (!s) return;
+      const { location, id } = locate(s.range.startContainer);
+      const url = id ? `${pop.dataset.url}#${encodeURIComponent(id)}` : pop.dataset.url;
+      window.goatcounter?.count?.({ path: 'errata/report-selection', event: true });
+      window.open(erratumUrl({ chapter: pop.dataset.chapter, location, quote: s.quote, url }), '_blank', 'noopener');
+      pop.hidden = true;
+    });
+  }
+</script>
+
+<style>
+  .errata-rail p { margin: 0; font-family: var(--sans); font-size: 0.9rem; line-height: 1.6; color: var(--ink-soft); }
+  .errata-rail strong { color: var(--ink); font-weight: 600; }
+  .errata-pop {
+    position: absolute; z-index: 50;
+    font-family: var(--sans); font-size: 0.78rem; font-weight: 600;
+    color: #fff; background: var(--accent); border: 0; border-radius: 999px;
+    padding: 0.4rem 0.85rem; cursor: pointer;
+    box-shadow: 0 8px 20px -10px rgba(20, 30, 50, 0.6);
+  }
+  .errata-pop:hover { background: color-mix(in srgb, var(--accent) 85%, #000); }
+  .errata-pop[hidden] { display: none; }
+</style>

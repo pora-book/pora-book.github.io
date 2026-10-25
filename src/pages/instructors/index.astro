@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { COURSES } from '../../data/slides.js';
+import { ADOPTERS } from '../../data/adopters.js';
 
 // Slides follow the lecture order of the Stanford courses (src/data/slides.js),
 // not the book's chapter order. PDF/PPTX links point into public/slides/…;
@@ -10,6 +11,10 @@ import { COURSES } from '../../data/slides.js';
 // links light up automatically as the source files are added.
 const publicDir = path.join(process.cwd(), 'public');
 const available = (href) => fs.existsSync(path.join(publicDir, href));
+// Courses elsewhere teaching with the book; Stanford is covered above by
+// "Build your course", so `home` entries are skipped here.
+const adopterCourses = ADOPTERS.filter((a) => !a.home)
+  .flatMap((a) => a.courses.map((c) => ({ ...c, institution: a.institution, logo: a.logo })));
 const partLabel = (kind, hrefs, i) =>
   hrefs.length > 1 ? `${kind} · Part ${i + 1}` : kind;
 
@@ -116,6 +121,29 @@ const ackBooks = [
         privately with instructors rather than posted publicly. If you are teaching a course and would
         like access, please feel free to contact us.
       </p>
+    </section>
+
+    <section class="instr-section" id="adopters">
+      <h2>Courses using the book</h2>
+      <p>
+        <em>Principles of Robot Autonomy</em> is used in courses beyond Stanford. Their websites
+        show other ways to build a syllabus around the book.
+      </p>
+      <div class="course-cards">
+        {adopterCourses.map((c) => (
+          <a class="course-card" href={c.url} target="_blank" rel="noopener">
+            <img class="course-mark" src={c.logo} alt="" loading="lazy" />
+            <span class="course-card-body">
+              <span class="course-code">{c.institution} · {c.code}</span>
+              <span class="course-name">{c.title}</span>
+              {(c.instructor || c.term) && (
+                <span class="course-meta">{[c.instructor, c.term].filter(Boolean).join(' · ')}</span>
+              )}
+              <span class="course-status">Course website <span class="course-arrow">↗</span></span>
+            </span>
+          </a>
+        ))}
+      </div>
     </section>
 
     <section class="instr-section">
@@ -229,7 +257,8 @@ const ackBooks = [
     transform: translateY(-2px);
     box-shadow: 0 12px 24px -16px rgba(20, 30, 50, 0.45);
   }
-  .course-mark { height: 2.9rem; width: auto; flex: none; }
+  .course-mark { height: 2.9rem; width: 2.4rem; object-fit: contain; flex: none; }
+  .instr-section { scroll-margin-top: 4.5rem; }
   .course-card-body { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
   .course-code {
     font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase;

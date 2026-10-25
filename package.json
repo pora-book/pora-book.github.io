@@ -11,7 +11,8 @@
     "astro": "astro",
     "convert": "node scripts/convert.mjs",
     "manifest:exercises": "node scripts/build-exercises-manifest.mjs",
-    "manifest:lectures": "node scripts/build-lectures-manifest.mjs"
+    "manifest:lectures": "node scripts/build-lectures-manifest.mjs",
+    "manifest:errata": "node scripts/build-errata-manifest.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.109.1",

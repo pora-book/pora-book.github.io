@@ -1,10 +1,12 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import BookAssistant from '../../components/BookAssistant.astro';
+import ErrataReport from '../../components/ErrataReport.astro';
 import '../../styles/latexml.css';
 import { publishedChapters, displayNumber } from '../../data/book.js';
 import exercises from '../../data/exercises.json';
 import { nbEvent } from '../../data/analytics.js';
+import { chapterLabel } from '../../data/errata.js';
 
 const bodies = import.meta.glob('../../content/chapters/*.html', {
   query: '?raw', import: 'default', eager: true,
@@ -72,6 +74,8 @@ const lecture = chapter.lecture ?? null; // data-driven; null hides the Watch sl
             {lecture.slidesUrl && <> · <a href={lecture.slidesUrl}>Slides</a></>}</p>
         </section>
       )}
+
+      <ErrataReport chapterLabel={chapterLabel(chapter, num)} chapterSlug={chapter.slug} />
 
       <nav class="pager">
         {prev

@@ -1,0 +1,60 @@
+# Erratum report for the book. The "Report an erratum" links on porabook.com
+# open this form with chapter/location/passage/page pre-filled via URL query
+# parameters named after the field ids below; keep those ids in sync with
+# src/components/ErrataReport.astro and scripts/build-errata-manifest.mjs.
+#
+# Workflow: reports arrive labelled `erratum`. Add `confirmed` to publish one on
+# porabook.com/errata/ (the site rebuilds on label changes); close it once the
+# fix is in the book source.
+name: Report an erratum
+description: A typo, mathematical error, broken figure, or unclear passage in the book.
+title: "[Erratum] "
+labels: [erratum]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve *Principles of Robot Autonomy*! Before submitting, please check the [list of known errata](https://porabook.com/errata/) and [open reports](https://github.com/pora-book/pora-book.github.io/issues?q=is%3Aissue+label%3Aerratum) to see whether it has already been reported.
+  - type: input
+    id: chapter
+    attributes:
+      label: Chapter
+      placeholder: "e.g. Ch. 4 · Motion Planning"
+    validations:
+      required: true
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      description: Section, equation, figure, or page number (PDF/print).
+      placeholder: "e.g. Section 4.2, Equation (4.7), or PDF page 112"
+    validations:
+      required: true
+  - type: textarea
+    id: quote
+    attributes:
+      label: Passage
+      description: The text as it currently appears (math as LaTeX is fine).
+      render: text
+  - type: textarea
+    id: description
+    attributes:
+      label: What's wrong, and the suggested correction
+      placeholder: "e.g. The sign of the second term should be negative, since…"
+    validations:
+      required: true
+  - type: dropdown
+    id: edition
+    attributes:
+      label: Where did you read it?
+      options:
+        - Website (porabook.com)
+        - arXiv PDF
+        - Print edition
+    validations:
+      required: false
+  - type: input
+    id: url
+    attributes:
+      label: Link
+      description: Filled in automatically when reporting from the website.

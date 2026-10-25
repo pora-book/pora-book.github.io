@@ -1,0 +1,112 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { publishedChapters, displayNumber } from '../../data/book.js';
+import { erratumUrl, openReportsUrl } from '../../data/errata.js';
+import errata from '../../data/errata.json';
+
+// Confirmed errata (src/data/errata.json, synced from GitHub issues by
+// scripts/build-errata-manifest.mjs), grouped by chapter in book order.
+// Reports whose chapter couldn't be matched are collected under "Other".
+const groups = [
+  ...publishedChapters().map((c) => ({
+    id: c.slug,
+    title: displayNumber(c) ? `Chapter ${displayNumber(c)} · ${c.title}` : c.title,
+    items: errata.items.filter((e) => e.chapter === c.slug),
+  })),
+  { id: 'other', title: 'Other', items: errata.items.filter((e) => !e.chapter) },
+].filter((g) => g.items.length > 0);
+const fixedCount = errata.items.filter((e) => e.fixed).length;
+---
+<BaseLayout
+  title="Errata"
+  active="book"
+  description="Known errata in Principles of Robot Autonomy, and how to report a new one."
+>
+  <div class="prose-wrap" style="padding-top:2.5rem">
+    <h1 style="font-size:2.2rem;margin:1rem 0 0.5rem">Errata</h1>
+    <p class="errata-intro">
+      Despite our best efforts, errors slip through. This page lists the corrections we have
+      confirmed so far. Thank you to every reader who reported one!
+    </p>
+
+    <aside class="callout errata-how">
+      <span class="callout-label">Found an error?</span>
+      <p>
+        While reading a chapter online, <strong>select the passage</strong> and click
+        <strong>Report erratum</strong>. The report form opens with the chapter, section and passage
+        already filled in. You can also <a href={erratumUrl()} target="_blank" rel="noopener" data-goatcounter-click="errata/report/general">open the report form directly</a>,
+        which is handy if you are reading the PDF or the print edition.
+      </p>
+      <p>
+        Reports are public GitHub issues, so you need a (free) GitHub account. Please check the
+        list below and the <a href={openReportsUrl} target="_blank" rel="noopener">open reports</a>
+        first in case someone has already reported it.
+      </p>
+    </aside>
+
+    {groups.length === 0 ? (
+      <p class="errata-empty">No errata have been confirmed yet.</p>
+    ) : (
+      <>
+        <p class="errata-summary">
+          {errata.items.length} confirmed {errata.items.length === 1 ? 'erratum' : 'errata'}
+          · {fixedCount} fixed in the book source
+        </p>
+        {groups.map((g) => (
+          <section class="errata-group" id={g.id}>
+            <h2>{g.title}</h2>
+            <ol class="errata-list">
+              {g.items.map((e) => (
+                <li class="erratum">
+                  <div class="erratum-head">
+                    <span class="erratum-loc">{e.location || 'Location not specified'}</span>
+                    <span class={`erratum-status ${e.fixed ? 'is-fixed' : ''}`}>{e.fixed ? 'Fixed' : 'Confirmed'}</span>
+                  </div>
+                  {e.quote && <blockquote class="erratum-quote">{e.quote}</blockquote>}
+                  <p class="erratum-desc">{e.description}</p>
+                  <div class="erratum-meta">
+                    Reported {e.reported} · <a href={e.url} target="_blank" rel="noopener">#{e.number}</a>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ))}
+      </>
+    )}
+  </div>
+</BaseLayout>
+
+<style>
+  .errata-intro { color: var(--muted); max-width: 104ch; margin: 0 0 1.5rem; }
+  .errata-how { margin: 0 0 2.5rem; }
+  .errata-how a { color: var(--link); }
+  .errata-empty, .errata-summary { font-family: var(--sans); font-size: 0.9rem; color: var(--muted); }
+  .errata-group { padding: 1.5rem 0 0; scroll-margin-top: 4.5rem; }
+  .errata-group h2 { font-size: 1.3rem; margin: 0 0 0.9rem; }
+  .errata-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+  .erratum {
+    background: #fff; border: 1px solid var(--line); border-radius: 10px;
+    padding: 0.95rem 1.1rem;
+  }
+  .erratum-head {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
+    font-family: var(--sans);
+  }
+  .erratum-loc { font-size: 0.85rem; font-weight: 600; color: var(--ink); }
+  .erratum-status {
+    font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600;
+    color: var(--accent); background: var(--accent-soft); border-radius: 999px;
+    padding: 0.15rem 0.55rem; white-space: nowrap;
+  }
+  .erratum-status.is-fixed { color: var(--link); background: color-mix(in srgb, var(--link) 12%, #fff); }
+  .erratum-quote {
+    margin: 0.7rem 0 0; padding: 0.1rem 0 0.1rem 0.85rem;
+    border-left: 2px solid var(--line-strong);
+    font-family: var(--mono); font-size: 0.82rem; color: var(--muted);
+    white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  .erratum-desc { margin: 0.7rem 0 0; color: var(--ink-soft); white-space: pre-line; }
+  .erratum-meta { margin-top: 0.6rem; font-family: var(--sans); font-size: 0.75rem; color: var(--muted); }
+  .erratum-meta a { color: var(--link); }
+</style>
