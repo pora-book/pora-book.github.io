@@ -166,7 +166,8 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 600; line-height: 1.15;
 .home-note a,
 .home-guide a,
 .home-assistant a,
-.home-cite a {
+.home-cite a,
+.home-errata a {
   color: var(--accent);
 }
 .home-hero-copy .callout a:hover,
@@ -174,7 +175,8 @@ h1, h2, h3, h4 { font-family: var(--serif); font-weight: 600; line-height: 1.15;
 .home-note a:hover,
 .home-guide a:hover,
 .home-assistant a:hover,
-.home-cite a:hover {
+.home-cite a:hover,
+.home-errata a:hover {
   color: color-mix(in srgb, var(--accent) 75%, #000);
 }
 /* Full hero width (both grid columns) so all four CTAs share one row. */
@@ -254,18 +256,18 @@ a.hero-link:hover img { opacity: 1; }
 .section-nav a:hover { color: var(--accent); text-decoration: none; }
 
 /* Prose sections on the home page. */
-.home-note, .home-guide, .home-authors, .home-cite, .home-assistant {
+.home-note, .home-guide, .home-authors, .home-cite, .home-assistant, .home-errata {
   padding: 3.25rem 0 0; scroll-margin-top: 4.5rem;
 }
-.home-note h2, .home-guide h2, .home-authors h2, .home-cite h2, .home-assistant h2 {
+.home-note h2, .home-guide h2, .home-authors h2, .home-cite h2, .home-assistant h2, .home-errata h2 {
   font-size: 1.5rem; margin: 0 0 1rem;
 }
 .home-note h2::after, .home-guide h2::after, .home-authors h2::after,
-.home-cite h2::after, .home-assistant h2::after {
+.home-cite h2::after, .home-assistant h2::after, .home-errata h2::after {
   content: ''; display: block; width: 2rem; height: 2px;
   background: var(--accent); margin-top: 0.6rem;
 }
-.home-note p, .home-guide p, .home-cite p { color: var(--ink-soft); margin: 0 0 1rem; }
+.home-note p, .home-guide p, .home-cite p, .home-errata p { color: var(--ink-soft); margin: 0 0 1rem; }
 .home-authors-intro { color: var(--ink-soft); margin: 0 0 1.75rem; }
 .note-muted { font-size: 0.88em; color: var(--muted); line-height: 1.5; margin-top: 0.75rem; }
 

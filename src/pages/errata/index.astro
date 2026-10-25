@@ -1,7 +1,7 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { publishedChapters, displayNumber } from '../../data/book.js';
-import { erratumUrl, openReportsUrl } from '../../data/errata.js';
+import { erratumUrl } from '../../data/errata.js';
 import errata from '../../data/errata.json';
 
 // Confirmed errata (src/data/errata.json, synced from GitHub issues by
@@ -29,20 +29,10 @@ const fixedCount = errata.items.filter((e) => e.fixed).length;
       confirmed so far. Thank you to every reader who reported one!
     </p>
 
-    <aside class="callout errata-how">
-      <span class="callout-label">Found an error?</span>
-      <p>
-        While reading a chapter online, <strong>select the passage</strong> and click
-        <strong>Report erratum</strong>. The report form opens with the chapter, section and passage
-        already filled in. You can also <a href={erratumUrl()} target="_blank" rel="noopener" data-goatcounter-click="errata/report/general">open the report form directly</a>,
-        which is handy if you are reading the PDF or the print edition.
-      </p>
-      <p>
-        Reports are public GitHub issues, so you need a (free) GitHub account. Please check the
-        list below and the <a href={openReportsUrl} target="_blank" rel="noopener">open reports</a>
-        first in case someone has already reported it.
-      </p>
-    </aside>
+    <p class="errata-intro">
+      Found a new one? See <a href="/#errata">how to report an erratum</a>, or
+      <a href={erratumUrl()} target="_blank" rel="noopener" data-goatcounter-click="errata/report/general">open the report form</a>.
+    </p>
 
     {groups.length === 0 ? (
       <p class="errata-empty">No errata have been confirmed yet.</p>
@@ -79,8 +69,7 @@ const fixedCount = errata.items.filter((e) => e.fixed).length;
 
 <style>
   .errata-intro { color: var(--muted); max-width: 104ch; margin: 0 0 1.5rem; }
-  .errata-how { margin: 0 0 2.5rem; }
-  .errata-how a { color: var(--link); }
+  .errata-intro a { color: var(--link); }
   .errata-empty, .errata-summary { font-family: var(--sans); font-size: 0.9rem; color: var(--muted); }
   .errata-group { padding: 1.5rem 0 0; scroll-margin-top: 4.5rem; }
   .errata-group h2 { font-size: 1.3rem; margin: 0 0 0.9rem; }

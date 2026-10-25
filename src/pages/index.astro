@@ -3,6 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import SetupGuide from '../components/SetupGuide.astro';
 import { publishedChapters } from '../data/book.js';
 import { ADOPTERS } from '../data/adopters.js';
+import { erratumUrl, openReportsUrl } from '../data/errata.js';
 const first = publishedChapters().find((c) => c.number === 1);
 
 const authors = [
@@ -141,6 +142,7 @@ const bibtex = `@book{pora,
       <a href="#site">What's on this site</a>
       <a href="#assistant">Ask the Book: Your AI Tutor</a>
       <a href="#cite">Bibtex</a>
+      <a href="#errata">Errata</a>
     </nav>
   </div>
 
@@ -250,6 +252,27 @@ const bibtex = `@book{pora,
         If you use the book or its materials, please cite it as:
       </p>
       <pre class="cite-block">{bibtex}</pre>
+    </section>
+
+    <section class="home-errata" id="errata">
+      <h2>Report an erratum</h2>
+      <p>
+        Despite our best efforts, errors slip through, and we are grateful to every reader who
+        helps us find them. If you spot a typo, a mathematical error, or an unclear passage,
+        please let us know.
+      </p>
+      <p>
+        While reading a chapter online, <strong>select the passage</strong> and click the
+        <strong>Report erratum</strong> button that appears. The report form opens with the chapter,
+        section and passage already filled in. If you are reading the PDF or the print edition, you
+        can <a href={erratumUrl()} target="_blank" rel="noopener" data-goatcounter-click="errata/report/home">open the report form directly</a>.
+      </p>
+      <p>
+        Reports are public GitHub issues, so you need a (free) GitHub account. Before reporting,
+        please check the <a href="/errata/">confirmed errata</a> and
+        <a href={openReportsUrl} target="_blank" rel="noopener">open reports</a> in case someone has
+        already reported it.
+      </p>
     </section>
   </div>
 </BaseLayout>
