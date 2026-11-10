@@ -14,7 +14,7 @@ const available = (href) => fs.existsSync(path.join(publicDir, href));
 // Courses elsewhere teaching with the book; Stanford is covered above by
 // "Build your course", so `home` entries are skipped here.
 const adopterCourses = ADOPTERS.filter((a) => !a.home)
-  .flatMap((a) => a.courses.map((c) => ({ ...c, institution: a.institution, logo: a.logo })));
+  .flatMap((a) => a.courses.map((c) => ({ ...c, institution: a.institution, logo: a.logo, wide: a.wide })));
 const partLabel = (kind, hrefs, i) =>
   hrefs.length > 1 ? `${kind} · Part ${i + 1}` : kind;
 
@@ -130,19 +130,22 @@ const ackBooks = [
         show other ways to build a syllabus around the book.
       </p>
       <div class="course-cards">
-        {adopterCourses.map((c) => (
-          <a class="course-card" href={c.url} target="_blank" rel="noopener">
-            <img class="course-mark" src={c.logo} alt="" loading="lazy" />
-            <span class="course-card-body">
-              <span class="course-code">{c.institution} · {c.code}</span>
-              <span class="course-name">{c.title}</span>
-              {(c.instructor || c.term) && (
-                <span class="course-meta">{[c.instructor, c.term].filter(Boolean).join(' · ')}</span>
-              )}
-              <span class="course-status">Course website <span class="course-arrow">↗</span></span>
-            </span>
-          </a>
-        ))}
+        {adopterCourses.map((c) => {
+          const Card = c.url ? 'a' : 'div';
+          return (
+            <Card class="course-card" {...(c.url ? { href: c.url, target: '_blank', rel: 'noopener' } : {})}>
+              <img class={`course-mark${c.wide ? ' course-mark-wide' : ''}`} src={c.logo} alt="" loading="lazy" />
+              <span class="course-card-body">
+                <span class="course-code">{c.code ? `${c.institution} · ${c.code}` : c.institution}</span>
+                <span class="course-name">{c.title}</span>
+                {(c.instructor || c.term) && (
+                  <span class="course-meta">{[c.instructor, c.term].filter(Boolean).join(' · ')}</span>
+                )}
+                {c.url && <span class="course-status">Course website <span class="course-arrow">↗</span></span>}
+              </span>
+            </Card>
+          );
+        })}
       </div>
     </section>
 
@@ -252,12 +255,13 @@ const ackBooks = [
     font-family: var(--sans); color: var(--ink);
     transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
   }
-  .course-card:hover {
+  a.course-card:hover {
     text-decoration: none; border-color: var(--accent);
     transform: translateY(-2px);
     box-shadow: 0 12px 24px -16px rgba(20, 30, 50, 0.45);
   }
   .course-mark { height: 2.9rem; width: 2.4rem; object-fit: contain; flex: none; }
+  .course-mark-wide { width: 4.4rem; height: 2.4rem; }
   .instr-section { scroll-margin-top: 4.5rem; }
   .course-card-body { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
   .course-code {

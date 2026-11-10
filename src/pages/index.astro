@@ -117,14 +117,16 @@ const bibtex = `@book{pora,
     <ul class="adopters-strip-list">
       {ADOPTERS.map((a) => (
         <li class="adopter">
-          <img class="adopter-logo" src={a.logo} alt="" loading="lazy" />
+          <img class={`adopter-logo${a.wide ? ' adopter-logo-wide' : ''}`} src={a.logo} alt="" loading="lazy" />
           <span class="adopter-body">
             <span class="adopter-name">{a.short}</span>
             <span class="adopter-courses">
               {a.courses.map((c, i) => (
                 <>
                   {i > 0 && <span class="dot" aria-hidden="true">·</span>}
-                  <a href={c.url} target="_blank" rel="noopener" title={c.title} data-goatcounter-click={`adopter/${a.short}/${c.code}`}>{c.code}</a>
+                  {c.url
+                    ? <a href={c.url} target="_blank" rel="noopener" title={c.title} data-goatcounter-click={`adopter/${a.short}/${c.code}`}>{c.code ?? c.short ?? c.title}</a>
+                    : <span title={c.title}>{c.code ?? c.short ?? c.title}</span>}
                 </>
               ))}
             </span>
